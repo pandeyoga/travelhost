@@ -1,0 +1,7 @@
+{
+  "name": "openwa-service",
+  "private": true,
+  "dependencies": {
+    "@open-wa/wa-automate": "5.0.0-alpha.8"
+  }
+}

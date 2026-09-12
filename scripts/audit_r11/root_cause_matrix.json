@@ -1,0 +1,581 @@
+{
+  "race_matrix": [
+    {
+      "path": "bookings.create_booking",
+      "file": "routers/bookings.py",
+      "find_conflicts": true,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": true,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": true,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "bookings.create_group_booking",
+      "file": "routers/bookings.py",
+      "find_conflicts": true,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": true,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": true,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "bookings.confirm_booking",
+      "file": "routers/bookings.py",
+      "find_conflicts": true,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": true,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": true,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "bookings.reschedule_booking",
+      "file": "routers/bookings.py",
+      "find_conflicts": true,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": true,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": true,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "bookings.approve_booking",
+      "file": "routers/bookings.py",
+      "find_conflicts": true,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": true,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": true,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "bookings.update_booking(PATCH driver)",
+      "file": "routers/bookings.py",
+      "find_conflicts": false,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": false,
+      "vehicle_lock": false,
+      "vehicle_toctou_safe": false,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "dispatch.assign_trip",
+      "file": "routers/dispatch.py",
+      "find_conflicts": true,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": false,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": true,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "quotations.convert",
+      "file": "routers/quotations.py",
+      "find_conflicts": true,
+      "find_driver_conflicts": true,
+      "find_maintenance_conflicts": true,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": true,
+      "driver_conflict_checked": true
+    },
+    {
+      "path": "subcharters.create",
+      "file": "routers/subcharters.py",
+      "find_conflicts": false,
+      "find_driver_conflicts": false,
+      "find_maintenance_conflicts": false,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": false,
+      "driver_conflict_checked": false
+    },
+    {
+      "path": "subcharters.update(PATCH)",
+      "file": "routers/subcharters.py",
+      "find_conflicts": false,
+      "find_driver_conflicts": false,
+      "find_maintenance_conflicts": false,
+      "vehicle_lock": true,
+      "vehicle_toctou_safe": false,
+      "driver_conflict_checked": false
+    },
+    {
+      "path": "public.create_public_booking",
+      "file": "routers/public.py",
+      "find_conflicts": false,
+      "find_driver_conflicts": false,
+      "find_maintenance_conflicts": false,
+      "vehicle_lock": false,
+      "vehicle_toctou_safe": false,
+      "driver_conflict_checked": false
+    },
+    {
+      "path": "driver.checkin",
+      "file": "routers/driver.py",
+      "find_conflicts": false,
+      "find_driver_conflicts": false,
+      "find_maintenance_conflicts": false,
+      "vehicle_lock": false,
+      "vehicle_toctou_safe": false,
+      "driver_conflict_checked": false
+    }
+  ],
+  "negative_matrix": [
+    {
+      "model": "AddOn",
+      "field": "amount",
+      "type": "float",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "BookingCreate",
+      "field": "base_price",
+      "type": "float",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "BookingCreate",
+      "field": "hold_hours",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "BookingApprove",
+      "field": "base_price",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "GroupUnit",
+      "field": "base_price",
+      "type": "float",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "CancelBooking",
+      "field": "cancellation_fee",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "CancelBooking",
+      "field": "refund_amount",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "CheckinRequest",
+      "field": "odometer_start",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "CheckinRequest",
+      "field": "odometer_end",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleCreate",
+      "field": "capacity",
+      "type": "int",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleCreate",
+      "field": "odometer",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleCreate",
+      "field": "service_interval_days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleCreate",
+      "field": "last_service_odometer",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleCreate",
+      "field": "price_from",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleUpdate",
+      "field": "capacity",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleUpdate",
+      "field": "odometer",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleUpdate",
+      "field": "service_interval_days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleUpdate",
+      "field": "last_service_odometer",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "VehicleUpdate",
+      "field": "price_from",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "PaymentCreate",
+      "field": "amount",
+      "type": "float",
+      "bounded": true,
+      "bound": "gt"
+    },
+    {
+      "model": "QuotationCreate",
+      "field": "pax",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "TripEstimateRequest",
+      "field": "pax",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "TripEstimateRequest",
+      "field": "days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "TripEstimateRequest",
+      "field": "distance_km",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "PublicBookingCreate",
+      "field": "pax",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "PricingQuoteRequest",
+      "field": "days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "PricingQuoteRequest",
+      "field": "distance_km",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "QuotationItemIn",
+      "field": "amount",
+      "type": "float",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "QuotationDraftCreate",
+      "field": "pax",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "QuotationDraftCreate",
+      "field": "days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "QuotationDraftCreate",
+      "field": "distance_km",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "QuotationDraftCreate",
+      "field": "valid_days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "QuotationDraftUpdate",
+      "field": "pax",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "LeadCreate",
+      "field": "pax",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "LeadCreate",
+      "field": "value",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "LeadUpdate",
+      "field": "pax",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "LeadUpdate",
+      "field": "value",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "ExpenseCreate",
+      "field": "amount",
+      "type": "float",
+      "bounded": true,
+      "bound": "gt"
+    },
+    {
+      "model": "InvoiceCreate",
+      "field": "amount",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "MaintenanceCreate",
+      "field": "odometer",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "MaintenanceCreate",
+      "field": "cost",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "MaintenanceUpdate",
+      "field": "odometer",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "MaintenanceUpdate",
+      "field": "cost",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "MaintenanceComplete",
+      "field": "odometer",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "MaintenanceComplete",
+      "field": "cost",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "ShareCreate",
+      "field": "hours",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "WaConfigUpdate",
+      "field": "price_per_message",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "WaConfigUpdate",
+      "field": "session_hours",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "SequenceStep",
+      "field": "delay_hours",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "GrowthConfigUpdate",
+      "field": "sla_first_response_hours",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "GrowthConfigUpdate",
+      "field": "at_risk_days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "GrowthConfigUpdate",
+      "field": "churn_days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "MarketingSpendItem",
+      "field": "amount",
+      "type": "float",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "ServiceTypeCreate",
+      "field": "default_interval_days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "ServiceTypeUpdate",
+      "field": "default_interval_days",
+      "type": "Optional[int]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "DriverCompUpdate",
+      "field": "base_salary_monthly",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "DriverCompUpdate",
+      "field": "commission_per_trip",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "DriverCompUpdate",
+      "field": "commission_pct_revenue",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "DriverCompUpdate",
+      "field": "allowance_per_km",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "PayoutLineIn",
+      "field": "amount",
+      "type": "float",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "SubcharterCreate",
+      "field": "cost",
+      "type": "float",
+      "bounded": true,
+      "bound": "gt"
+    },
+    {
+      "model": "SubcharterUpdate",
+      "field": "cost",
+      "type": "Optional[float]",
+      "bounded": true,
+      "bound": "ge"
+    },
+    {
+      "model": "SettlementCreate",
+      "field": "amount",
+      "type": "float",
+      "bounded": true,
+      "bound": "gt"
+    }
+  ],
+  "vehicle_risk_paths": [
+    "bookings.update_booking(PATCH driver)",
+    "subcharters.create",
+    "subcharters.update(PATCH)",
+    "public.create_public_booking",
+    "driver.checkin"
+  ],
+  "driver_gap_paths": [
+    "subcharters.create",
+    "subcharters.update(PATCH)",
+    "public.create_public_booking",
+    "driver.checkin"
+  ],
+  "unbounded_fields": []
+}

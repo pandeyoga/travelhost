@@ -1,0 +1,95 @@
+==============================================================================
+ROUND 11 COVERAGE — CEILING ANALYSIS
+==============================================================================
+Total statements : 7196
+Missed statements: 939  -> statement coverage = 87.0%
+Fully-unreachable (network) modules missed: 57
+Missed EXCLUDING network-ceiling modules: 882  -> adjusted reachable coverage = 87.6% of reachable base
+
+MISS   COV%  FILE  [flags]
+------------------------------------------------------------------------------
+  91   75.8  backend/routers/bookings.py  PARTIAL-CEILING
+  64   71.0  backend/services/whatsapp.py  PARTIAL-CEILING
+  32   26.2  backend/services/geocode.py  CEILING(network)
+  28   77.3  backend/services/gps.py  
+  27   76.4  backend/routers/inbox.py  
+  24   45.2  backend/services/ratelimit.py  PARTIAL-CEILING
+  24   78.6  backend/routers/subcharters.py  
+  23   84.8  backend/routers/leads.py  
+  23   82.7  backend/routers/content.py  
+  22   83.1  backend/routers/quotations.py  
+  21   64.8  backend/services/maintenance.py  
+  21   81.3  backend/routers/driver.py  
+  21   81.1  backend/routers/campaigns.py  
+  20   82.2  backend/routers/payroll.py  
+  19   80.9  backend/services/notifications.py  PARTIAL-CEILING
+  19   67.5  backend/routers/locations.py  
+  18   53.9  backend/services/identity.py  
+  17   60.8  backend/services/segments.py  
+  17   87.1  backend/routers/public.py  
+  17   81.4  backend/routers/maintenance.py  
+  17   87.0  backend/routers/dispatch.py  
+  17   77.8  backend/routers/automation.py  
+  16   85.8  backend/services/growth.py  
+  16   87.1  backend/services/automation.py  
+  16   90.5  backend/services/analytics.py  
+  16   85.8  backend/routers/growth.py  
+  14   79.9  backend/services/trips.py  
+  14   76.6  backend/services/sequences.py  
+  14   80.2  backend/services/availability.py  
+  13   81.0  backend/services/payroll.py  
+  13   81.9  backend/routers/vehicles.py  
+  13   73.4  backend/routers/users.py  
+  11   74.3  backend/services/ads.py  
+  11   86.4  backend/routers/whatsapp.py  
+  10   85.4  backend/services/finance.py  
+  10   82.6  backend/routers/payments.py  
+   8   75.0  backend/services/campaigns.py  
+   8   82.6  backend/routers/trips.py  
+   7   80.3  backend/services/subcharter.py  
+   7   87.9  backend/services/pricing.py  
+   7   68.4  backend/services/osrm.py  CEILING(network)
+   7   59.4  backend/services/geofence.py  CEILING(network)
+   7   81.8  backend/services/attribution.py  
+   7   87.7  backend/routers/partners.py  
+   7   72.7  backend/routers/expenses.py  
+   7   87.6  backend/routers/customers.py  
+   6   57.1  backend/services/maps.py  CEILING(network)
+   6   94.7  backend/services/finance_automation.py  
+   6   86.1  backend/routers/auth.py  
+   5   78.4  backend/services/geo.py  CEILING(network)
+   5   82.4  backend/routers/workshops.py  
+   5   83.8  backend/routers/shares.py  
+   5   89.2  backend/routers/gps.py  
+   4   95.8  backend/services/payroll_export.py  
+   4   97.1  backend/services/finance_export.py  
+   4   97.3  backend/services/exporter.py  
+   4   87.3  backend/routers/service_types.py  
+   4   89.1  backend/routers/drivers.py  
+   4   73.1  backend/routers/audit_logs.py  
+   3   95.9  backend/services/payroll_report.py  
+   3   90.2  backend/services/events.py  
+   3   96.0  backend/services/driver_report.py  
+   3   91.1  backend/services/audit.py  
+   3   83.9  backend/routers/pricing.py  
+   3   91.4  backend/routers/onboarding.py  
+   3   87.0  backend/routers/broadcasts.py  
+   2   75.0  backend/services/wa_payload.py  
+   2   96.0  backend/services/reports.py  
+   2   92.3  backend/services/preventive.py  
+   2   88.6  backend/services/crm.py  
+   2   98.2  backend/services/analytics_export.py  
+   2   93.5  backend/routers/notifications.py  
+   2   95.5  backend/routers/invoices.py  
+   1   97.6  backend/routers/finance.py  
+
+JUSTIFIED CEILING (unreachable without prod-code change or external services):
+  - backend/services/geocode.py: External HTTP (Nominatim/geocoding) — no outbound network in sandbox
+  - backend/services/osrm.py: External HTTP (OSRM routing) — no outbound network
+  - backend/services/maps.py: External map/routing provider HTTP — no outbound network
+  - backend/services/geofence.py: Depends on external geo/route polylines (network-derived)
+  - backend/services/geo.py: Haversine/route fallbacks tied to network geo data
+  - backend/services/whatsapp.py: MetaCloud real Graph API HTTP path (~15 stmts) needs live creds+network
+  - backend/services/ratelimit.py: In-memory fallback path only taken when Mongo is unavailable
+  - backend/services/notifications.py: hold-expiry scan branch needs a PAST-dated hold (not creatable via API)
+  - backend/routers/bookings.py: hold auto-expire + some forced-exception guards are scheduler/fault-only

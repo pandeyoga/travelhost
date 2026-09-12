@@ -1,0 +1,150 @@
+================================================================================================
+(A) RACE / TOCTOU MATRIX — vehicle/driver reservation write paths
+================================================================================================
+write path                             fconf fdrv  fmnt  vlock VEH-SAFE DRV-CHK
+------------------------------------------------------------------------------------------------
+bookings.create_booking                Y     Y     Y     Y     SAFE     Y      
+bookings.create_group_booking          Y     Y     Y     Y     SAFE     Y      
+bookings.confirm_booking               Y     Y     Y     Y     SAFE     Y      
+bookings.reschedule_booking            Y     Y     Y     Y     SAFE     Y      
+bookings.approve_booking               Y     Y     Y     Y     SAFE     Y      
+bookings.update_booking(PATCH driver)  -     Y     -     -     RISK     Y      
+dispatch.assign_trip                   Y     Y     -     -     RISK     Y      
+quotations.convert                     Y     -     Y     -     RISK     NO     
+subcharters.create                     -     -     -     -     RISK     NO     
+subcharters.update(PATCH)              -     -     -     -     RISK     NO     
+public.create_public_booking           -     -     -     -     RISK     NO     
+driver.checkin                         -     -     -     -     RISK     NO     
+
+VEHICLE double-book RISK (no vehicle_lock around re-check): ['bookings.update_booking(PATCH driver)', 'dispatch.assign_trip', 'quotations.convert', 'subcharters.create', 'subcharters.update(PATCH)', 'public.create_public_booking', 'driver.checkin']
+DRIVER conflict NOT checked: ['quotations.convert', 'subcharters.create', 'subcharters.update(PATCH)', 'public.create_public_booking', 'driver.checkin']
+
+================================================================================================
+(B) NEGATIVE-VALUE MATRIX — money/quantity schema fields
+================================================================================================
+model.field                                   type                   bounded 
+------------------------------------------------------------------------------------------------
+AddOn.amount                                  float                  yes(ge) 
+BookingCreate.base_price                      float                  NO      
+BookingCreate.hold_hours                      Optional[int]          NO      
+BookingApprove.base_price                     Optional[float]        NO      
+GroupUnit.base_price                          float                  NO      
+CancelBooking.cancellation_fee                Optional[float]        NO      
+CancelBooking.refund_amount                   Optional[float]        NO      
+CheckinRequest.odometer_start                 Optional[float]        NO      
+CheckinRequest.odometer_end                   Optional[float]        NO      
+VehicleCreate.capacity                        int                    NO      
+VehicleCreate.odometer                        Optional[float]        NO      
+VehicleCreate.service_interval_days           Optional[int]          NO      
+VehicleCreate.last_service_odometer           Optional[float]        NO      
+VehicleCreate.price_from                      Optional[float]        NO      
+VehicleUpdate.capacity                        Optional[int]          NO      
+VehicleUpdate.odometer                        Optional[float]        NO      
+VehicleUpdate.service_interval_days           Optional[int]          NO      
+VehicleUpdate.last_service_odometer           Optional[float]        NO      
+VehicleUpdate.price_from                      Optional[float]        NO      
+PaymentCreate.amount                          float                  yes(gt) 
+QuotationCreate.pax                           Optional[int]          NO      
+TripEstimateRequest.pax                       Optional[int]          NO      
+TripEstimateRequest.days                      Optional[int]          NO      
+TripEstimateRequest.distance_km               Optional[float]        NO      
+PublicBookingCreate.pax                       Optional[int]          NO      
+PricingQuoteRequest.days                      Optional[int]          NO      
+PricingQuoteRequest.distance_km               Optional[float]        NO      
+QuotationItemIn.amount                        float                  yes(ge) 
+QuotationDraftCreate.pax                      Optional[int]          NO      
+QuotationDraftCreate.days                     Optional[int]          NO      
+QuotationDraftCreate.distance_km              Optional[float]        NO      
+QuotationDraftCreate.valid_days               Optional[int]          NO      
+QuotationDraftUpdate.pax                      Optional[int]          NO      
+LeadCreate.pax                                Optional[int]          NO      
+LeadCreate.value                              Optional[float]        NO      
+LeadUpdate.pax                                Optional[int]          NO      
+LeadUpdate.value                              Optional[float]        NO      
+ExpenseCreate.amount                          float                  yes(gt) 
+InvoiceCreate.amount                          Optional[float]        NO      
+MaintenanceCreate.odometer                    Optional[float]        NO      
+MaintenanceCreate.cost                        Optional[float]        NO      
+MaintenanceUpdate.odometer                    Optional[float]        NO      
+MaintenanceUpdate.cost                        Optional[float]        NO      
+MaintenanceComplete.odometer                  Optional[float]        NO      
+MaintenanceComplete.cost                      Optional[float]        NO      
+ShareCreate.hours                             Optional[int]          NO      
+WaConfigUpdate.price_per_message              Optional[float]        NO      
+WaConfigUpdate.session_hours                  Optional[int]          NO      
+SequenceStep.delay_hours                      Optional[float]        NO      
+GrowthConfigUpdate.sla_first_response_hours   Optional[float]        NO      
+GrowthConfigUpdate.at_risk_days               Optional[int]          NO      
+GrowthConfigUpdate.churn_days                 Optional[int]          NO      
+MarketingSpendItem.amount                     float                  NO      
+ServiceTypeCreate.default_interval_days       Optional[int]          NO      
+ServiceTypeUpdate.default_interval_days       Optional[int]          NO      
+DriverCompUpdate.base_salary_monthly          Optional[float]        NO      
+DriverCompUpdate.commission_per_trip          Optional[float]        NO      
+DriverCompUpdate.commission_pct_revenue       Optional[float]        NO      
+DriverCompUpdate.allowance_per_km             Optional[float]        NO      
+PayoutLineIn.amount                           float                  NO      
+SubcharterCreate.cost                         float                  yes(gt) 
+SubcharterUpdate.cost                         Optional[float]        NO      
+SettlementCreate.amount                       float                  yes(gt) 
+
+UNBOUNDED numeric fields (accept negatives at schema layer): 57 / 63
+   - BookingCreate.base_price (float)
+   - BookingCreate.hold_hours (Optional[int])
+   - BookingApprove.base_price (Optional[float])
+   - GroupUnit.base_price (float)
+   - CancelBooking.cancellation_fee (Optional[float])
+   - CancelBooking.refund_amount (Optional[float])
+   - CheckinRequest.odometer_start (Optional[float])
+   - CheckinRequest.odometer_end (Optional[float])
+   - VehicleCreate.capacity (int)
+   - VehicleCreate.odometer (Optional[float])
+   - VehicleCreate.service_interval_days (Optional[int])
+   - VehicleCreate.last_service_odometer (Optional[float])
+   - VehicleCreate.price_from (Optional[float])
+   - VehicleUpdate.capacity (Optional[int])
+   - VehicleUpdate.odometer (Optional[float])
+   - VehicleUpdate.service_interval_days (Optional[int])
+   - VehicleUpdate.last_service_odometer (Optional[float])
+   - VehicleUpdate.price_from (Optional[float])
+   - QuotationCreate.pax (Optional[int])
+   - TripEstimateRequest.pax (Optional[int])
+   - TripEstimateRequest.days (Optional[int])
+   - TripEstimateRequest.distance_km (Optional[float])
+   - PublicBookingCreate.pax (Optional[int])
+   - PricingQuoteRequest.days (Optional[int])
+   - PricingQuoteRequest.distance_km (Optional[float])
+   - QuotationDraftCreate.pax (Optional[int])
+   - QuotationDraftCreate.days (Optional[int])
+   - QuotationDraftCreate.distance_km (Optional[float])
+   - QuotationDraftCreate.valid_days (Optional[int])
+   - QuotationDraftUpdate.pax (Optional[int])
+   - LeadCreate.pax (Optional[int])
+   - LeadCreate.value (Optional[float])
+   - LeadUpdate.pax (Optional[int])
+   - LeadUpdate.value (Optional[float])
+   - InvoiceCreate.amount (Optional[float])
+   - MaintenanceCreate.odometer (Optional[float])
+   - MaintenanceCreate.cost (Optional[float])
+   - MaintenanceUpdate.odometer (Optional[float])
+   - MaintenanceUpdate.cost (Optional[float])
+   - MaintenanceComplete.odometer (Optional[float])
+   - MaintenanceComplete.cost (Optional[float])
+   - ShareCreate.hours (Optional[int])
+   - WaConfigUpdate.price_per_message (Optional[float])
+   - WaConfigUpdate.session_hours (Optional[int])
+   - SequenceStep.delay_hours (Optional[float])
+   - GrowthConfigUpdate.sla_first_response_hours (Optional[float])
+   - GrowthConfigUpdate.at_risk_days (Optional[int])
+   - GrowthConfigUpdate.churn_days (Optional[int])
+   - MarketingSpendItem.amount (float)
+   - ServiceTypeCreate.default_interval_days (Optional[int])
+   - ServiceTypeUpdate.default_interval_days (Optional[int])
+   - DriverCompUpdate.base_salary_monthly (Optional[float])
+   - DriverCompUpdate.commission_per_trip (Optional[float])
+   - DriverCompUpdate.commission_pct_revenue (Optional[float])
+   - DriverCompUpdate.allowance_per_km (Optional[float])
+   - PayoutLineIn.amount (float)
+   - SubcharterUpdate.cost (Optional[float])
+
+Wrote /app/scripts/audit_r11/root_cause_matrix.json

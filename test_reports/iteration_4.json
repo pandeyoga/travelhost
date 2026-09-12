@@ -1,0 +1,35 @@
+{
+  "summary": "Verified vehicle status is now auto-derived. Manual operational Status dropdown (Tersedia/Perawatan/Dalam Perjalanan) has been removed from VehicleFormDialog and replaced by a two-option lifecycle select (Aktif/Nonaktif). Backend E2E confirms full auto-sync: trip start -> vehicle=on_trip + driver=online; trip complete -> vehicle=available + booking=completed + driver=offline; maintenance in_progress -> vehicle=maintenance; maintenance done -> vehicle=available; PATCH without status does NOT clobber on_trip; public /api/public/fleet respects publish_to_web + owned + status=available; /api/public/booking/quote reports available=false when an active confirmed booking overlaps window. All 6 pytest cases pass. Frontend dialog contains vf-lifecycle (2 opts), vf-publish-web checkbox, and vf-ops-status helper text (verified in code + list page shows 'Dalam Perjalanan' / 'Perawatan' derived automatically).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/vehicles table", "issues": ["Orphaned TEST_1789215* rows from earlier iterations still present (V-04..V-08) — cosmetic pollution from previous testing runs, not a code bug. Suggest running: db.vehicles.delete_many({name: /^TEST_/}) or a re-seed."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vehicle_status_sync.py",
+    "/app/test_reports/pytest/vehicle_sync.xml"
+  ],
+  "action_items": [
+    "(Optional) Clean up leftover TEST_ vehicles/customers/drivers left by earlier iterations to keep master lists tidy.",
+    "(Optional cosmetic) In VehicleFormDialog editable dialog, the vf-ops-status helper text is currently only rendered when lifecycle==='active' AND initial.status in {available,on_trip,maintenance}. When editing a vehicle in 'available' state the helper prints 'Tersedia' — consider hiding it for 'available' (only show for operationally-locked states on_trip/maintenance) to avoid noise. Minor UX polish only."
+  ],
+  "critical_code_review_comments": [
+    "VehicleFormDialog.jsx correctly omits status from PATCH payload when lifecycle unchanged (line 116-118) — this is the pivotal fix that keeps on_trip/maintenance operational states intact when ops edits master data.",
+    "routers/vehicles.py PATCH lets caller pass any of the 5 statuses (available/on_trip/maintenance/inactive/sold) — the UI form no longer sends on_trip/maintenance so master-data path is safe, but the endpoint itself is still lenient. Consider server-side guardrail to reject direct 'on_trip'/'maintenance' via master-data PATCH (only trip/maintenance services should own those) for defence-in-depth.",
+    "services/trips.finalize_trip_completion + release_booking_resources only reset vehicle to 'available' when status=='on_trip'; if a vehicle got flipped to 'maintenance' during a trip (edge case), completion will leave it as 'maintenance' which is arguably correct — good invariant.",
+    "public/fleet uses booking_search.publishable_filter (owned + status=available + publish_to_web=True) — inactive/on_trip/maintenance vehicles disappear automatically. Verified."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_vehicle_status_sync.py (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (all UI assertions passed)"},
+  "test_credentials": "owner@demo.local / demo12345 (login returns {token,user}; use Bearer token)",
+  "seed_data_creation": "Each test run creates 1 vehicle + 1 customer + 1 driver + up to 2 bookings + trips + 1 maintenance, all prefixed TEST_ and torn down in fixture teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Auto-sync behaviour verified end-to-end. If further changes touch vehicle status transitions, re-run: pytest backend/tests/test_vehicle_status_sync.py -v. Login token field is 'token' (not 'access_token').",
+  "rca of the issue": "Original complaint: user could manually set vehicle Status in Armada form and wasn't sure whether adding a vehicle would appear on /fleet. Resolution verified: (1) UI removed manual operational status; introduced Lifecycle select (Aktif/Nonaktif) which maps to backend status available/inactive. (2) PATCH without status is a no-op on status field, preserving on_trip/maintenance driven by trip & maintenance services. (3) Public /fleet auto-includes any newly created vehicle where owned + publish_to_web=true + status=available; toggling any of those hides it immediately."
+}

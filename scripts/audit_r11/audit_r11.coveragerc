@@ -1,0 +1,17 @@
+[run]
+branch = True
+parallel = True
+data_file = /app/scripts/audit_r11/covdata/.coverage
+source =
+    routers
+    services
+omit =
+    */__pycache__/*
+    */backend_test_*.py
+    */test_*.py
+    */rbac_ssot_test.py
+
+[report]
+show_missing = True
+skip_empty = True
+precision = 1

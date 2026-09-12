@@ -1,0 +1,6 @@
+# Dipakai hanya bila PROXY_MODE=own (Caddy kita yang memegang 443 / HTTPS).
+services:
+  caddy:
+    ports:
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"

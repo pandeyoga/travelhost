@@ -1,0 +1,6 @@
+
+[1m============================================================[0m
+  MUTATION SMOKE (write-path)  API=http://localhost:8001
+[1m============================================================[0m
+[93m  Backend belum berjalan — skip mutation smoke (Phase 0).[0m
+

@@ -1,0 +1,4004 @@
+{
+  "api": "http://localhost:8001",
+  "total_calls": 495,
+  "by_status": {
+    "200": 373,
+    "422": 12,
+    "403": 4,
+    "400": 28,
+    "404": 48,
+    "500": 3,
+    "EXC": 3,
+    "401": 21,
+    "429": 2,
+    "405": 1
+  },
+  "five_xx": [
+    {
+      "method": "GET",
+      "path": "/api/quotations/quo_6993ac24ded44bd9/pdf",
+      "role": "owner",
+      "note": "EXPORT-1: PDF with <&markup (expect 500)",
+      "status": 500,
+      "snippet": "Internal Server Error"
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/segments/seg_5fa3df35a22d4d9b/preview",
+      "role": "owner",
+      "note": "R6-4: segment preview bad (expect 500)",
+      "status": 500,
+      "snippet": "Internal Server Error"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/destinations",
+      "role": "owner",
+      "note": "R6-5: content position=abc (expect 500)",
+      "status": 500,
+      "snippet": "Internal Server Error"
+    }
+  ],
+  "results": [
+    {
+      "method": "POST",
+      "path": "/api/vehicles",
+      "role": "owner",
+      "note": "create vehicle happy",
+      "status": 200,
+      "snippet": "{\"id\": \"veh_650a3b0e46eb40a2\", \"code\": \"V-05\", \"name\": \"R11 Test Van\", \"plate_number\": \"R11 241952\", \"type\": \"hiace\", \"capacity\": 12, \"status\": \"available\", \"kir_expiry\": null, \"tax_expiry\": null, \"last_service_date\": nu"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/vehicles/veh_650a3b0e46eb40a2",
+      "role": "owner",
+      "note": "patch vehicle",
+      "status": 200,
+      "snippet": "{\"id\": \"veh_650a3b0e46eb40a2\", \"code\": \"V-05\", \"name\": \"R11 Test Van\", \"plate_number\": \"R11 241952\", \"type\": \"hiace\", \"capacity\": 12, \"status\": \"available\", \"kir_expiry\": null, \"tax_expiry\": null, \"last_service_date\": nu"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/vehicles/veh_650a3b0e46eb40a2",
+      "role": "owner",
+      "note": "delete vehicle",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"veh_650a3b0e46eb40a2\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/vehicles",
+      "role": "owner",
+      "note": "create vehicle invalid (422)",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"string_too_short\", \"loc\": [\"body\", \"name\"], \"msg\": \"String should have at least 1 character\", \"input\": \"\", \"ctx\": {\"min_length\": 1}, \"url\": \"https://errors.pydantic.dev/2.13/v/string_too_short\"}, {\""
+    },
+    {
+      "method": "POST",
+      "path": "/api/vehicles",
+      "role": "driver",
+      "note": "RBAC driver create vehicle (403)",
+      "status": 403,
+      "snippet": "{\"detail\": \"Akses ditolak untuk peran ini\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drivers",
+      "role": "owner",
+      "note": "create driver",
+      "status": 200,
+      "snippet": "{\"id\": \"drv_8d06f5d058d346ab\", \"name\": \"R11 Driver\", \"phone\": \"081999000111\", \"sim_number\": \"\", \"sim_expiry\": null, \"status\": \"offline\", \"current_vehicle_id\": null, \"rating\": 0.0, \"created_at\": \"2026-07-05T01:01:17.26135"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/drivers/drv_8d06f5d058d346ab",
+      "role": "owner",
+      "note": "patch driver",
+      "status": 200,
+      "snippet": "{\"id\": \"drv_8d06f5d058d346ab\", \"name\": \"R11 Driver\", \"phone\": \"081999000111\", \"sim_number\": \"\", \"sim_expiry\": null, \"status\": \"online\", \"current_vehicle_id\": null, \"rating\": 4.9, \"created_at\": \"2026-07-05T01:01:17.261355"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/drivers/drv_8d06f5d058d346ab/compensation",
+      "role": "owner",
+      "note": "driver compensation",
+      "status": 200,
+      "snippet": "{\"driver_id\": \"drv_8d06f5d058d346ab\", \"driver_name\": \"R11 Driver\", \"comp\": {\"base_salary_monthly\": 3000000.0, \"commission_per_trip\": 40000.0, \"commission_pct_revenue\": 0.0, \"allowance_per_km\": 0.0, \"revenue_base\": \"trip\""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/drivers/drv_8d06f5d058d346ab",
+      "role": "owner",
+      "note": "delete driver (no active trips)",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"drv_8d06f5d058d346ab\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customers",
+      "role": "owner",
+      "note": "create customer",
+      "status": 200,
+      "snippet": "{\"id\": \"cus_5319aa5f9c2d44f8\", \"name\": \"R11 Cust\", \"phone\": \"081900011122\", \"phone_normalized\": \"+6281900011122\", \"email\": \"\", \"type\": \"individual\", \"city\": \"Bandung\", \"address\": \"\", \"total_trips\": 0, \"lifetime_value\": 0"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/customers/cus_5319aa5f9c2d44f8",
+      "role": "owner",
+      "note": "patch customer",
+      "status": 200,
+      "snippet": "{\"id\": \"cus_5319aa5f9c2d44f8\", \"name\": \"R11 Cust\", \"phone\": \"081900011122\", \"phone_normalized\": \"+6281900011122\", \"email\": \"r11@mail.com\", \"type\": \"individual\", \"city\": \"Bandung\", \"address\": \"\", \"total_trips\": 0, \"lifeti"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/customers/cus_5319aa5f9c2d44f8",
+      "role": "owner",
+      "note": "delete customer",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"cus_5319aa5f9c2d44f8\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/partners",
+      "role": "owner",
+      "note": "create partner",
+      "status": 200,
+      "snippet": "{\"id\": \"ptn_1b474ab3fb3c4829\", \"name\": \"R11 Partner\", \"pic\": \"\", \"phone\": \"0812000333\", \"email\": \"\", \"city\": \"Jakarta\", \"address\": \"\", \"rating\": 0.0, \"notes\": \"\", \"status\": \"active\", \"created_at\": \"2026-07-05T01:01:17.29"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/partners/ptn_1b474ab3fb3c4829",
+      "role": "owner",
+      "note": "patch partner",
+      "status": 200,
+      "snippet": "{\"id\": \"ptn_1b474ab3fb3c4829\", \"name\": \"R11 Partner\", \"pic\": \"\", \"phone\": \"0812000333\", \"email\": \"\", \"city\": \"Jakarta\", \"address\": \"\", \"rating\": 4.2, \"notes\": \"\", \"status\": \"active\", \"created_at\": \"2026-07-05T01:01:17.29"
+    },
+    {
+      "method": "POST",
+      "path": "/api/partners/ptn_1b474ab3fb3c4829/settlements",
+      "role": "owner",
+      "note": "partner settlement",
+      "status": 200,
+      "snippet": "{\"settlement\": {\"id\": \"pst_a4f30e03bc1548ee\", \"partner_id\": \"ptn_1b474ab3fb3c4829\", \"partner_name\": \"R11 Partner\", \"subcharter_id\": null, \"amount\": 500000.0, \"method\": \"transfer\", \"note\": \"r11\", \"paid_at\": \"2026-07-05T01"
+    },
+    {
+      "method": "POST",
+      "path": "/api/partners/ptn_1b474ab3fb3c4829/settlements",
+      "role": "owner",
+      "note": "settlement negative (422 gt=0)",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"greater_than\", \"loc\": [\"body\", \"amount\"], \"msg\": \"Input should be greater than 0\", \"input\": -5, \"ctx\": {\"gt\": 0.0}, \"url\": \"https://errors.pydantic.dev/2.13/v/greater_than\"}]}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/partners/ptn_1b474ab3fb3c4829",
+      "role": "owner",
+      "note": "delete partner",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"ptn_1b474ab3fb3c4829\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/workshops",
+      "role": "owner",
+      "note": "create workshop",
+      "status": 200,
+      "snippet": "{\"id\": \"wsh_cc55acdfe72a4984\", \"name\": \"R11 Bengkel\", \"phone\": \"\", \"address\": \"\", \"city\": \"Bandung\", \"specialties\": [\"servis\"], \"note\": \"\", \"active\": true, \"created_at\": \"2026-07-05T01:01:17.316623+00:00\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/workshops/wsh_cc55acdfe72a4984",
+      "role": "owner",
+      "note": "patch workshop",
+      "status": 200,
+      "snippet": "{\"id\": \"wsh_cc55acdfe72a4984\", \"name\": \"R11 Bengkel\", \"phone\": \"\", \"address\": \"\", \"city\": \"Bandung\", \"specialties\": [\"servis\"], \"note\": \"closed\", \"active\": false, \"created_at\": \"2026-07-05T01:01:17.316623+00:00\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/workshops/wsh_cc55acdfe72a4984",
+      "role": "owner",
+      "note": "delete workshop",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"wsh_cc55acdfe72a4984\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/service-types",
+      "role": "owner",
+      "note": "create service_type",
+      "status": 200,
+      "snippet": "{\"id\": \"svt_dcd38630824e4506\", \"key\": \"r11_service\", \"name\": \"R11 Service\", \"default_interval_km\": 5000.0, \"default_interval_days\": null, \"active\": true, \"created_at\": \"2026-07-05T01:01:17.330009+00:00\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/service-types/svt_dcd38630824e4506",
+      "role": "owner",
+      "note": "patch service_type",
+      "status": 200,
+      "snippet": "{\"id\": \"svt_dcd38630824e4506\", \"key\": \"r11_service\", \"name\": \"R11 Service\", \"default_interval_km\": 5000.0, \"default_interval_days\": null, \"active\": false, \"created_at\": \"2026-07-05T01:01:17.330009+00:00\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/service-types/svt_dcd38630824e4506",
+      "role": "owner",
+      "note": "delete service_type",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"svt_dcd38630824e4506\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "role": "owner",
+      "note": "create user",
+      "status": 200,
+      "snippet": "{\"id\": \"usr_8156894695e54e0e\", \"name\": \"R11 Ops\", \"email\": \"r11ops339855@demo.local\", \"role\": \"ops_admin\", \"phone\": \"\", \"status\": \"active\", \"created_at\": \"2026-07-05T01:01:17.563507+00:00\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/usr_8156894695e54e0e",
+      "role": "owner",
+      "note": "patch user",
+      "status": 200,
+      "snippet": "{\"id\": \"usr_8156894695e54e0e\", \"name\": \"R11 Ops\", \"email\": \"r11ops339855@demo.local\", \"role\": \"ops_admin\", \"phone\": \"0810000\", \"status\": \"active\", \"created_at\": \"2026-07-05T01:01:17.563507+00:00\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/usr_8156894695e54e0e",
+      "role": "owner",
+      "note": "patch user invalid role",
+      "status": 400,
+      "snippet": "{\"detail\": \"Peran tidak valid\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "role": "ops",
+      "note": "RBAC ops create user (403)",
+      "status": 403,
+      "snippet": "{\"detail\": \"Akses ditolak untuk peran ini\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "create booking happy",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_a9d4bf658a0d4b36\", \"code\": \"BK-0019\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"origin\": \"Bandung\", \"destination\": \"Bali\", \"start_dateti"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking end<start (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Tanggal selesai harus setelah tanggal mulai\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking overlap conflict (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Armada bentrok dengan booking aktif: BK-0019\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/bookings/bk_a9d4bf658a0d4b36",
+      "role": "owner",
+      "note": "patch booking",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_a9d4bf658a0d4b36\", \"code\": \"BK-0019\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"origin\": \"Jakarta\", \"destination\": \"Bali\", \"start_dateti"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_a9d4bf658a0d4b36/confirm",
+      "role": "owner",
+      "note": "confirm booking",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_a9d4bf658a0d4b36\", \"code\": \"BK-0019\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"origin\": \"Jakarta\", \"destination\": \"Bali\", \"start_dateti"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_a9d4bf658a0d4b36/reschedule",
+      "role": "owner",
+      "note": "reschedule booking",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_a9d4bf658a0d4b36\", \"code\": \"BK-0019\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"origin\": \"Jakarta\", \"destination\": \"Bali\", \"start_dateti"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_a9d4bf658a0d4b36/reschedule",
+      "role": "owner",
+      "note": "reschedule end<start (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Tanggal selesai harus setelah tanggal mulai\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_a9d4bf658a0d4b36/cancel",
+      "role": "owner",
+      "note": "cancel booking",
+      "status": 400,
+      "snippet": "{\"detail\": \"Refund melebihi terbayar (paid=0)\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/group",
+      "role": "owner",
+      "note": "group booking happy",
+      "status": 200,
+      "snippet": "{\"group_id\": \"grp_3aa42fa97c1f4e24\", \"count\": 1, \"grand_total\": 2000000, \"require_dp\": false, \"bookings\": [{\"id\": \"bk_49ba3e02d6f94d76\", \"code\": \"BK-0020\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07b"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/group",
+      "role": "owner",
+      "note": "group booking internal overlap (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Unit #1 & #2 memakai armada sama dgn waktu tumpang tindih\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/NONEXISTENT/complete",
+      "role": "owner",
+      "note": "complete missing booking (404)",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking require_dp -> hold",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_f1a871576dd74a2e\", \"code\": \"BK-0021\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-11-12T01:01:17.673"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments",
+      "role": "owner",
+      "note": "DP payment on hold -> auto-confirm",
+      "status": 200,
+      "snippet": "{\"id\": \"pay_96c056d5c2004f1b\", \"booking_id\": \"bk_f1a871576dd74a2e\", \"amount\": 1200000, \"type\": \"dp\", \"method\": \"transfer\", \"note\": \"\", \"recorded_by\": \"usr_1b90f69db68d4b13\", \"paid_at\": \"2026-07-05T01:01:17.684839+00:00\","
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_f1a871576dd74a2e/complete",
+      "role": "owner",
+      "note": "complete hold->confirmed booking",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_f1a871576dd74a2e\", \"code\": \"BK-0021\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-11-12T01:01:17.673"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking for cancel-refund",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_f19f5e28a80c4d53\", \"code\": \"BK-0022\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-11-22T01:01:17.708"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_f19f5e28a80c4d53/confirm",
+      "role": "owner",
+      "note": "confirm for cancel-refund",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_f19f5e28a80c4d53\", \"code\": \"BK-0022\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-11-22T01:01:17.708"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments",
+      "role": "owner",
+      "note": "pay before cancel",
+      "status": 200,
+      "snippet": "{\"id\": \"pay_75ae99576d9248db\", \"booking_id\": \"bk_f19f5e28a80c4d53\", \"amount\": 1000000, \"type\": \"dp\", \"method\": \"transfer\", \"note\": \"\", \"recorded_by\": \"usr_1b90f69db68d4b13\", \"paid_at\": \"2026-07-05T01:01:17.740323+00:00\","
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_f19f5e28a80c4d53/cancel",
+      "role": "owner",
+      "note": "cancel with refund+fee (ledger)",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_f19f5e28a80c4d53\", \"code\": \"BK-0022\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-11-22T01:01:17.708"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking for complete-no-trip",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_81fe9459239545a7\", \"code\": \"BK-0023\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-12-02T01:01:17.774"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_81fe9459239545a7/confirm",
+      "role": "owner",
+      "note": "confirm for complete",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_81fe9459239545a7\", \"code\": \"BK-0023\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-12-02T01:01:17.774"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_81fe9459239545a7/complete",
+      "role": "owner",
+      "note": "complete no-trip booking",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_81fe9459239545a7\", \"code\": \"BK-0023\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-12-02T01:01:17.774"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/group",
+      "role": "owner",
+      "note": "group booking auto-price 2 units",
+      "status": 200,
+      "snippet": "{\"group_id\": \"grp_b0ffe7ee77644979\", \"count\": 2, \"grand_total\": 11340000, \"require_dp\": false, \"bookings\": [{\"id\": \"bk_f987de28551044ce\", \"code\": \"BK-0024\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations",
+      "role": "owner",
+      "note": "create quotation (auto-price)",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_2237dc6a0f5446f1\", \"number\": \"QUO-2026-0002\", \"lead_id\": \"led_d5dc6f7faadf4931\", \"customer_id\": null, \"customer_name\": \"R11 Quote\", \"phone\": \"0812777888\", \"phone_normalized\": \"+62812777888\", \"email\": \"\", \"des"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations",
+      "role": "owner",
+      "note": "create quotation w/ markup (EXPORT-1)",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_6993ac24ded44bd9\", \"number\": \"QUO-2026-0003\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"PT A < B & <script>x</script>\", \"phone\": \"0812000999\", \"phone_normalized\": \"+62812000999\", \"email\": \"\", \"d"
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations/quo_6993ac24ded44bd9/pdf",
+      "role": "owner",
+      "note": "EXPORT-1: PDF with <&markup (expect 500)",
+      "status": 500,
+      "snippet": "Internal Server Error"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/quotations/quo_2237dc6a0f5446f1",
+      "role": "owner",
+      "note": "patch quotation",
+      "status": "EXC",
+      "snippet": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations/quo_2237dc6a0f5446f1/pdf",
+      "role": "owner",
+      "note": "quotation PDF clean",
+      "status": 200,
+      "snippet": "%PDF-1.4\n%\ufffd\ufffd\ufffd\ufffd ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font\n>>\nendobj\n3 0 obj\n<<\n"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_2237dc6a0f5446f1/send",
+      "role": "owner",
+      "note": "send quotation",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_2237dc6a0f5446f1\", \"number\": \"QUO-2026-0002\", \"lead_id\": \"led_d5dc6f7faadf4931\", \"customer_id\": null, \"customer_name\": \"R11 Quote\", \"phone\": \"0812777888\", \"phone_normalized\": \"+62812777888\", \"email\": \"\", \"des"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_2237dc6a0f5446f1/accept",
+      "role": "owner",
+      "note": "accept quotation",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_2237dc6a0f5446f1\", \"number\": \"QUO-2026-0002\", \"lead_id\": \"led_d5dc6f7faadf4931\", \"customer_id\": null, \"customer_name\": \"R11 Quote\", \"phone\": \"0812777888\", \"phone_normalized\": \"+62812777888\", \"email\": \"\", \"des"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_2237dc6a0f5446f1/convert",
+      "role": "owner",
+      "note": "convert quotation happy",
+      "status": 200,
+      "snippet": "{\"quotation\": {\"id\": \"quo_2237dc6a0f5446f1\", \"number\": \"QUO-2026-0002\", \"lead_id\": \"led_d5dc6f7faadf4931\", \"customer_id\": \"cus_0c5dd2a4b9f54ff8\", \"customer_name\": \"R11 Quote\", \"phone\": \"0812777888\", \"phone_normalized\": \""
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_2237dc6a0f5446f1/convert",
+      "role": "owner",
+      "note": "double convert (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Penawaran sudah dikonversi menjadi booking\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations",
+      "role": "owner",
+      "note": "create quotation for reject",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_6cd4ab3bc4e14c95\", \"number\": \"QUO-2026-0004\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Reject\", \"phone\": \"0812111000\", \"phone_normalized\": \"+62812111000\", \"email\": \"\", \"destination\": \"\", \"t"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_6cd4ab3bc4e14c95/reject",
+      "role": "owner",
+      "note": "reject quotation",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_6cd4ab3bc4e14c95\", \"number\": \"QUO-2026-0004\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Reject\", \"phone\": \"0812111000\", \"phone_normalized\": \"+62812111000\", \"email\": \"\", \"destination\": \"\", \"t"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/NONE/convert",
+      "role": "owner",
+      "note": "convert missing (404)",
+      "status": 404,
+      "snippet": "{\"detail\": \"Penawaran tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking for dispatch",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_47babe403b6d428f\", \"code\": \"BK-0027\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-10-03T01:01:17.952"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_47babe403b6d428f/confirm",
+      "role": "owner",
+      "note": "confirm for dispatch",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_47babe403b6d428f\", \"code\": \"BK-0027\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-10-03T01:01:17.952"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/bk_47babe403b6d428f/assign",
+      "role": "owner",
+      "note": "dispatch assign happy",
+      "status": 200,
+      "snippet": "{\"trip\": {\"id\": \"trp_26d85ce74af24aad\", \"booking_id\": \"bk_47babe403b6d428f\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/bk_47babe403b6d428f/confirm-departure",
+      "role": "owner",
+      "note": "confirm departure",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"booking\": {\"id\": \"bk_47babe403b6d428f\", \"code\": \"BK-0027\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"origin\": \"\", \"destination\": \"\", "
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/trp_26d85ce74af24aad/enroute",
+      "role": "owner",
+      "note": "trip enroute",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_26d85ce74af24aad\", \"booking_id\": \"bk_47babe403b6d428f\", \"status\": \"to_pickup\", \"start_at\": null, \"end_at\": null, \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:17.9876"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/trp_26d85ce74af24aad/arrived",
+      "role": "owner",
+      "note": "trip arrived",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_26d85ce74af24aad\", \"booking_id\": \"bk_47babe403b6d428f\", \"status\": \"to_pickup\", \"start_at\": null, \"end_at\": null, \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:17.9876"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/trp_26d85ce74af24aad/pod",
+      "role": "owner",
+      "note": "trip POD (finalize)",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_26d85ce74af24aad\", \"booking_id\": \"bk_47babe403b6d428f\", \"status\": \"completed\", \"start_at\": null, \"end_at\": \"2026-07-05T01:01:18.059088+00:00\", \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/NONE/assign",
+      "role": "owner",
+      "note": "assign missing booking (404)",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking for driver checkin",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_ae7f73d7695446d4\", \"code\": \"BK-0028\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_ae7f73d7695446d4/confirm",
+      "role": "owner",
+      "note": "confirm for checkin",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_ae7f73d7695446d4\", \"code\": \"BK-0028\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/checkin",
+      "role": "owner",
+      "note": "manager checkin",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_4d665fb7d4944431\", \"booking_id\": \"bk_ae7f73d7695446d4\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"status\": \"to_pickup\", \"start_at\": \"2026-07-05T01:01:18.121478+00:00\", \"end_a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/checkout",
+      "role": "owner",
+      "note": "manager checkout",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_4d665fb7d4944431\", \"booking_id\": \"bk_ae7f73d7695446d4\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"status\": \"completed\", \"start_at\": \"2026-07-05T01:01:18.121478+00:00\", \"end_a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/tasks/trp_26d85ce74af24aad/ack",
+      "role": "driver",
+      "note": "driver ack task",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_26d85ce74af24aad\", \"booking_id\": \"bk_47babe403b6d428f\", \"status\": \"completed\", \"start_at\": null, \"end_at\": \"2026-07-05T01:01:18.059088+00:00\", \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/checkin",
+      "role": "driver",
+      "note": "driver checkin no ids (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Sertakan trip_id atau booking_id\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments",
+      "role": "owner",
+      "note": "create payment happy",
+      "status": 400,
+      "snippet": "{\"detail\": \"Pembayaran melebihi sisa tagihan (sisa Rp 0)\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments",
+      "role": "owner",
+      "note": "payment negative (422 gt=0)",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"greater_than\", \"loc\": [\"body\", \"amount\"], \"msg\": \"Input should be greater than 0\", \"input\": -100, \"ctx\": {\"gt\": 0.0}, \"url\": \"https://errors.pydantic.dev/2.13/v/greater_than\"}]}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/expenses",
+      "role": "owner",
+      "note": "create expense happy",
+      "status": 200,
+      "snippet": "{\"id\": \"exp_4ae15e1d5ba74ff7\", \"booking_id\": \"bk_0bacf422d01b4539\", \"trip_id\": null, \"category\": \"bbm\", \"amount\": 250000, \"note\": \"r11\", \"booking_code\": \"BK-0006\", \"recorded_by\": \"usr_1b90f69db68d4b13\", \"created_at\": \"20"
+    },
+    {
+      "method": "POST",
+      "path": "/api/expenses",
+      "role": "owner",
+      "note": "expense negative (422 gt=0)",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"greater_than\", \"loc\": [\"body\", \"amount\"], \"msg\": \"Input should be greater than 0\", \"input\": -1, \"ctx\": {\"gt\": 0.0}, \"url\": \"https://errors.pydantic.dev/2.13/v/greater_than\"}]}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices",
+      "role": "owner",
+      "note": "create invoice happy",
+      "status": 200,
+      "snippet": "{\"id\": \"inv_587894842ea043f8\", \"number\": \"INV-2026-0004\", \"booking_id\": \"bk_0bacf422d01b4539\", \"customer_id\": \"cus_54397ddd8a694e58\", \"customer_name\": \"Smoke Customer\", \"booking_code\": \"BK-0006\", \"amount\": 1000000, \"stat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices",
+      "role": "owner",
+      "note": "R6-2: invoice NEGATIVE (expect 200 - bug)",
+      "status": 200,
+      "snippet": "{\"id\": \"inv_69e6f8b3830c47fd\", \"number\": \"INV-2026-0005\", \"booking_id\": \"bk_0bacf422d01b4539\", \"customer_id\": \"cus_54397ddd8a694e58\", \"customer_name\": \"Smoke Customer\", \"booking_code\": \"BK-0006\", \"amount\": -5000000, \"sta"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/invoices/inv_587894842ea043f8",
+      "role": "owner",
+      "note": "invoice status sent",
+      "status": 200,
+      "snippet": "{\"id\": \"inv_587894842ea043f8\", \"number\": \"INV-2026-0004\", \"booking_id\": \"bk_0bacf422d01b4539\", \"customer_id\": \"cus_54397ddd8a694e58\", \"customer_name\": \"Smoke Customer\", \"booking_code\": \"BK-0006\", \"amount\": 1000000, \"stat"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/invoices/inv_587894842ea043f8",
+      "role": "owner",
+      "note": "invoice status paid",
+      "status": 200,
+      "snippet": "{\"id\": \"inv_587894842ea043f8\", \"number\": \"INV-2026-0004\", \"booking_id\": \"bk_0bacf422d01b4539\", \"customer_id\": \"cus_54397ddd8a694e58\", \"customer_name\": \"Smoke Customer\", \"booking_code\": \"BK-0006\", \"amount\": 1000000, \"stat"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/invoices/inv_587894842ea043f8",
+      "role": "owner",
+      "note": "invoice status invalid",
+      "status": 400,
+      "snippet": "{\"detail\": \"Status invoice tidak sah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/finance/ar/remind-all",
+      "role": "owner",
+      "note": "AR remind all",
+      "status": 200,
+      "snippet": "{\"attempted\": 0, \"sent\": 0, \"results\": []}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/finance/ar/bk_0bacf422d01b4539/remind",
+      "role": "owner",
+      "note": "AR remind one",
+      "status": 200,
+      "snippet": "{\"sent\": true, \"runs\": 1, \"customer_name\": \"Smoke Customer\", \"phone\": \"0810000000\", \"amount\": 0.0}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/finance/reconciliation/sync",
+      "role": "owner",
+      "note": "reconciliation sync",
+      "status": 200,
+      "snippet": "{\"updated_count\": 3, \"updated\": [{\"invoice_id\": \"inv_a7bfc6fd5dcb459d\", \"number\": \"INV-2026-0001\", \"from\": \"sent\", \"to\": \"partial\"}, {\"invoice_id\": \"inv_53070da1ad3c46b4\", \"number\": \"INV-2026-0002\", \"from\": \"draft\", \"to\""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/analytics/ad-spend",
+      "role": "owner",
+      "note": "update ad-spend",
+      "status": 200,
+      "snippet": "{\"items\": [{\"channel\": \"website\", \"amount\": 1000000.0}], \"note\": \"r11\", \"updated_at\": \"2026-07-05T01:01:18.237499+00:00\", \"spend_map\": {\"website\": 1000000.0}}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance",
+      "role": "owner",
+      "note": "create maintenance happy",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_7f3bb1bf9dbf48d3\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"R11 servis\", \"description\": \"\", \"scheduled_date\": \"2026-07-10T01:01:18.239125+00:00\", \"s"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance",
+      "role": "owner",
+      "note": "R6-3: maintenance NEGATIVE cost (expect 200 - bug)",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_90fd4cc65ae14f22\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"neg\", \"description\": \"\", \"scheduled_date\": null, \"start_date\": null, \"end_date\": null, \""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/maintenance/mnt_7f3bb1bf9dbf48d3",
+      "role": "owner",
+      "note": "patch maintenance",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_7f3bb1bf9dbf48d3\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"R11 servis\", \"description\": \"\", \"scheduled_date\": \"2026-07-10T01:01:18.239125+00:00\", \"s"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance/mnt_7f3bb1bf9dbf48d3/complete",
+      "role": "owner",
+      "note": "complete maintenance",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_7f3bb1bf9dbf48d3\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"R11 servis\", \"description\": \"\", \"scheduled_date\": \"2026-07-10T01:01:18.239125+00:00\", \"s"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/mnt_7f3bb1bf9dbf48d3",
+      "role": "owner",
+      "note": "delete maintenance",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"mnt_7f3bb1bf9dbf48d3\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance/preventive/veh_4fc07bc7cf534fc8/schedule",
+      "role": "owner",
+      "note": "preventive schedule",
+      "status": 400,
+      "snippet": "{\"detail\": \"Armada belum punya interval servis \\u2014 atur interval dulu\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads",
+      "role": "owner",
+      "note": "create lead",
+      "status": 200,
+      "snippet": "{\"id\": \"led_c02e1d8a159140d0\", \"customer_name\": \"R11 Lead\", \"phone\": \"0812345678\", \"phone_normalized\": \"+62812345678\", \"email\": \"\", \"source\": \"manual\", \"stage\": \"new\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destination\""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/leads/led_c02e1d8a159140d0",
+      "role": "owner",
+      "note": "patch lead",
+      "status": 200,
+      "snippet": "{\"id\": \"led_c02e1d8a159140d0\", \"customer_name\": \"R11 Lead\", \"phone\": \"0812345678\", \"phone_normalized\": \"+62812345678\", \"email\": \"\", \"source\": \"manual\", \"stage\": \"new\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destination\""
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_c02e1d8a159140d0/activities",
+      "role": "owner",
+      "note": "lead activity",
+      "status": 200,
+      "snippet": "{\"id\": \"lac_cddc381411f4427b\", \"lead_id\": \"led_c02e1d8a159140d0\", \"user_id\": \"usr_1b90f69db68d4b13\", \"type\": \"note\", \"text\": \"called customer\", \"from_stage\": null, \"to_stage\": null, \"created_at\": \"2026-07-05T01:01:18.295"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_c02e1d8a159140d0/assign",
+      "role": "owner",
+      "note": "lead assign round-robin",
+      "status": 200,
+      "snippet": "{\"id\": \"led_c02e1d8a159140d0\", \"customer_name\": \"R11 Lead\", \"phone\": \"0812345678\", \"phone_normalized\": \"+62812345678\", \"email\": \"\", \"source\": \"manual\", \"stage\": \"new\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destination\""
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_c02e1d8a159140d0/stage",
+      "role": "owner",
+      "note": "lead stage",
+      "status": 200,
+      "snippet": "{\"id\": \"led_c02e1d8a159140d0\", \"customer_name\": \"R11 Lead\", \"phone\": \"0812345678\", \"phone_normalized\": \"+62812345678\", \"email\": \"\", \"source\": \"manual\", \"stage\": \"contacted\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_c02e1d8a159140d0/stage",
+      "role": "owner",
+      "note": "lead stage invalid",
+      "status": 400,
+      "snippet": "{\"detail\": \"Tahap tidak valid\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_c02e1d8a159140d0/convert",
+      "role": "owner",
+      "note": "lead convert",
+      "status": 200,
+      "snippet": "{\"lead_id\": \"led_c02e1d8a159140d0\", \"customer\": {\"id\": \"cus_859cce32f0424e6e\", \"name\": \"R11 Lead\", \"phone\": \"0812345678\", \"phone_normalized\": \"+62812345678\", \"email\": \"\", \"type\": \"individual\", \"city\": \"\", \"address\": \"\", "
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/segments",
+      "role": "owner",
+      "note": "create segment valid",
+      "status": 200,
+      "snippet": "{\"id\": \"seg_6177c598e86141b4\", \"name\": \"R11 Seg Valid\", \"audience\": \"customer\", \"criteria\": {\"min_value\": 1000000}, \"description\": \"\", \"system\": false, \"created_at\": \"2026-07-05T01:01:18.327113+00:00\", \"updated_at\": \"202"
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/segments/seg_6177c598e86141b4/preview",
+      "role": "owner",
+      "note": "segment preview valid",
+      "status": 200,
+      "snippet": "{\"count\": 4, \"sample\": [{\"target_id\": \"cus_b74bf06c976040f4\", \"name\": \"PT Maju Jaya\", \"phone\": \"022111222\"}, {\"target_id\": \"cus_7c4029704c344435\", \"name\": \"Keluarga Andi\", \"phone\": \"0813222333\"}, {\"target_id\": \"cus_31eb8"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/crm/segments/seg_6177c598e86141b4",
+      "role": "owner",
+      "note": "patch segment",
+      "status": 200,
+      "snippet": "{\"id\": \"seg_6177c598e86141b4\", \"name\": \"R11 Seg Valid\", \"audience\": \"customer\", \"criteria\": {\"min_value\": 1000000}, \"description\": \"r11\", \"system\": false, \"created_at\": \"2026-07-05T01:01:18.327113+00:00\", \"updated_at\": \""
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/segments",
+      "role": "owner",
+      "note": "create segment bad criteria",
+      "status": 200,
+      "snippet": "{\"id\": \"seg_5fa3df35a22d4d9b\", \"name\": \"R11 Seg Bad\", \"audience\": \"customer\", \"criteria\": {\"min_value\": \"abc\"}, \"description\": \"\", \"system\": false, \"created_at\": \"2026-07-05T01:01:18.340485+00:00\", \"updated_at\": \"2026-07"
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/segments/seg_5fa3df35a22d4d9b/preview",
+      "role": "owner",
+      "note": "R6-4: segment preview bad (expect 500)",
+      "status": 500,
+      "snippet": "Internal Server Error"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/segments",
+      "role": "owner",
+      "note": "create segment bad days",
+      "status": "EXC",
+      "snippet": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/sequences",
+      "role": "owner",
+      "note": "create sequence",
+      "status": 200,
+      "snippet": "{\"id\": \"seq_48d5eac685294e99\", \"name\": \"R11 Seq\", \"description\": \"\", \"audience\": \"lead\", \"enabled\": true, \"steps\": [{\"delay_hours\": 0.0, \"action\": \"send_wa\", \"template_key\": null, \"text\": \"Hi {name}\"}, {\"delay_hours\": 24"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/crm/sequences/seq_48d5eac685294e99",
+      "role": "owner",
+      "note": "patch sequence",
+      "status": 200,
+      "snippet": "{\"id\": \"seq_48d5eac685294e99\", \"name\": \"R11 Seq\", \"description\": \"\", \"audience\": \"lead\", \"enabled\": false, \"steps\": [{\"delay_hours\": 0.0, \"action\": \"send_wa\", \"template_key\": null, \"text\": \"Hi {name}\"}, {\"delay_hours\": 2"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/sequences/seq_48d5eac685294e99/enroll",
+      "role": "owner",
+      "note": "enroll sequence",
+      "status": 200,
+      "snippet": "{\"enrolled\": 0, \"enrollment\": null}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/crm/sequences/seq_48d5eac685294e99",
+      "role": "owner",
+      "note": "delete sequence",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"seq_48d5eac685294e99\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/campaigns",
+      "role": "owner",
+      "note": "create campaign",
+      "status": 200,
+      "snippet": "{\"id\": \"cmp_6d2e49c34e674567\", \"name\": \"R11 Campaign\", \"channel\": \"whatsapp\", \"audience\": \"customer\", \"segment_id\": null, \"segment_snapshot\": {\"audience\": \"customer\", \"criteria\": {\"min_value\": 0}}, \"template_key\": null, "
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/crm/campaigns/cmp_6d2e49c34e674567",
+      "role": "owner",
+      "note": "patch campaign",
+      "status": 200,
+      "snippet": "{\"id\": \"cmp_6d2e49c34e674567\", \"name\": \"R11 Campaign\", \"channel\": \"whatsapp\", \"audience\": \"customer\", \"segment_id\": null, \"segment_snapshot\": {\"audience\": \"customer\", \"criteria\": {\"min_value\": 0}}, \"template_key\": null, "
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/campaigns/cmp_6d2e49c34e674567/send",
+      "role": "owner",
+      "note": "send campaign",
+      "status": 200,
+      "snippet": "{\"total\": 6, \"sent\": 6, \"failed\": 0, \"skipped\": 0, \"cost\": 2100.0}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/campaigns/cmp_6d2e49c34e674567/send",
+      "role": "owner",
+      "note": "send campaign again (400 already sent)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Kampanye sudah dikirim/sedang berjalan\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/crm/campaigns/cmp_6d2e49c34e674567",
+      "role": "owner",
+      "note": "delete campaign (may 400 if sent)",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"cmp_6d2e49c34e674567\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/crm/growth-config",
+      "role": "owner",
+      "note": "patch growth config",
+      "status": 200,
+      "snippet": "{\"sla_first_response_hours\": 4.0, \"at_risk_days\": 30, \"churn_days\": 90, \"hot_threshold\": 65, \"warm_threshold\": 35, \"source_weights\": {\"referral\": 25, \"website\": 20, \"whatsapp\": 18, \"instagram\": 15, \"ads\": 15, \"manual\": 1"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/recompute",
+      "role": "owner",
+      "note": "crm recompute",
+      "status": 200,
+      "snippet": "{\"leads_scored\": 4, \"customers_rfm\": 6, \"at_risk_flagged\": 0}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/destinations",
+      "role": "owner",
+      "note": "create destination",
+      "status": 200,
+      "snippet": "{\"slug\": \"r11-dest-438633\", \"name\": \"R11 Dest\", \"region\": \"bali\", \"description\": \"d\", \"lat\": -8.4, \"lng\": 115.1, \"popular\": true, \"position\": 5, \"id\": \"dst_ae9bfd70301b4e38\", \"created_at\": \"2026-07-05T01:01:18.441933+00:"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/content/destinations/dst_ae9bfd70301b4e38",
+      "role": "owner",
+      "note": "update destination",
+      "status": 200,
+      "snippet": "{\"slug\": \"r11-dest-438633\", \"name\": \"R11 Dest Edit\", \"region\": \"bali\", \"description\": \"d\", \"lat\": -8.4, \"lng\": 115.1, \"popular\": true, \"position\": 6, \"id\": \"dst_ae9bfd70301b4e38\", \"created_at\": \"2026-07-05T01:01:18.44193"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/destinations/dst_ae9bfd70301b4e38/duplicate",
+      "role": "owner",
+      "note": "duplicate destination",
+      "status": 200,
+      "snippet": "{\"slug\": \"r11-dest-438633-copy\", \"name\": \"R11 Dest Edit (Salinan)\", \"region\": \"bali\", \"description\": \"d\", \"lat\": -8.4, \"lng\": 115.1, \"popular\": true, \"position\": 6, \"id\": \"dst_5aaff325f375424d\", \"created_at\": \"2026-07-05"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/content/destinations/dst_ae9bfd70301b4e38",
+      "role": "owner",
+      "note": "delete destination",
+      "status": 200,
+      "snippet": "{\"ok\": true}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/destinations",
+      "role": "owner",
+      "note": "R6-5: content position=abc (expect 500)",
+      "status": 500,
+      "snippet": "Internal Server Error"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/packages",
+      "role": "owner",
+      "note": "R6-5b: package price_from non-numeric (expect 500)",
+      "status": "EXC",
+      "snippet": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/packages",
+      "role": "owner",
+      "note": "create package",
+      "status": 200,
+      "snippet": "{\"slug\": \"r11pkg-464472\", \"name\": \"R11 Pkg\", \"days\": 3, \"price_from\": 4000000, \"active\": true, \"id\": \"pkg_11c9bd4312a7433c\", \"created_at\": \"2026-07-05T01:01:18.468468+00:00\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/articles",
+      "role": "owner",
+      "note": "create article",
+      "status": 200,
+      "snippet": "{\"slug\": \"r11art-470164\", \"title\": \"R11 Art\", \"excerpt\": \"e\", \"body\": \"b\", \"read_minutes\": 5, \"published\": true, \"id\": \"art_6db946c327c941bd\", \"created_at\": \"2026-07-05T01:01:18.473244+00:00\", \"published_at\": \"2026-07-05"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/promos",
+      "role": "owner",
+      "note": "create promo",
+      "status": 200,
+      "snippet": "{\"code\": \"R11PROMO474948\", \"title\": \"R11 Promo\", \"discount_type\": \"percent\", \"discount_value\": 10.0, \"active\": true, \"id\": \"pro_7d5dd3a040284076\", \"created_at\": \"2026-07-05T01:01:18.478214+00:00\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/testimonials",
+      "role": "owner",
+      "note": "create testimonial",
+      "status": 200,
+      "snippet": "{\"name\": \"R11 Tsti\", \"role\": \"Cust\", \"quote\": \"Great\", \"rating\": 5, \"approved\": true, \"id\": \"tst_8396822281df4ccb\", \"created_at\": \"2026-07-05T01:01:18.482829+00:00\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/unknownres",
+      "role": "owner",
+      "note": "content unknown resource (404)",
+      "status": 404,
+      "snippet": "{\"detail\": \"Jenis konten tidak dikenal\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payroll/payouts/generate",
+      "role": "owner",
+      "note": "payroll generate (may 400 overlap)",
+      "status": 200,
+      "snippet": "{\"id\": \"dpo_337878e6c2804ee8\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"driver_name\": \"Driver Dua\", \"period_type\": \"monthly\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-05\", \"trips_count\": 1, \"total_km\": 250.0, \"t"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payroll/payouts/generate-bulk",
+      "role": "owner",
+      "note": "payroll generate-bulk",
+      "status": 200,
+      "snippet": "{\"created\": [{\"id\": \"dpo_19ce4809908a486b\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"driver_name\": \"Driver Satu\", \"total\": 4000000}, {\"id\": \"dpo_aca662e753e04bdf\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"driver_name\": \"Driver"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/payroll/payouts/dpo_aca662e753e04bdf",
+      "role": "owner",
+      "note": "patch payout",
+      "status": 200,
+      "snippet": "{\"id\": \"dpo_aca662e753e04bdf\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"driver_name\": \"Driver Dua\", \"period_type\": \"monthly\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"trips_count\": 0, \"total_km\": 0, \"total"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/payroll/payouts/dpo_aca662e753e04bdf",
+      "role": "owner",
+      "note": "O-6: payout negative bonus (expect 200)",
+      "status": 200,
+      "snippet": "{\"id\": \"dpo_aca662e753e04bdf\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"driver_name\": \"Driver Dua\", \"period_type\": \"monthly\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"trips_count\": 0, \"total_km\": 0, \"total"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payroll/payouts/dpo_aca662e753e04bdf/approve",
+      "role": "owner",
+      "note": "approve payout",
+      "status": 200,
+      "snippet": "{\"id\": \"dpo_aca662e753e04bdf\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"driver_name\": \"Driver Dua\", \"period_type\": \"monthly\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"trips_count\": 0, \"total_km\": 0, \"total"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payroll/payouts/dpo_aca662e753e04bdf/pay",
+      "role": "owner",
+      "note": "pay payout",
+      "status": 200,
+      "snippet": "{\"id\": \"dpo_aca662e753e04bdf\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"driver_name\": \"Driver Dua\", \"period_type\": \"monthly\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"trips_count\": 0, \"total_km\": 0, \"total"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/payroll/payouts/dpo_19ce4809908a486b",
+      "role": "owner",
+      "note": "delete draft payout",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"dpo_19ce4809908a486b\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters",
+      "role": "owner",
+      "note": "create subcharter",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_003ee7cb702c4759\", \"code\": \"SC-0002\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/subcharters/sbc_003ee7cb702c4759",
+      "role": "owner",
+      "note": "R6-1: subcharter PATCH end<start (expect 200 - bug)",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_003ee7cb702c4759\", \"code\": \"SC-0002\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/subcharters/sbc_003ee7cb702c4759",
+      "role": "owner",
+      "note": "patch subcharter cost",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_003ee7cb702c4759\", \"code\": \"SC-0002\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_003ee7cb702c4759/confirm",
+      "role": "owner",
+      "note": "confirm subcharter",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_003ee7cb702c4759\", \"code\": \"SC-0002\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_003ee7cb702c4759/settle",
+      "role": "owner",
+      "note": "settle subcharter",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_003ee7cb702c4759\", \"code\": \"SC-0002\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters",
+      "role": "owner",
+      "note": "create subcharter for cancel",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_b678f3fbfd6443c0\", \"code\": \"SC-0003\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_b678f3fbfd6443c0/cancel",
+      "role": "owner",
+      "note": "cancel subcharter",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_b678f3fbfd6443c0\", \"code\": \"SC-0003\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations",
+      "role": "owner",
+      "note": "create conversation",
+      "status": 200,
+      "snippet": "{\"id\": \"cnv_5bcbd598e29c4721\", \"channel\": \"internal\", \"contact_name\": \"R11 Contact\", \"contact_phone\": \"0812999888\", \"subject\": \"R11 subject\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"lead_id\": null, \"status\": \"open\", \"ass"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_5bcbd598e29c4721/messages",
+      "role": "owner",
+      "note": "conversation message",
+      "status": 200,
+      "snippet": "{\"id\": \"msg_9b7cfca0d6754e4b\", \"conversation_id\": \"cnv_5bcbd598e29c4721\", \"sender\": \"agent\", \"author_id\": \"usr_1b90f69db68d4b13\", \"body\": \"pesan r11\", \"internal\": false, \"status\": \"delivered\", \"created_at\": \"2026-07-05T0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_5bcbd598e29c4721/messages",
+      "role": "owner",
+      "note": "internal note",
+      "status": 200,
+      "snippet": "{\"id\": \"msg_068da54c9432456b\", \"conversation_id\": \"cnv_5bcbd598e29c4721\", \"sender\": \"agent\", \"author_id\": \"usr_1b90f69db68d4b13\", \"body\": \"catatan internal\", \"internal\": true, \"status\": \"sent\", \"created_at\": \"2026-07-05T"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_5bcbd598e29c4721/read",
+      "role": "owner",
+      "note": "conversation read",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"id\": \"cnv_5bcbd598e29c4721\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_5bcbd598e29c4721/wa-optin",
+      "role": "owner",
+      "note": "wa optin",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"id\": \"cnv_5bcbd598e29c4721\", \"wa_opt_in\": true}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_5bcbd598e29c4721/wa-optout",
+      "role": "owner",
+      "note": "wa optout",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"id\": \"cnv_5bcbd598e29c4721\", \"wa_opt_in\": false}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/cnv_5bcbd598e29c4721",
+      "role": "owner",
+      "note": "patch conversation",
+      "status": 200,
+      "snippet": "{\"id\": \"cnv_5bcbd598e29c4721\", \"channel\": \"internal\", \"contact_name\": \"R11 Contact\", \"contact_phone\": \"0812999888\", \"subject\": \"R11 subject\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"lead_id\": null, \"status\": \"closed\", \"a"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/wa/config",
+      "role": "owner",
+      "note": "wa config patch",
+      "status": 200,
+      "snippet": "{\"provider\": \"mock\", \"business_phone\": \"\", \"price_per_message\": 350, \"session_hours\": 24, \"auto_reply_enabled\": true, \"auto_reply_text\": \"Halo r11\", \"away_reply_text\": \"Terima kasih telah menghubungi {company}. Saat ini "
+    },
+    {
+      "method": "PUT",
+      "path": "/api/wa/templates/r11_tpl",
+      "role": "owner",
+      "note": "wa template upsert",
+      "status": 200,
+      "snippet": "{\"key\": \"r11_tpl\", \"name\": \"R11\", \"language\": \"id\", \"category\": \"utility\", \"body\": \"Halo {name} r11\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "owner",
+      "note": "wa simulate inbound",
+      "status": 200,
+      "snippet": "{\"status\": \"received\", \"conversation_id\": \"cnv_51cbec84382a4e94\", \"lead_created\": true}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/test-send",
+      "role": "owner",
+      "note": "wa test-send",
+      "status": 200,
+      "snippet": "{\"status\": \"sent\", \"conversation_id\": \"cnv_51cbec84382a4e94\", \"message_id\": \"msg_c442a06567a84653\", \"cost\": 350.0, \"within_session\": true, \"provider\": \"mock\", \"wa_message_id\": \"wamid.mock_ce6c79c2b0dc9e95\", \"error\": null"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/wa/templates/r11_tpl",
+      "role": "owner",
+      "note": "wa template delete",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"key\": \"r11_tpl\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/webhook",
+      "role": "unauth",
+      "note": "O-5: wa webhook unauth (mock)",
+      "status": 200,
+      "snippet": "{\"status\": \"ok\", \"received\": 1}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/wa/webhook?hub.mode=subscribe&hub.verify_token=x&hub.challenge=123",
+      "role": "unauth",
+      "note": "wa webhook verify GET",
+      "status": 403,
+      "snippet": "{\"detail\": \"Verifikasi webhook gagal\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "create automation rule",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_cf9aa70834ec469b\", \"name\": \"R11 Rule\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"source\", \"op\": \"eq\", \"value\": \"website\"}], \"actions\": [{\"typ"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/automation/rules/aur_cf9aa70834ec469b",
+      "role": "owner",
+      "note": "patch automation rule",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_cf9aa70834ec469b\", \"name\": \"R11 Rule\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": false, \"system\": false, \"conditions\": [{\"field\": \"source\", \"op\": \"eq\", \"value\": \"website\"}], \"actions\": [{\"ty"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/automation/rules/aur_cf9aa70834ec469b",
+      "role": "owner",
+      "note": "delete automation rule",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"aur_cf9aa70834ec469b\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/devices/veh_4fc07bc7cf534fc8/assign",
+      "role": "owner",
+      "note": "gps device assign",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"gps\": {\"imei\": \"R11IMEI123456\", \"provider\": \"traccar\", \"enabled\": true, \"note\": \"\", \"installed_at\": \"2026-07-05T01:01:18.703839+00:00\"}}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/gps/devices/veh_4fc07bc7cf534fc8",
+      "role": "owner",
+      "note": "gps device delete",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"vehicle_id\": \"veh_4fc07bc7cf534fc8\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook",
+      "role": "unauth",
+      "note": "gps webhook",
+      "status": 401,
+      "snippet": "{\"detail\": \"Token webhook GPS tidak valid\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/locations",
+      "role": "owner",
+      "note": "location ingest",
+      "status": 200,
+      "snippet": "{\"id\": \"loc_66c7592cd6f041bd\", \"trip_id\": \"trp_7a819693fda1447d\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.91, \"lng\": 107.61, \"speed\": 30.0, \"heading\": 0.0, \"timestamp\": \"2026-"
+    },
+    {
+      "method": "POST",
+      "path": "/api/locations",
+      "role": "owner",
+      "note": "location invalid coords (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Koordinat di luar rentang valid (-90..90 / -180..180)\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules/reset-defaults",
+      "role": "owner",
+      "note": "automation reset-defaults",
+      "status": 200,
+      "snippet": "{\"installed\": 20}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "rule create_task",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_2150bd6e4a1543eb\", \"name\": \"R11 lead.created create_task\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [], \"actions\": [{\"type\": \"create_task\", \"params\": {\""
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "rule create_notification",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_d8776382d6be4b83\", \"name\": \"R11 booking.confirmed create_notification\", \"description\": \"\", \"event_type\": \"booking.confirmed\", \"enabled\": true, \"system\": false, \"conditions\": [], \"actions\": [{\"type\": \"create_n"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "rule schedule_followup",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_c1b48b2910f14b9d\", \"name\": \"R11 quotation.sent schedule_followup\", \"description\": \"\", \"event_type\": \"quotation.sent\", \"enabled\": true, \"system\": false, \"conditions\": [], \"actions\": [{\"type\": \"schedule_followu"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "rule assign_agent",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_4310cf243bc745c9\", \"name\": \"R11 lead.created assign_agent\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [], \"actions\": [{\"type\": \"assign_agent\", \"params\": "
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads",
+      "role": "owner",
+      "note": "lead to trigger automation",
+      "status": 200,
+      "snippet": "{\"id\": \"led_3347de7fbebf4cb1\", \"customer_name\": \"R11 Auto Lead\", \"phone\": \"0812555000\", \"phone_normalized\": \"+62812555000\", \"email\": \"\", \"source\": \"website\", \"stage\": \"new\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations",
+      "role": "owner",
+      "note": "quo to trigger",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_fb5766ad57a34993\", \"number\": \"QUO-2026-0005\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Auto Quo\", \"phone\": \"0812555111\", \"phone_normalized\": \"+62812555111\", \"email\": \"\", \"destination\": \"\", "
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_fb5766ad57a34993/send",
+      "role": "owner",
+      "note": "send quo -> event",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_fb5766ad57a34993\", \"number\": \"QUO-2026-0005\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Auto Quo\", \"phone\": \"0812555111\", \"phone_normalized\": \"+62812555111\", \"email\": \"\", \"destination\": \"\", "
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/devices/veh_4fc07bc7cf534fc8/assign",
+      "role": "owner",
+      "note": "gps assign for webhook",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"gps\": {\"imei\": \"R11DEV798786\", \"provider\": \"traccar\", \"enabled\": true, \"note\": \"r11\", \"installed_at\": \"2026-07-05T01:01:18.802793+00:00\"}}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook?token=r11audit-secret",
+      "role": "unauth",
+      "note": "gps webhook traccar (authed)",
+      "status": 200,
+      "snippet": "{\"status\": \"ok\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"source\": \"device\", \"trip_id\": null, \"speed_kmh\": 37.0, \"alarm\": null}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook?token=r11audit-secret",
+      "role": "unauth",
+      "note": "gps webhook invalid coord",
+      "status": 200,
+      "snippet": "{\"status\": \"ignored\", \"reason\": \"invalid_coord\", \"imei\": \"R11DEV798786\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook?token=r11audit-secret",
+      "role": "unauth",
+      "note": "gps webhook unmapped imei",
+      "status": 200,
+      "snippet": "{\"status\": \"ignored\", \"reason\": \"imei_unmapped\", \"imei\": \"UNMAPPED999\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook",
+      "role": "unauth",
+      "note": "gps webhook no token (401)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Token webhook GPS tidak valid\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/live",
+      "role": "owner",
+      "note": "gps read",
+      "status": 200,
+      "snippet": "[{\"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"vehicle_name\": \"Hiace Commuter Mitra (Sejahtera)\", \"plate_number\": \"D 7777 MT\", \"driver_id\": null, \"driver_name\": null, \"trip_id\": null, \"lat\": -6.9, \"lng\": 107.62, \"speed\": 37.0,"
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/devices",
+      "role": "owner",
+      "note": "gps read",
+      "status": 200,
+      "snippet": "[{\"vehicle_id\": \"veh_4b7f476c06954ef7\", \"code\": \"V-01\", \"name\": \"Hiace Premio 01\", \"plate_number\": \"D 1234 AA\", \"imei\": null, \"enabled\": false, \"provider\": \"traccar\", \"note\": null, \"installed_at\": null, \"has_device\": fal"
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/summary",
+      "role": "owner",
+      "note": "gps read",
+      "status": 200,
+      "snippet": "{\"total_vehicles\": 5, \"with_device\": 1, \"online\": 1, \"offline\": 0, \"alarms\": 0}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/gps/devices/veh_4fc07bc7cf534fc8",
+      "role": "owner",
+      "note": "gps unassign after webhook",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"vehicle_id\": \"veh_4fc07bc7cf534fc8\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/campaigns/cmp_7eb54dfaaedd4f11",
+      "role": "owner",
+      "note": "campaign detail (incl recipients)",
+      "status": 200,
+      "snippet": "{\"id\": \"cmp_7eb54dfaaedd4f11\", \"name\": \"Promo Akhir Pekan\", \"channel\": \"whatsapp\", \"audience\": \"customer\", \"segment_id\": \"seg_22ab9469d384481a\", \"segment_snapshot\": {\"audience\": \"customer\", \"criteria\": {}}, \"template_key"
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/sequences/seq_f93dc3c1d9e54773/enrollments",
+      "role": "owner",
+      "note": "sequence enrollments",
+      "status": 200,
+      "snippet": "[]"
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/scoreboard",
+      "role": "owner",
+      "note": "crm scoreboard",
+      "status": 200,
+      "snippet": "{\"leads\": [{\"id\": \"led_beb7f0f5d2ab49d0\", \"customer_name\": \"Komunitas Goes Bandung\", \"phone\": \"08153004444\", \"phone_normalized\": \"+628153004444\", \"email\": \"goes@komunitas.id\", \"source\": \"website\", \"stage\": \"negotiation\","
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/rfm",
+      "role": "owner",
+      "note": "crm rfm",
+      "status": 200,
+      "snippet": "{\"customers\": [{\"id\": \"cus_54397ddd8a694e58\", \"name\": \"Smoke Customer\", \"phone\": \"0810000000\", \"recency_days\": 0, \"frequency\": 1, \"monetary\": 3000000.0, \"r\": 5, \"f\": 2, \"m\": 2, \"rfm_segment\": \"Pelanggan Baru\", \"lifecycle"
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/aging",
+      "role": "owner",
+      "note": "crm aging",
+      "status": 200,
+      "snippet": "{\"buckets\": {\"breached\": [], \"at_risk\": [], \"on_track\": [{\"id\": \"led_8595312010ec4d50\", \"customer_name\": \"Budi Santoso\", \"phone\": \"08150001111\", \"phone_normalized\": \"+628150001111\", \"email\": \"budi@mail.com\", \"source\": \"w"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "role": "owner",
+      "note": "auth me",
+      "status": 200,
+      "snippet": "{\"id\": \"usr_1b90f69db68d4b13\", \"name\": \"Pemilik\", \"email\": \"owner@demo.local\", \"role\": \"owner\", \"phone\": \"0811000001\", \"status\": \"active\", \"created_at\": \"2026-07-05T01:01:01.643876+00:00\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "role": "ops",
+      "note": "auth logout",
+      "status": 200,
+      "snippet": "{\"ok\": true}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "invalid login (401)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "invalid login (401)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "invalid login (401)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Email atau kata sandi salah\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 429,
+      "snippet": "{\"detail\": \"Terlalu banyak percobaan masuk. Coba lagi beberapa menit.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "ratelimit brute (expect 429 after 8)",
+      "status": 429,
+      "snippet": "{\"detail\": \"Terlalu banyak percobaan masuk. Coba lagi beberapa menit.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "role": "unauth",
+      "note": "login empty body",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"missing\", \"loc\": [\"body\", \"email\"], \"msg\": \"Field required\", \"input\": {}, \"url\": \"https://errors.pydantic.dev/2.13/v/missing\"}, {\"type\": \"missing\", \"loc\": [\"body\", \"password\"], \"msg\": \"Field require"
+    },
+    {
+      "method": "GET",
+      "path": "/api/driver/my-trips",
+      "role": "driver",
+      "note": "driver my-trips",
+      "status": 200,
+      "snippet": "[{\"id\": \"trp_26d85ce74af24aad\", \"booking_id\": \"bk_47babe403b6d428f\", \"status\": \"completed\", \"start_at\": null, \"end_at\": \"2026-07-05T01:01:18.059088+00:00\", \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created"
+    },
+    {
+      "method": "GET",
+      "path": "/api/driver/summary",
+      "role": "driver",
+      "note": "driver summary",
+      "status": 200,
+      "snippet": "{\"is_driver\": true, \"driver_name\": \"Driver Satu\", \"total\": 4, \"today\": 3, \"active\": 2, \"completed\": 2, \"need_pod\": 1}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/driver/tasks",
+      "role": "driver",
+      "note": "driver tasks",
+      "status": 200,
+      "snippet": "[{\"trip_id\": \"trp_26d85ce74af24aad\", \"booking_id\": \"bk_47babe403b6d428f\", \"code\": \"BK-0027\", \"customer_name\": \"CV Sentosa Wisata\", \"customer_phone\": \"0227778889\", \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/tasks/trp_7a819693fda1447d/ack",
+      "role": "driver",
+      "note": "driver ack own trip",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_7a819693fda1447d\", \"booking_id\": \"bk_2b5d72f6f4a64d3e\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 3800000.0, "
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/tasks/trp_7a819693fda1447d/arrived",
+      "role": "driver",
+      "note": "driver arrived own trip",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_7a819693fda1447d\", \"booking_id\": \"bk_2b5d72f6f4a64d3e\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 3800000.0, "
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/tasks/trp_7a819693fda1447d/pod",
+      "role": "driver",
+      "note": "driver POD own trip",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_7a819693fda1447d\", \"booking_id\": \"bk_2b5d72f6f4a64d3e\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 3800000.0, "
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/tasks/trp_notowned/ack",
+      "role": "driver",
+      "note": "driver ack missing trip (404)",
+      "status": 404,
+      "snippet": "{\"detail\": \"Trip tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/sequences",
+      "role": "owner",
+      "note": "sched sequence",
+      "status": 200,
+      "snippet": "{\"id\": \"seq_07705bad94684ed2\", \"name\": \"R11 Sched Seq\", \"description\": \"\", \"audience\": \"lead\", \"enabled\": true, \"steps\": [{\"delay_hours\": 0.0, \"action\": \"send_wa\", \"template_key\": null, \"text\": \"Halo {name}, step-0 r11\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/sequences/seq_07705bad94684ed2/enroll",
+      "role": "owner",
+      "note": "enroll lead (due now)",
+      "status": 200,
+      "snippet": "{\"enrolled\": 1, \"enrollment\": {\"id\": \"enr_99f5d599e1c340eb\", \"sequence_id\": \"seq_07705bad94684ed2\", \"sequence_name\": \"R11 Sched Seq\", \"audience\": \"lead\", \"target_id\": \"led_d5dc6f7faadf4931\", \"name\": \"Calon Pelanggan\", \"p"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/segments",
+      "role": "owner",
+      "note": "segment for member enroll",
+      "status": 200,
+      "snippet": "{\"id\": \"seg_104caa2771d144a0\", \"name\": \"R11 Sched Seg\", \"audience\": \"lead\", \"criteria\": {}, \"description\": \"\", \"system\": false, \"created_at\": \"2026-07-05T01:01:19.908739+00:00\", \"updated_at\": \"2026-07-05T01:01:19.908739+"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/sequences",
+      "role": "owner",
+      "note": "sched sequence2",
+      "status": 200,
+      "snippet": "{\"id\": \"seq_dc3cc86b9a674d76\", \"name\": \"R11 Sched Seq2\", \"description\": \"\", \"audience\": \"lead\", \"enabled\": true, \"steps\": [{\"delay_hours\": 0.0, \"action\": \"send_wa\", \"template_key\": null, \"text\": \"Hi {name}\"}], \"stats\": {"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/sequences/seq_dc3cc86b9a674d76/enroll",
+      "role": "owner",
+      "note": "enroll segment members",
+      "status": 200,
+      "snippet": "{\"enrolled\": 11, \"from_segment\": \"seg_104caa2771d144a0\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/crm/campaigns",
+      "role": "owner",
+      "note": "scheduled campaign (past)",
+      "status": 200,
+      "snippet": "{\"id\": \"cmp_5219ecc4eeb5452a\", \"name\": \"R11 Scheduled Campaign\", \"channel\": \"whatsapp\", \"audience\": \"customer\", \"segment_id\": null, \"segment_snapshot\": {\"audience\": \"customer\", \"criteria\": {\"min_value\": 0}}, \"template_ke"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/articles",
+      "role": "owner",
+      "note": "content list articles",
+      "status": 200,
+      "snippet": "[{\"slug\": \"r11art-470164\", \"title\": \"R11 Art\", \"excerpt\": \"e\", \"body\": \"b\", \"read_minutes\": 5, \"published\": true, \"id\": \"art_6db946c327c941bd\", \"created_at\": \"2026-07-05T01:01:18.473244+00:00\", \"published_at\": \"2026-07-0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/articles",
+      "role": "owner",
+      "note": "content create articles",
+      "status": 200,
+      "snippet": "{\"slug\": \"art-946009\", \"title\": \"A\", \"excerpt\": \"e\", \"body\": \"b\", \"read_minutes\": 3, \"published\": true, \"id\": \"art_353d9b3d354e4054\", \"created_at\": \"2026-07-05T01:01:19.954106+00:00\", \"published_at\": \"2026-07-05T01:01:19"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/content/articles/art_353d9b3d354e4054",
+      "role": "owner",
+      "note": "content update articles",
+      "status": 200,
+      "snippet": "{\"slug\": \"art-946009\", \"title\": \"A\", \"excerpt\": \"e\", \"body\": \"b\", \"read_minutes\": 3, \"published\": false, \"id\": \"art_353d9b3d354e4054\", \"created_at\": \"2026-07-05T01:01:19.954106+00:00\", \"published_at\": \"2026-07-05T01:01:1"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/articles/art_353d9b3d354e4054/duplicate",
+      "role": "owner",
+      "note": "content duplicate articles",
+      "status": 200,
+      "snippet": "{\"slug\": \"art-946009-copy\", \"title\": \"A (Salinan)\", \"excerpt\": \"e\", \"body\": \"b\", \"read_minutes\": 3, \"published\": false, \"published_at\": \"2026-07-05T01:01:19.954115+00:00\", \"id\": \"art_9a029e4fe740432d\", \"created_at\": \"202"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/content/articles/art_353d9b3d354e4054",
+      "role": "owner",
+      "note": "content delete articles",
+      "status": 200,
+      "snippet": "{\"ok\": true}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/packages",
+      "role": "owner",
+      "note": "content list packages",
+      "status": 200,
+      "snippet": "[{\"id\": \"pkg_0848dd6e1381471b\", \"slug\": \"bromo-sunrise-3h2m\", \"name\": \"Bromo Sunrise 3H2M\", \"destination\": \"Gunung Bromo\", \"description\": \"Paket sunrise Penanjakan + kawah, termasuk Hiace & driver.\", \"days\": 3, \"price_fr"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/packages",
+      "role": "owner",
+      "note": "content create packages",
+      "status": 200,
+      "snippet": "{\"slug\": \"pkg-946009\", \"name\": \"P\", \"days\": 2, \"price_from\": 1000000, \"active\": true, \"id\": \"pkg_9eb93b2187c048d5\", \"created_at\": \"2026-07-05T01:01:19.978032+00:00\"}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/content/packages/pkg_9eb93b2187c048d5",
+      "role": "owner",
+      "note": "content update packages",
+      "status": 200,
+      "snippet": "{\"slug\": \"pkg-946009\", \"name\": \"P\", \"days\": 2, \"price_from\": 1000000, \"active\": false, \"id\": \"pkg_9eb93b2187c048d5\", \"created_at\": \"2026-07-05T01:01:19.978032+00:00\", \"updated_at\": \"2026-07-05T01:01:19.983222+00:00\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/packages/pkg_9eb93b2187c048d5/duplicate",
+      "role": "owner",
+      "note": "content duplicate packages",
+      "status": 200,
+      "snippet": "{\"slug\": \"pkg-946009-copy\", \"name\": \"P (Salinan)\", \"days\": 2, \"price_from\": 1000000, \"active\": false, \"id\": \"pkg_9b26569be4ca4f1f\", \"created_at\": \"2026-07-05T01:01:19.988934+00:00\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/content/packages/pkg_9eb93b2187c048d5",
+      "role": "owner",
+      "note": "content delete packages",
+      "status": 200,
+      "snippet": "{\"ok\": true}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/promos",
+      "role": "owner",
+      "note": "content list promos",
+      "status": 200,
+      "snippet": "[{\"code\": \"R11PROMO474948\", \"title\": \"R11 Promo\", \"discount_type\": \"percent\", \"discount_value\": 10.0, \"active\": true, \"id\": \"pro_7d5dd3a040284076\", \"created_at\": \"2026-07-05T01:01:18.478214+00:00\"}, {\"id\": \"pro_0968b1f10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/promos",
+      "role": "owner",
+      "note": "content create promos",
+      "status": 200,
+      "snippet": "{\"code\": \"PR946009\", \"title\": \"Promo\", \"discount_type\": \"percent\", \"discount_value\": 5.0, \"active\": true, \"id\": \"pro_78c042a1ff604d39\", \"created_at\": \"2026-07-05T01:01:20.004362+00:00\"}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/content/promos/pro_78c042a1ff604d39",
+      "role": "owner",
+      "note": "content update promos",
+      "status": 200,
+      "snippet": "{\"code\": \"PR946009\", \"title\": \"Promo\", \"discount_type\": \"percent\", \"discount_value\": 5.0, \"active\": false, \"id\": \"pro_78c042a1ff604d39\", \"created_at\": \"2026-07-05T01:01:20.004362+00:00\", \"updated_at\": \"2026-07-05T01:01:2"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/promos/pro_78c042a1ff604d39/duplicate",
+      "role": "owner",
+      "note": "content duplicate promos",
+      "status": 200,
+      "snippet": "{\"code\": \"PR946009-copy\", \"title\": \"Promo (Salinan)\", \"discount_type\": \"percent\", \"discount_value\": 5.0, \"active\": false, \"id\": \"pro_0b9598a541f34f90\", \"created_at\": \"2026-07-05T01:01:20.016648+00:00\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/content/promos/pro_78c042a1ff604d39",
+      "role": "owner",
+      "note": "content delete promos",
+      "status": 200,
+      "snippet": "{\"ok\": true}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/testimonials",
+      "role": "owner",
+      "note": "content list testimonials",
+      "status": 200,
+      "snippet": "[{\"name\": \"R11 Tsti\", \"role\": \"Cust\", \"quote\": \"Great\", \"rating\": 5, \"approved\": true, \"id\": \"tst_8396822281df4ccb\", \"created_at\": \"2026-07-05T01:01:18.482829+00:00\"}, {\"id\": \"tst_e1aa19d22c6941c9\", \"name\": \"Keluarga Wij"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/testimonials",
+      "role": "owner",
+      "note": "content create testimonials",
+      "status": 200,
+      "snippet": "{\"name\": \"T\", \"role\": \"Cust\", \"quote\": \"Nice\", \"rating\": 4, \"approved\": true, \"id\": \"tst_dac0becc15a043f9\", \"created_at\": \"2026-07-05T01:01:20.029905+00:00\"}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/content/testimonials/tst_dac0becc15a043f9",
+      "role": "owner",
+      "note": "content update testimonials",
+      "status": 200,
+      "snippet": "{\"name\": \"T\", \"role\": \"Cust\", \"quote\": \"Nice\", \"rating\": 4, \"approved\": true, \"id\": \"tst_dac0becc15a043f9\", \"created_at\": \"2026-07-05T01:01:20.029905+00:00\", \"updated_at\": \"2026-07-05T01:01:20.034560+00:00\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/testimonials/tst_dac0becc15a043f9/duplicate",
+      "role": "owner",
+      "note": "content duplicate testimonials",
+      "status": 200,
+      "snippet": "{\"name\": \"T (Salinan)\", \"role\": \"Cust\", \"quote\": \"Nice\", \"rating\": 4, \"approved\": false, \"id\": \"tst_d6b61fcfd4bd4237\", \"created_at\": \"2026-07-05T01:01:20.039760+00:00\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/content/testimonials/tst_dac0becc15a043f9",
+      "role": "owner",
+      "note": "content delete testimonials",
+      "status": 200,
+      "snippet": "{\"ok\": true}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/content/articles/NOPE",
+      "role": "owner",
+      "note": "content update 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Konten tidak ditemukan\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/content/packages/NOPE",
+      "role": "owner",
+      "note": "content delete 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Konten tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/promos/NOPE/duplicate",
+      "role": "owner",
+      "note": "content duplicate 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Konten sumber tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/unknownresource",
+      "role": "owner",
+      "note": "content unknown resource GET (404)",
+      "status": 404,
+      "snippet": "{\"detail\": \"Jenis konten tidak dikenal\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/wa/config",
+      "role": "owner",
+      "note": "wa config -> meta_cloud (no creds)",
+      "status": 200,
+      "snippet": "{\"provider\": \"meta_cloud\", \"business_phone\": \"\", \"price_per_message\": 350, \"session_hours\": 24, \"auto_reply_enabled\": true, \"auto_reply_text\": \"Halo r11\", \"away_reply_text\": \"Terima kasih telah menghubungi {company}. Saa"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/test-send",
+      "role": "owner",
+      "note": "wa test-send meta (failed no creds)",
+      "status": 200,
+      "snippet": "{\"status\": \"failed\", \"conversation_id\": \"cnv_44ec67c748b14d65\", \"message_id\": \"msg_24e4406bdb8043e2\", \"cost\": 0.0, \"within_session\": false, \"provider\": \"meta_cloud\", \"wa_message_id\": null, \"error\": \"Kredensial Meta Cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound 'harga sewa hia'",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound 'STOP'",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound 'info lokasi ka'",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound 'mau booking be'",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound 'BERHENTI'",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound 'terima kasih'",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound from known customer",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/wa/simulate-inbound",
+      "role": "unauth",
+      "note": "inbound empty (ignored)",
+      "status": 401,
+      "snippet": "{\"detail\": \"Tidak terautentikasi\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/wa/config",
+      "role": "owner",
+      "note": "wa config -> mock (revert)",
+      "status": 200,
+      "snippet": "{\"provider\": \"mock\", \"business_phone\": \"\", \"price_per_message\": 350, \"session_hours\": 24, \"auto_reply_enabled\": true, \"auto_reply_text\": \"Halo r11\", \"away_reply_text\": \"Di luar jam kerja\", \"meta\": {\"phone_number_id\": \"\","
+    },
+    {
+      "method": "PUT",
+      "path": "/api/wa/templates/r11_extra",
+      "role": "owner",
+      "note": "wa template for send",
+      "status": 200,
+      "snippet": "{\"key\": \"r11_extra\", \"name\": \"R11 Extra\", \"language\": \"id\", \"category\": \"utility\", \"body\": \"Halo {name}, kode {code}\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_44ec67c748b14d65/wa-optout",
+      "role": "owner",
+      "note": "optout for skip test",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"id\": \"cnv_44ec67c748b14d65\", \"wa_opt_in\": false}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_44ec67c748b14d65/messages",
+      "role": "owner",
+      "note": "send to opted-out (skip)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Kontak telah memilih berhenti (opt-out) WhatsApp\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/cnv_44ec67c748b14d65/wa-optin",
+      "role": "owner",
+      "note": "optin restore",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"id\": \"cnv_44ec67c748b14d65\", \"wa_opt_in\": true}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/wa/templates/r11_extra",
+      "role": "owner",
+      "note": "cleanup template",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"key\": \"r11_extra\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_task",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_73dfcf2b026b4c18\", \"name\": \"R11 cond create_task eq\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"source\", \"op\": \"eq\", \"value\": \"website\"}], \"a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_notification",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_fec793d10dd542d4\", \"name\": \"R11 cond create_notification ne\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"source\", \"op\": \"ne\", \"value\": \"walk_i"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_notification",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_a4b7bc85d13344a0\", \"name\": \"R11 cond create_notification contains\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"destination\", \"op\": \"contains\","
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_task",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_3b272ea281d04884\", \"name\": \"R11 cond create_task in\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"source\", \"op\": \"in\", \"value\": [\"website\", \"me"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_notification",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_02da60bce10a44d2\", \"name\": \"R11 cond create_notification gt\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"value\", \"op\": \"gt\", \"value\": 1000}], "
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_notification",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_a9a1ca10c42344c1\", \"name\": \"R11 cond create_notification lt\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"value\", \"op\": \"lt\", \"value\": 99999999"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_task",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_f313f71c592545ef\", \"name\": \"R11 cond create_task exists\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"phone\", \"op\": \"exists\", \"value\": null}], "
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_task",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_5a0dff0b9df24a7d\", \"name\": \"R11 cond create_task eq\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"customer.name\", \"op\": \"eq\", \"value\": \"x\"}], \""
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule create_notification",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_6c56832cfe5340df\", \"name\": \"R11 cond create_notification eq\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"source\", \"op\": \"eq\", \"value\": \"IMPOSS"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule totally_unknown_action_type",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_08dfaa82caeb49b9\", \"name\": \"R11 cond totally_unknown_action_type none\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [], \"actions\": [{\"type\": \"totally_unkno"
+    },
+    {
+      "method": "POST",
+      "path": "/api/automation/rules",
+      "role": "owner",
+      "note": "cond rule enroll_sequence",
+      "status": 200,
+      "snippet": "{\"id\": \"aur_54dd0dee18824456\", \"name\": \"R11 cond enroll_sequence exists\", \"description\": \"\", \"event_type\": \"lead.created\", \"enabled\": true, \"system\": false, \"conditions\": [{\"field\": \"phone\", \"op\": \"exists\", \"value\": null"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads",
+      "role": "owner",
+      "note": "lead matching many conds",
+      "status": 200,
+      "snippet": "{\"id\": \"led_49d40cd3bb944e58\", \"customer_name\": \"R11 Match Lead\", \"phone\": \"0812600011\", \"phone_normalized\": \"+62812600011\", \"email\": \"\", \"source\": \"website\", \"stage\": \"new\", \"assigned_to\": \"usr_89ce7f73e8774f6f\", \"desti"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads",
+      "role": "owner",
+      "note": "lead not matching (skip path)",
+      "status": 200,
+      "snippet": "{\"id\": \"led_c9566f426e734f24\", \"customer_name\": \"R11 NoMatch\", \"phone\": \"0812600022\", \"phone_normalized\": \"+62812600022\", \"email\": \"\", \"source\": \"walk_in\", \"stage\": \"new\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destinat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking for trip-finalize",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_2324412b57fa4d6c\", \"code\": \"BK-0029\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-12-22T01:01:20.259"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_2324412b57fa4d6c/confirm",
+      "role": "owner",
+      "note": "confirm for finalize",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_2324412b57fa4d6c\", \"code\": \"BK-0029\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-12-22T01:01:20.259"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/bk_2324412b57fa4d6c/assign",
+      "role": "owner",
+      "note": "assign for finalize",
+      "status": 200,
+      "snippet": "{\"trip\": {\"id\": \"trp_f578523aaa7a4545\", \"booking_id\": \"bk_2324412b57fa4d6c\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 2000000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/bk_2324412b57fa4d6c/assign",
+      "role": "owner",
+      "note": "assign already-assigned (400)",
+      "status": 200,
+      "snippet": "{\"trip\": {\"id\": \"trp_f578523aaa7a4545\", \"booking_id\": \"bk_2324412b57fa4d6c\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 2000000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_2324412b57fa4d6c/complete",
+      "role": "owner",
+      "note": "complete WITH active trip (finalize_trip_completion)",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_2324412b57fa4d6c\", \"code\": \"BK-0029\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2026-"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/booking",
+      "role": "unauth",
+      "note": "public pending for approve",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_65242434ed3f454c\", \"code\": \"BK-0030\", \"status\": \"received\", \"message\": \"Permintaan pesanan diterima. Tim kami akan mengonfirmasi ketersediaan & harga via WhatsApp.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_65242434ed3f454c/approve",
+      "role": "owner",
+      "note": "approve auto-price + driver",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_65242434ed3f454c\", \"code\": \"BK-0030\", \"customer_id\": \"cus_baf3fb75e14b40ae\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"origin\": \"Bandung\", \"destination\": \"Bali\", \"start_dateti"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters",
+      "role": "owner",
+      "note": "subcharter for edges",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_aa3f294da7634936\", \"code\": \"SC-0004\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_aa3f294da7634936/confirm",
+      "role": "owner",
+      "note": "confirm subcharter edge",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_aa3f294da7634936\", \"code\": \"SC-0004\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_aa3f294da7634936/confirm",
+      "role": "owner",
+      "note": "confirm again (idempotent/400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Order sudah dikonfirmasi/selesai/dibatalkan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_aa3f294da7634936/settle",
+      "role": "owner",
+      "note": "settle subcharter edge",
+      "status": 200,
+      "snippet": "{\"id\": \"sbc_aa3f294da7634936\", \"code\": \"SC-0004\", \"booking_id\": \"bk_0bacf422d01b4539\", \"booking_code\": \"BK-0006\", \"partner_id\": \"ptn_9f4ca2597f184705\", \"partner_name\": \"CV Armada Nusantara\", \"vehicle_id\": null, \"vehicle_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_aa3f294da7634936/settle",
+      "role": "owner",
+      "note": "settle again (400/over)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Hanya order 'confirmed' yang bisa dilunasi\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/sbc_aa3f294da7634936/cancel",
+      "role": "owner",
+      "note": "cancel settled (400?)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Order sudah dilunasi \\u2014 tidak bisa dibatalkan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking bad customer (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Customer tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking bad vehicle (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Armada tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking bad driver (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Driver tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking missing dates (400)",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"missing\", \"loc\": [\"body\", \"start_datetime\"], \"msg\": \"Field required\", \"input\": {\"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"base_price\": 1000}, \"url\": \"https://erro"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking bad date format (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Format tanggal tidak valid\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/group",
+      "role": "owner",
+      "note": "group booking empty units (400)",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"too_short\", \"loc\": [\"body\", \"units\"], \"msg\": \"List should have at least 1 item after validation, not 0\", \"input\": [], \"ctx\": {\"field_type\": \"List\", \"min_length\": 1, \"actual_length\": 0}, \"url\": \"http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/group",
+      "role": "owner",
+      "note": "group bad customer (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Customer tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "booking 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/bookings/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "booking patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/NONEXISTENT_ID_R11/confirm",
+      "role": "owner",
+      "note": "confirm 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/NONEXISTENT_ID_R11/cancel",
+      "role": "owner",
+      "note": "cancel 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/NONEXISTENT_ID_R11/approve",
+      "role": "owner",
+      "note": "approve 404",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"missing\", \"loc\": [\"body\", \"vehicle_id\"], \"msg\": \"Field required\", \"input\": {}, \"url\": \"https://errors.pydantic.dev/2.13/v/missing\"}]}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/NONEXISTENT_ID_R11/reject",
+      "role": "owner",
+      "note": "reject 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/NONEXISTENT_ID_R11/reschedule",
+      "role": "owner",
+      "note": "reschedule 404",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"missing\", \"loc\": [\"body\", \"start_datetime\"], \"msg\": \"Field required\", \"input\": {}, \"url\": \"https://errors.pydantic.dev/2.13/v/missing\"}, {\"type\": \"missing\", \"loc\": [\"body\", \"end_datetime\"], \"msg\": \""
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "quotation 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Penawaran tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations/NONEXISTENT_ID_R11/pdf",
+      "role": "owner",
+      "note": "quotation pdf 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Penawaran tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/NONEXISTENT_ID_R11/send",
+      "role": "owner",
+      "note": "quo send 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Penawaran tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/NONEXISTENT_ID_R11/accept",
+      "role": "owner",
+      "note": "quo accept 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Penawaran tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/NONEXISTENT_ID_R11/reject",
+      "role": "owner",
+      "note": "quo reject 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Penawaran tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subcharters/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "subcharter 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Sub-charter tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/subcharters/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "subcharter patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Sub-charter tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/NONEXISTENT_ID_R11/confirm",
+      "role": "owner",
+      "note": "subcharter confirm 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Sub-charter tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/NONEXISTENT_ID_R11/settle",
+      "role": "owner",
+      "note": "subcharter settle 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Sub-charter tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/subcharters/NONEXISTENT_ID_R11/cancel",
+      "role": "owner",
+      "note": "subcharter cancel 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Sub-charter tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "conversation 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Percakapan tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "conversation patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Percakapan tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/NONEXISTENT_ID_R11/read",
+      "role": "owner",
+      "note": "conversation read 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Percakapan tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "maintenance 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Catatan perawatan tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/maintenance/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "maintenance patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Catatan perawatan tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance/NONEXISTENT_ID_R11/complete",
+      "role": "owner",
+      "note": "maintenance complete 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Catatan perawatan tidak ditemukan\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/maintenance/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "maintenance delete 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Catatan perawatan tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "trip 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Trip tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/NONEXISTENT_ID_R11/track",
+      "role": "owner",
+      "note": "trip track 404",
+      "status": 200,
+      "snippet": "[]"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/NONEXISTENT_ID_R11/eta",
+      "role": "owner",
+      "note": "trip eta 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Trip tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/NONEXISTENT_ID_R11/confirm-departure",
+      "role": "owner",
+      "note": "confirm-departure 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/NONEXISTENT_ID_R11/enroute",
+      "role": "owner",
+      "note": "enroute 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Trip tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/NONEXISTENT_ID_R11/arrived",
+      "role": "owner",
+      "note": "arrived 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Trip tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/NONEXISTENT_ID_R11/trips",
+      "role": "owner",
+      "note": "vehicle trips 404/empty",
+      "status": 404,
+      "snippet": "{\"detail\": \"Kendaraan tidak ditemukan\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/drivers/NONEXISTENT_ID_R11/performance",
+      "role": "owner",
+      "note": "driver perf 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Driver tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/vehicles/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "vehicle patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Kendaraan tidak ditemukan\"}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/vehicles/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "vehicle delete 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Kendaraan tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/drivers/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "driver patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Driver tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/customers/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "customer patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Customer tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/partners/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "partner patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Mitra tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/leads/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "lead patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Lead tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/NONEXISTENT_ID_R11/convert",
+      "role": "owner",
+      "note": "lead convert 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Lead tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "user patch 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"User tidak ditemukan\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/invoices/NONEXISTENT_ID_R11",
+      "role": "owner",
+      "note": "invoice patch 404",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"missing\", \"loc\": [\"body\", \"status\"], \"msg\": \"Field required\", \"input\": {}, \"url\": \"https://errors.pydantic.dev/2.13/v/missing\"}]}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments",
+      "role": "owner",
+      "note": "payment bad booking",
+      "status": 400,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices",
+      "role": "owner",
+      "note": "invoice bad booking",
+      "status": 400,
+      "snippet": "{\"detail\": \"Booking tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/trips/trp_7a819693fda1447d/status",
+      "role": "owner",
+      "note": "trip status invalid",
+      "status": 400,
+      "snippet": "{\"detail\": \"Status trip tidak valid\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations/live",
+      "role": "owner",
+      "note": "locations live",
+      "status": 200,
+      "snippet": "[{\"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"vehicle_name\": \"Hiace Commuter Mitra (Sejahtera)\", \"plate_number\": \"D 7777 MT\", \"driver_id\": null, \"driver_name\": null, \"trip_id\": null, \"lat\": -6.9, \"lng\": 107.62, \"speed\": 37.0,"
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations/history?trip_id=trp_7a819693fda1447d",
+      "role": "owner",
+      "note": "locations history",
+      "status": 200,
+      "snippet": "[{\"id\": \"loc_66c7592cd6f041bd\", \"trip_id\": \"trp_7a819693fda1447d\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.91, \"lng\": 107.61, \"speed\": 30.0, \"heading\": 0.0, \"timestamp\": \"2026"
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations?status=draft",
+      "role": "owner",
+      "note": "quotations filter status",
+      "status": 200,
+      "snippet": "[{\"id\": \"quo_6993ac24ded44bd9\", \"number\": \"QUO-2026-0003\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"PT A < B & <script>x</script>\", \"phone\": \"0812000999\", \"phone_normalized\": \"+62812000999\", \"email\": \"\", \""
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations?lead_id=led_d5dc6f7faadf4931",
+      "role": "owner",
+      "note": "quotations filter lead",
+      "status": 200,
+      "snippet": "[{\"id\": \"quo_2237dc6a0f5446f1\", \"number\": \"QUO-2026-0002\", \"lead_id\": \"led_d5dc6f7faadf4931\", \"customer_id\": \"cus_0c5dd2a4b9f54ff8\", \"customer_name\": \"R11 Quote\", \"phone\": \"0812777888\", \"phone_normalized\": \"+62812777888\""
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations",
+      "role": "owner",
+      "note": "quotation for reprice",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_4ba19d7709c74555\", \"number\": \"QUO-2026-0006\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Reprice\", \"phone\": \"0812700011\", \"phone_normalized\": \"+62812700011\", \"email\": \"\", \"destination\": \"\", \""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/quotations/quo_4ba19d7709c74555",
+      "role": "owner",
+      "note": "quotation patch items (recompute)",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_4ba19d7709c74555\", \"number\": \"QUO-2026-0006\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Reprice\", \"phone\": \"0812700011\", \"phone_normalized\": \"+62812700011\", \"email\": \"\", \"destination\": \"\", \""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/quotations/quo_4ba19d7709c74555",
+      "role": "owner",
+      "note": "quotation patch re-price",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_4ba19d7709c74555\", \"number\": \"QUO-2026-0006\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Reprice\", \"phone\": \"0812700011\", \"phone_normalized\": \"+62812700011\", \"email\": \"\", \"destination\": \"\", \""
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_4ba19d7709c74555/send",
+      "role": "owner",
+      "note": "send repriced quo",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_4ba19d7709c74555\", \"number\": \"QUO-2026-0006\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Reprice\", \"phone\": \"0812700011\", \"phone_normalized\": \"+62812700011\", \"email\": \"\", \"destination\": \"\", \""
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_4ba19d7709c74555/accept",
+      "role": "owner",
+      "note": "accept repriced quo",
+      "status": 200,
+      "snippet": "{\"id\": \"quo_4ba19d7709c74555\", \"number\": \"QUO-2026-0006\", \"lead_id\": null, \"customer_id\": null, \"customer_name\": \"R11 Reprice\", \"phone\": \"0812700011\", \"phone_normalized\": \"+62812700011\", \"email\": \"\", \"destination\": \"\", \""
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_4ba19d7709c74555/convert",
+      "role": "owner",
+      "note": "convert bad vehicle (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Armada tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/quotations/quo_4ba19d7709c74555/convert",
+      "role": "owner",
+      "note": "convert w/ driver (Q-BUG-1 path)",
+      "status": 200,
+      "snippet": "{\"quotation\": {\"id\": \"quo_4ba19d7709c74555\", \"number\": \"QUO-2026-0006\", \"lead_id\": null, \"customer_id\": \"cus_a5f9b0efbc234dba\", \"customer_name\": \"R11 Reprice\", \"phone\": \"0812700011\", \"phone_normalized\": \"+62812700011\", \""
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/chat",
+      "role": "unauth",
+      "note": "public chat -> token",
+      "status": 200,
+      "snippet": "{\"token\": \"AhpLKy-7P8x4YasiFaY2LsMK\", \"status\": \"received\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/chat/AhpLKy-7P8x4YasiFaY2LsMK",
+      "role": "unauth",
+      "note": "public chat history by token",
+      "status": 200,
+      "snippet": "{\"token\": \"AhpLKy-7P8x4YasiFaY2LsMK\", \"status\": \"open\", \"messages\": [{\"sender\": \"customer\", \"body\": \"Halo, info harga?\", \"created_at\": \"2026-07-05T01:01:20.652411+00:00\"}]}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/chat/AhpLKy-7P8x4YasiFaY2LsMK",
+      "role": "unauth",
+      "note": "public chat reply by token",
+      "status": 405,
+      "snippet": "{\"detail\": \"Method Not Allowed\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/chat/BADTOKEN",
+      "role": "unauth",
+      "note": "public chat bad token (404)",
+      "status": 404,
+      "snippet": "{\"detail\": \"Percakapan tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/booking",
+      "role": "unauth",
+      "note": "public booking existing phone (dedup)",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_13620886631d4272\", \"code\": \"BK-0032\", \"status\": \"received\", \"message\": \"Permintaan pesanan diterima. Tim kami akan mengonfirmasi ketersediaan & harga via WhatsApp.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/shares",
+      "role": "owner",
+      "note": "share for public track",
+      "status": 200,
+      "snippet": "{\"id\": \"shr_13947c6572504b91\", \"token\": \"7bSLVuz-Xua1TKoS5DwxZLuRqHihSdk6\", \"trip_id\": \"trp_7a819693fda1447d\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"label\": \"Hiace Premio 01\", \"expires"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/track/7bSLVuz-Xua1TKoS5DwxZLuRqHihSdk6",
+      "role": "unauth",
+      "note": "public track by token",
+      "status": 200,
+      "snippet": "{\"label\": \"Hiace Premio 01\", \"vehicle_name\": \"Hiace Premio 01\", \"plate_number\": \"D 1234 AA\", \"status\": \"standby\", \"dest_name\": \"Yogyakarta\", \"destination\": {\"lat\": -7.7956, \"lng\": 110.3695}, \"current\": {\"lat\": -6.91, \"ln"
+    },
+    {
+      "method": "POST",
+      "path": "/api/locations",
+      "role": "driver",
+      "note": "driver location ingest",
+      "status": 200,
+      "snippet": "{\"id\": \"loc_1a6244020a364823\", \"trip_id\": \"trp_db4d5606cfdd4458\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.9, \"lng\": 107.6, \"speed\": 45.0, \"heading\": 90.0, \"timestamp\": \"2026-0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/locations",
+      "role": "driver",
+      "note": "driver location ingest",
+      "status": 200,
+      "snippet": "{\"id\": \"loc_c576a8e7bc404101\", \"trip_id\": \"trp_db4d5606cfdd4458\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.85, \"lng\": 107.55, \"speed\": 45.0, \"heading\": 90.0, \"timestamp\": \"2026"
+    },
+    {
+      "method": "POST",
+      "path": "/api/locations",
+      "role": "driver",
+      "note": "driver location ingest",
+      "status": 200,
+      "snippet": "{\"id\": \"loc_275b176931b14260\", \"trip_id\": \"trp_db4d5606cfdd4458\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.8, \"lng\": 107.5, \"speed\": 45.0, \"heading\": 90.0, \"timestamp\": \"2026-0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations/history?trip_id=trp_db4d5606cfdd4458",
+      "role": "owner",
+      "note": "locations history w/ data",
+      "status": 200,
+      "snippet": "[{\"id\": \"loc_5e142f29fa454ce3\", \"trip_id\": \"trp_db4d5606cfdd4458\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.9147, \"lng\": 107.6098, \"speed\": 42.0, \"heading\": 78.0, \"timestamp\": "
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/trp_db4d5606cfdd4458/track",
+      "role": "owner",
+      "note": "trip track w/ data",
+      "status": 200,
+      "snippet": "[{\"id\": \"loc_5e142f29fa454ce3\", \"trip_id\": \"trp_db4d5606cfdd4458\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.9147, \"lng\": 107.6098, \"speed\": 42.0, \"heading\": 78.0, \"timestamp\": "
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/trp_db4d5606cfdd4458/eta",
+      "role": "owner",
+      "note": "trip eta w/ data",
+      "status": 200,
+      "snippet": "{\"available\": true, \"eta_minutes\": 623.6, \"distance_km\": 821.16, \"approx\": false, \"dest_name\": \"Bromo\", \"from\": {\"lat\": -6.8, \"lng\": 107.5}, \"to\": {\"lat\": -7.9425, \"lng\": 112.953}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations/live",
+      "role": "owner",
+      "note": "locations live w/ data",
+      "status": 200,
+      "snippet": "[{\"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"vehicle_name\": \"Hiace Commuter Mitra (Sejahtera)\", \"plate_number\": \"D 7777 MT\", \"driver_id\": null, \"driver_name\": null, \"trip_id\": null, \"lat\": -6.9, \"lng\": 107.62, \"speed\": 37.0,"
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/reminders",
+      "role": "owner",
+      "note": "maintenance reminders",
+      "status": 200,
+      "snippet": "{\"reminders\": [{\"vehicle_id\": \"veh_2711e7f58c284a75\", \"vehicle_name\": \"Isuzu Elf Long 01\", \"code\": \"V-03\", \"type\": \"KIR\", \"field\": \"kir_expiry\", \"due_date\": \"2026-07-13T01:01:01.645201+00:00\", \"days_left\": 7, \"overdue\": "
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/summary",
+      "role": "owner",
+      "note": "maintenance summary",
+      "status": 200,
+      "snippet": "{\"total\": 4, \"scheduled\": 2, \"in_progress\": 1, \"done\": 1, \"cancelled\": 0, \"due_soon\": 3, \"overdue\": 0, \"total_service_cost\": 1850000.0}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/preventive",
+      "role": "owner",
+      "note": "maintenance preventive list",
+      "status": 200,
+      "snippet": "{\"items\": [{\"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"code\": \"V-01\", \"odometer\": 90500.0, \"last_service_date\": \"2026-07-05T01:01:18.255465+00:00\", \"last_service_odometer\": 80000, \"km\": {\"i"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance/preventive/veh_4b7f476c06954ef7/schedule",
+      "role": "owner",
+      "note": "preventive schedule typed",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_f93d1490b0a04e06\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"Servis preventif berkala\", \"description\": \"Dibuat otomatis dari modul Servis Preventif ("
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations",
+      "role": "owner",
+      "note": "conversation existing phone (merge)",
+      "status": 200,
+      "snippet": "{\"id\": \"cnv_0edb0810074e4480\", \"channel\": \"whatsapp\", \"contact_name\": \"CV Sentosa Wisata\", \"contact_phone\": \"0227778889\", \"subject\": \"\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"lead_id\": null, \"status\": \"open\", \"assigned"
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads?stage=new",
+      "role": "owner",
+      "note": "leads filter stage",
+      "status": 200,
+      "snippet": "[{\"id\": \"led_c9566f426e734f24\", \"customer_name\": \"R11 NoMatch\", \"phone\": \"0812600022\", \"phone_normalized\": \"+62812600022\", \"email\": \"\", \"source\": \"walk_in\", \"stage\": \"new\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destina"
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads?assigned_to=me",
+      "role": "owner",
+      "note": "leads filter assigned",
+      "status": 200,
+      "snippet": "[{\"id\": \"led_c9566f426e734f24\", \"customer_name\": \"R11 NoMatch\", \"phone\": \"0812600022\", \"phone_normalized\": \"+62812600022\", \"email\": \"\", \"source\": \"walk_in\", \"stage\": \"new\", \"assigned_to\": \"usr_8156894695e54e0e\", \"destina"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads",
+      "role": "owner",
+      "note": "lead for flow",
+      "status": 200,
+      "snippet": "{\"id\": \"led_41d63ed1354d4d19\", \"customer_name\": \"R11 Lead Flow\", \"phone\": \"0812700033\", \"phone_normalized\": \"+62812700033\", \"email\": \"\", \"source\": \"referral\", \"stage\": \"new\", \"assigned_to\": \"usr_89ce7f73e8774f6f\", \"desti"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/activities",
+      "role": "owner",
+      "note": "lead activity call",
+      "status": 200,
+      "snippet": "{\"id\": \"lac_542574dc80b54c0b\", \"lead_id\": \"led_41d63ed1354d4d19\", \"user_id\": \"usr_1b90f69db68d4b13\", \"type\": \"call\", \"text\": \"telepon\", \"from_stage\": null, \"to_stage\": null, \"created_at\": \"2026-07-05T01:01:21.841350+00:0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/activities",
+      "role": "owner",
+      "note": "lead activity whatsapp",
+      "status": 200,
+      "snippet": "{\"id\": \"lac_d11ff6335513452e\", \"lead_id\": \"led_41d63ed1354d4d19\", \"user_id\": \"usr_1b90f69db68d4b13\", \"type\": \"whatsapp\", \"text\": \"chat wa\", \"from_stage\": null, \"to_stage\": null, \"created_at\": \"2026-07-05T01:01:21.847997+"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/activities",
+      "role": "owner",
+      "note": "lead activity email",
+      "status": 200,
+      "snippet": "{\"id\": \"lac_5bdebed793bb4843\", \"lead_id\": \"led_41d63ed1354d4d19\", \"user_id\": \"usr_1b90f69db68d4b13\", \"type\": \"email\", \"text\": \"kirim email\", \"from_stage\": null, \"to_stage\": null, \"created_at\": \"2026-07-05T01:01:21.854645"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/activities",
+      "role": "owner",
+      "note": "lead activity meeting",
+      "status": 200,
+      "snippet": "{\"id\": \"lac_062a53ca05764763\", \"lead_id\": \"led_41d63ed1354d4d19\", \"user_id\": \"usr_1b90f69db68d4b13\", \"type\": \"meeting\", \"text\": \"ketemu\", \"from_stage\": null, \"to_stage\": null, \"created_at\": \"2026-07-05T01:01:21.861198+00"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/stage",
+      "role": "owner",
+      "note": "lead stage contacted",
+      "status": 200,
+      "snippet": "{\"id\": \"led_41d63ed1354d4d19\", \"customer_name\": \"R11 Lead Flow\", \"phone\": \"0812700033\", \"phone_normalized\": \"+62812700033\", \"email\": \"\", \"source\": \"referral\", \"stage\": \"contacted\", \"assigned_to\": \"usr_89ce7f73e8774f6f\", "
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/stage",
+      "role": "owner",
+      "note": "lead stage quoted",
+      "status": 200,
+      "snippet": "{\"id\": \"led_41d63ed1354d4d19\", \"customer_name\": \"R11 Lead Flow\", \"phone\": \"0812700033\", \"phone_normalized\": \"+62812700033\", \"email\": \"\", \"source\": \"referral\", \"stage\": \"quoted\", \"assigned_to\": \"usr_89ce7f73e8774f6f\", \"de"
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/stage",
+      "role": "owner",
+      "note": "lead stage negotiation",
+      "status": 200,
+      "snippet": "{\"id\": \"led_41d63ed1354d4d19\", \"customer_name\": \"R11 Lead Flow\", \"phone\": \"0812700033\", \"phone_normalized\": \"+62812700033\", \"email\": \"\", \"source\": \"referral\", \"stage\": \"negotiation\", \"assigned_to\": \"usr_89ce7f73e8774f6f\""
+    },
+    {
+      "method": "POST",
+      "path": "/api/leads/led_41d63ed1354d4d19/stage",
+      "role": "owner",
+      "note": "lead stage won",
+      "status": 200,
+      "snippet": "{\"id\": \"led_41d63ed1354d4d19\", \"customer_name\": \"R11 Lead Flow\", \"phone\": \"0812700033\", \"phone_normalized\": \"+62812700033\", \"email\": \"\", \"source\": \"referral\", \"stage\": \"won\", \"assigned_to\": \"usr_89ce7f73e8774f6f\", \"desti"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subcharters/available-partners?start=2026-07-06T01:01:21.896340+00:00&end=2026-07-07T01:01:21.896352+00:00",
+      "role": "owner",
+      "note": "subcharter available-partners",
+      "status": 200,
+      "snippet": "[{\"id\": \"veh_4fc07bc7cf534fc8\", \"name\": \"Hiace Commuter Mitra (Sejahtera)\", \"plate_number\": \"D 7777 MT\", \"type\": \"hiace\", \"capacity\": 15, \"partner_id\": \"ptn_8dac6c67a5334151\", \"partner_name\": \"Travel Mitra Sejahtera\", \"p"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subcharters/available-partners",
+      "role": "owner",
+      "note": "subcharter available-partners no-args",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"missing\", \"loc\": [\"query\", \"start\"], \"msg\": \"Field required\", \"input\": null, \"url\": \"https://errors.pydantic.dev/2.13/v/missing\"}, {\"type\": \"missing\", \"loc\": [\"query\", \"end\"], \"msg\": \"Field required"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/quotation",
+      "role": "unauth",
+      "note": "identity phone fmt 0",
+      "status": 200,
+      "snippet": "{\"id\": \"led_2a0ef1df95db4095\", \"status\": \"received\", \"message\": \"Permintaan penawaran diterima. Tim kami akan menghubungi Anda segera.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/quotation",
+      "role": "unauth",
+      "note": "identity phone fmt 1",
+      "status": 200,
+      "snippet": "{\"id\": \"led_204f19eb01b24ea2\", \"status\": \"received\", \"message\": \"Permintaan penawaran diterima. Tim kami akan menghubungi Anda segera.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/quotation",
+      "role": "unauth",
+      "note": "identity phone fmt 2",
+      "status": 200,
+      "snippet": "{\"id\": \"led_32e61c24423a4742\", \"status\": \"received\", \"message\": \"Permintaan penawaran diterima. Tim kami akan menghubungi Anda segera.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/quotation",
+      "role": "unauth",
+      "note": "identity phone fmt 3",
+      "status": 200,
+      "snippet": "{\"id\": \"led_869010e11bcd4c13\", \"status\": \"received\", \"message\": \"Permintaan penawaran diterima. Tim kami akan menghubungi Anda segera.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/quotation",
+      "role": "unauth",
+      "note": "identity phone fmt 4",
+      "status": 200,
+      "snippet": "{\"id\": \"led_e1122f24b8e14aba\", \"status\": \"received\", \"message\": \"Permintaan penawaran diterima. Tim kami akan menghubungi Anda segera.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/devices/veh_4fc07bc7cf534fc8/assign",
+      "role": "owner",
+      "note": "gps assign ceiling",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"gps\": {\"imei\": \"R11CEIL93267\", \"provider\": \"traccar\", \"enabled\": true, \"note\": \"\", \"installed_at\": \"2026-07-05T01:01:22.096908+00:00\"}}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook?token=r11audit-secret",
+      "role": "unauth",
+      "note": "gps ping w/ alarm",
+      "status": 200,
+      "snippet": "{\"status\": \"ok\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"source\": \"device\", \"trip_id\": null, \"speed_kmh\": 111.1, \"alarm\": null}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook?token=r11audit-secret",
+      "role": "unauth",
+      "note": "gps ping w/ alarm",
+      "status": 200,
+      "snippet": "{\"status\": \"ok\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"source\": \"device\", \"trip_id\": null, \"speed_kmh\": 0.0, \"alarm\": {\"alarm\": \"sos\", \"label\": \"Tombol SOS ditekan\", \"created\": true}}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/gps/webhook?token=r11audit-secret",
+      "role": "unauth",
+      "note": "gps ping w/ alarm",
+      "status": 200,
+      "snippet": "{\"status\": \"ok\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"source\": \"device\", \"trip_id\": null, \"speed_kmh\": 222.2, \"alarm\": {\"alarm\": \"overspeed\", \"label\": \"Melebihi batas kecepatan\", \"created\": true}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/live",
+      "role": "owner",
+      "note": "gps live after pings",
+      "status": 200,
+      "snippet": "[{\"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"vehicle_name\": \"Hiace Commuter Mitra (Sejahtera)\", \"plate_number\": \"D 7777 MT\", \"driver_id\": null, \"driver_name\": null, \"trip_id\": null, \"lat\": -6.8, \"lng\": 107.5, \"speed\": 222.2,"
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/summary",
+      "role": "owner",
+      "note": "gps summary after pings",
+      "status": 200,
+      "snippet": "{\"total_vehicles\": 5, \"with_device\": 1, \"online\": 1, \"offline\": 0, \"alarms\": 1}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/gps/devices/veh_4fc07bc7cf534fc8",
+      "role": "owner",
+      "note": "gps unassign ceiling",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"vehicle_id\": \"veh_4fc07bc7cf534fc8\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dispatch/today",
+      "role": "owner",
+      "note": "dispatch today",
+      "status": 200,
+      "snippet": "{\"date\": \"2026-07-05\", \"summary\": {\"date\": \"2026-07-05\", \"total\": 2, \"to_assign\": 1, \"to_confirm\": 0, \"ongoing\": 0, \"completed\": 0}, \"departures\": [{\"id\": \"bk_29788d65936c4d40\", \"code\": \"BK-0003\", \"customer_id\": \"cus_b74"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dispatch/today?date=2026-07-05",
+      "role": "owner",
+      "note": "dispatch today dated",
+      "status": 200,
+      "snippet": "{\"date\": \"2026-07-05\", \"summary\": {\"date\": \"2026-07-05\", \"total\": 2, \"to_assign\": 1, \"to_confirm\": 0, \"ongoing\": 0, \"completed\": 0}, \"departures\": [{\"id\": \"bk_29788d65936c4d40\", \"code\": \"BK-0003\", \"customer_id\": \"cus_b74"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations?status=open",
+      "role": "owner",
+      "note": "conversations filter open",
+      "status": 200,
+      "snippet": "[{\"id\": \"cnv_b1762681059f4080\", \"channel\": \"whatsapp\", \"contact_name\": \"R11 Phone 4\", \"contact_phone\": \"812-3456-7894\", \"subject\": \"WhatsApp\", \"customer_id\": null, \"lead_id\": \"led_e1122f24b8e14aba\", \"status\": \"open\", \"as"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations?channel=whatsapp",
+      "role": "owner",
+      "note": "conversations filter channel",
+      "status": 200,
+      "snippet": "[{\"id\": \"cnv_b1762681059f4080\", \"channel\": \"whatsapp\", \"contact_name\": \"R11 Phone 4\", \"contact_phone\": \"812-3456-7894\", \"subject\": \"WhatsApp\", \"customer_id\": null, \"lead_id\": \"led_e1122f24b8e14aba\", \"status\": \"open\", \"as"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations?unread=true",
+      "role": "owner",
+      "note": "conversations filter unread",
+      "status": 200,
+      "snippet": "[{\"id\": \"cnv_b1762681059f4080\", \"channel\": \"whatsapp\", \"contact_name\": \"R11 Phone 4\", \"contact_phone\": \"812-3456-7894\", \"subject\": \"WhatsApp\", \"customer_id\": null, \"lead_id\": \"led_e1122f24b8e14aba\", \"status\": \"open\", \"as"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance",
+      "role": "owner",
+      "note": "maint scheduled",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_0c9ab45dd9ac4f28\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"R11 sched->complete\", \"description\": \"\", \"scheduled_date\": \"2026-07-07T01:01:22.164881+0"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/maintenance/mnt_0c9ab45dd9ac4f28",
+      "role": "owner",
+      "note": "maint -> in_progress",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_0c9ab45dd9ac4f28\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"R11 sched->complete\", \"description\": \"\", \"scheduled_date\": \"2026-07-07T01:01:22.164881+0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maintenance/mnt_0c9ab45dd9ac4f28/complete",
+      "role": "owner",
+      "note": "maint complete-from-progress",
+      "status": 200,
+      "snippet": "{\"id\": \"mnt_0c9ab45dd9ac4f28\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"type\": \"servis\", \"title\": \"R11 sched->complete\", \"description\": \"\", \"scheduled_date\": \"2026-07-07T01:01:22.164881+0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/summary?period_type=monthly",
+      "role": "owner",
+      "note": "payroll summary period",
+      "status": 200,
+      "snippet": "{\"count\": 4, \"by_status\": {\"draft\": 2, \"approved\": 1, \"paid\": 1}, \"accrued_total\": 7550000.0, \"paid_total\": 3350000.0}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?status=pending",
+      "role": "owner",
+      "note": "notifications filter",
+      "status": 200,
+      "snippet": "[{\"id\": \"ntf_1682e0d903e64d6f\", \"dedupe_key\": \"gps_alarm:veh_4fc07bc7cf534fc8:overspeed:2026070501\", \"status\": \"pending\", \"channel\": \"in_app\", \"read_at\": null, \"created_at\": \"2026-07-05T01:01:22.114381+00:00\", \"target_ro"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?type=maintenance",
+      "role": "owner",
+      "note": "notifications filter type",
+      "status": 200,
+      "snippet": "[{\"id\": \"ntf_1682e0d903e64d6f\", \"dedupe_key\": \"gps_alarm:veh_4fc07bc7cf534fc8:overspeed:2026070501\", \"status\": \"pending\", \"channel\": \"in_app\", \"read_at\": null, \"created_at\": \"2026-07-05T01:01:22.114381+00:00\", \"target_ro"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking for pod/reassign",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_4076f67af0ba4125\", \"code\": \"BK-0033\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2027-02-10T01:01:22.203"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_4076f67af0ba4125/confirm",
+      "role": "owner",
+      "note": "confirm pod/reassign",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_4076f67af0ba4125\", \"code\": \"BK-0033\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2027-02-10T01:01:22.203"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/bk_4076f67af0ba4125/assign",
+      "role": "owner",
+      "note": "assign v1",
+      "status": 200,
+      "snippet": "{\"trip\": {\"id\": \"trp_abd7558b60a54964\", \"booking_id\": \"bk_4076f67af0ba4125\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/bk_4076f67af0ba4125/assign",
+      "role": "owner",
+      "note": "RE-assign v2 (release prev vehicle)",
+      "status": 200,
+      "snippet": "{\"trip\": {\"id\": \"trp_abd7558b60a54964\", \"booking_id\": \"bk_4076f67af0ba4125\", \"status\": \"standby\", \"start_at\": null, \"end_at\": null, \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/bk_4076f67af0ba4125/confirm-departure",
+      "role": "owner",
+      "note": "departure pod",
+      "status": 200,
+      "snippet": "{\"ok\": true, \"booking\": {\"id\": \"bk_4076f67af0ba4125\", \"code\": \"BK-0033\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_13b56924ddf24ebc\", \"driver_id\": \"drv_15b3189ba75b43c2\", \"origin\": \"\", \"destination\": \"\", "
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/trp_abd7558b60a54964/enroute",
+      "role": "owner",
+      "note": "enroute pod",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_abd7558b60a54964\", \"booking_id\": \"bk_4076f67af0ba4125\", \"status\": \"to_pickup\", \"start_at\": null, \"end_at\": null, \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:22.2365"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/trp_abd7558b60a54964/arrived",
+      "role": "owner",
+      "note": "arrived pod",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_abd7558b60a54964\", \"booking_id\": \"bk_4076f67af0ba4125\", \"status\": \"to_pickup\", \"start_at\": null, \"end_at\": null, \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_at\": \"2026-07-05T01:01:22.2365"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/trp_abd7558b60a54964/pod",
+      "role": "owner",
+      "note": "dispatch POD bad content-type (400)",
+      "status": 400,
+      "snippet": "{\"detail\": \"Format foto harus JPG/PNG/WebP\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/dispatch/trips/trp_abd7558b60a54964/pod",
+      "role": "owner",
+      "note": "dispatch POD photo (finalize)",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_abd7558b60a54964\", \"booking_id\": \"bk_4076f67af0ba4125\", \"status\": \"completed\", \"start_at\": null, \"end_at\": \"2026-07-05T01:01:22.310094+00:00\", \"revenue\": 2500000, \"profit\": null, \"distance_km\": 0.0, \"created_"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings",
+      "role": "owner",
+      "note": "booking assigned to login-driver",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_ee00ee4f9fc94ee9\", \"code\": \"BK-0034\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2027-"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_ee00ee4f9fc94ee9/confirm",
+      "role": "owner",
+      "note": "confirm driver-owned",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_ee00ee4f9fc94ee9\", \"code\": \"BK-0034\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"origin\": \"\", \"destination\": \"\", \"start_datetime\": \"2027-"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/checkin",
+      "role": "driver",
+      "note": "driver checkin via own booking (creates trip)",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_94ac0bb237c349be\", \"booking_id\": \"bk_ee00ee4f9fc94ee9\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"status\": \"to_pickup\", \"start_at\": \"2026-07-05T01:01:22.362764+00:00\", \"end_a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/tasks/trp_94ac0bb237c349be/pod",
+      "role": "driver",
+      "note": "driver POD photo",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_94ac0bb237c349be\", \"booking_id\": \"bk_ee00ee4f9fc94ee9\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"status\": \"to_pickup\", \"start_at\": \"2026-07-05T01:01:22.362764+00:00\", \"end_a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/checkout",
+      "role": "driver",
+      "note": "driver checkout own trip",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_94ac0bb237c349be\", \"booking_id\": \"bk_ee00ee4f9fc94ee9\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"status\": \"completed\", \"start_at\": \"2026-07-05T01:01:22.362764+00:00\", \"end_a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/driver/checkin",
+      "role": "driver",
+      "note": "driver checkin not-owned (403/400)",
+      "status": 403,
+      "snippet": "{\"detail\": \"Booking ini bukan tugas Anda\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/profit-loss",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"period\": \"2026-07\", \"revenue\": 9500000.0, \"expenses\": 14520000.0, \"profit\": -5020000.0, \"margin\": -52.8, \"expense_by_category\": [{\"category\": \"bbm\", \"amount\": 1350000.0}, {\"category\": \"tol\", \"amount\": 150000.0}, {\"cate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/pl-full",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"period\": \"2026-07\", \"revenue\": 9500000.0, \"operational_expenses\": 14520000.0, \"maintenance_cost\": -50000.0, \"total_cost\": 14470000.0, \"profit\": -4970000.0, \"margin\": -52.3, \"expense_by_category\": [{\"category\": \"bbm\", \""
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/cashflow",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"months\": [{\"month\": \"2026-02\", \"cash_in\": 0.0, \"cash_out\": 0.0, \"net\": 0.0, \"balance\": 0.0}, {\"month\": \"2026-03\", \"cash_in\": 0.0, \"cash_out\": 0.0, \"net\": 0.0, \"balance\": 0.0}, {\"month\": \"2026-04\", \"cash_in\": 0.0, \"cash"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/cashflow?months=12",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"months\": [{\"month\": \"2025-08\", \"cash_in\": 0.0, \"cash_out\": 0.0, \"net\": 0.0, \"balance\": 0.0}, {\"month\": \"2025-09\", \"cash_in\": 0.0, \"cash_out\": 0.0, \"net\": 0.0, \"balance\": 0.0}, {\"month\": \"2025-10\", \"cash_in\": 0.0, \"cash"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/reconciliation",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"items\": [{\"invoice_id\": \"inv_a7bfc6fd5dcb459d\", \"number\": \"INV-2026-0001\", \"booking_id\": \"bk_f8402a8a2eb345f0\", \"booking_code\": \"BK-0001\", \"customer_name\": \"PT Maju Jaya\", \"invoice_amount\": 3500000.0, \"paid\": 1000000.0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/summary",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"period\": \"2026-07\", \"revenue\": 9500000.0, \"expenses\": 14520000.0, \"profit\": -5020000.0, \"margin\": -52.8, \"outstanding_ar\": 60380000.0, \"ar_count\": 19, \"invoices_total\": 5, \"invoices_unpaid\": 3}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/ar",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"total_outstanding\": 60380000.0, \"count\": 19, \"items\": [{\"booking_id\": \"bk_c6ef371f38c7467a\", \"code\": \"BK-0026\", \"customer_name\": \"R11 Quote\", \"total_amount\": 6390000.0, \"paid_amount\": 0.0, \"outstanding\": 6390000.0, \"pa"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/ar/overdue",
+      "role": "owner",
+      "note": "finance read",
+      "status": 200,
+      "snippet": "{\"total_outstanding\": 60380000.0, \"count\": 0, \"all_count\": 19, \"items\": []}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/export?format=excel",
+      "role": "owner",
+      "note": "export excel",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/export?format=pdf",
+      "role": "owner",
+      "note": "export pdf",
+      "status": 200,
+      "snippet": "%PDF-1.4\n%\ufffd\ufffd\ufffd\ufffd ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font\n>>\nendobj\n3 0 obj\n<<\n"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/export?format=excel",
+      "role": "owner",
+      "note": "export excel",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/export?format=pdf",
+      "role": "owner",
+      "note": "export pdf",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/payroll/export?format=excel",
+      "role": "owner",
+      "note": "export excel",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/payroll/export?format=pdf",
+      "role": "owner",
+      "note": "export pdf",
+      "status": 200,
+      "snippet": "%PDF-1.4\n%\ufffd\ufffd\ufffd\ufffd ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font\n>>\nendobj\n3 0 obj\n<<\n"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/drivers/export?format=excel",
+      "role": "owner",
+      "note": "export excel",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/drivers/export?format=pdf",
+      "role": "owner",
+      "note": "export pdf",
+      "status": 200,
+      "snippet": "%PDF-1.4\n%\ufffd\ufffd\ufffd\ufffd ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font\n>>\nendobj\n3 0 obj\n<<\n"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/export?format=excel",
+      "role": "owner",
+      "note": "export excel",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/export?format=pdf",
+      "role": "owner",
+      "note": "export pdf",
+      "status": 200,
+      "snippet": "%PDF-1.4\n%\ufffd\ufffd\ufffd\ufffd ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R /F3 4 0 R\n>>\nendobj\n2 0 obj\n<<\n/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font\n>>\nendobj\n3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/summary",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"period\": \"2026-07\", \"revenue_total\": 9500000.0, \"expense_total\": 14520000.0, \"profit_total\": -5020000.0, \"outstanding_ar\": 60380000.0, \"ar_count\": 19, \"revenue_by_month\": [{\"month\": \"2026-02\", \"revenue\": 0.0, \"expenses"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/payroll",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"period\": \"2026-07\", \"count\": 2, \"by_status\": {\"draft\": 2, \"approved\": 0, \"paid\": 0}, \"total_gross\": 7675000.0, \"total_bonus\": 0.0, \"total_deduction\": 0.0, \"total_net\": 7675000.0, \"per_driver\": [{\"driver_id\": \"drv_8bb63"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/drivers",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"period\": \"2026-07\", \"fleet\": {\"trips\": 9, \"completed\": 6, \"completion_rate\": 66.7, \"km\": 700.0, \"revenue\": 23900000.0, \"revenue_per_trip\": 2655555.56, \"avg_km_per_trip\": 77.8, \"active_drivers\": 2}, \"drivers\": [{\"rank\":"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/summary",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"count\": 4, \"by_status\": {\"draft\": 2, \"approved\": 1, \"paid\": 1}, \"accrued_total\": 7550000.0, \"paid_total\": 3350000.0}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/summary",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-06-06\", \"end\": \"2026-07-05\", \"end_excl\": \"2026-07-06\", \"prev_start\": \"2026-05-07\", \"prev_end_excl\": \"2026-06-06\", \"days\": 30, \"label\": \"2026-06-06 \\u2192 2026-07-05\"}, \"metrics\": {\"revenue\": {\"v"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/funnel",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-06-06\", \"end\": \"2026-07-05\", \"end_excl\": \"2026-07-06\", \"prev_start\": \"2026-05-07\", \"prev_end_excl\": \"2026-06-06\", \"days\": 30, \"label\": \"2026-06-06 \\u2192 2026-07-05\"}, \"stages\": [{\"key\": \"lead\","
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/channels",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-06-06\", \"end\": \"2026-07-05\", \"end_excl\": \"2026-07-06\", \"prev_start\": \"2026-05-07\", \"prev_end_excl\": \"2026-06-06\", \"days\": 30, \"label\": \"2026-06-06 \\u2192 2026-07-05\"}, \"channels\": [{\"channel\": \""
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/fleet",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-06-06\", \"end\": \"2026-07-05\", \"end_excl\": \"2026-07-06\", \"prev_start\": \"2026-05-07\", \"prev_end_excl\": \"2026-06-06\", \"days\": 30, \"label\": \"2026-06-06 \\u2192 2026-07-05\"}, \"vehicles\": [{\"vehicle_id\""
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/drivers",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-06-06\", \"end\": \"2026-07-05\", \"end_excl\": \"2026-07-06\", \"prev_start\": \"2026-05-07\", \"prev_end_excl\": \"2026-06-06\", \"days\": 30, \"label\": \"2026-06-06 \\u2192 2026-07-05\"}, \"drivers\": [{\"driver_id\": "
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/retention",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-06-06\", \"end\": \"2026-07-05\", \"end_excl\": \"2026-07-06\", \"prev_start\": \"2026-05-07\", \"prev_end_excl\": \"2026-06-06\", \"days\": 30, \"label\": \"2026-06-06 \\u2192 2026-07-05\"}, \"total_customers\": 8, \"ret"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/forecast",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"metric\": \"revenue\", \"method\": \"moving_average\", \"window\": 1, \"history\": [{\"month\": \"2026-02\", \"value\": 0.0}, {\"month\": \"2026-03\", \"value\": 0.0}, {\"month\": \"2026-04\", \"value\": 0.0}, {\"month\": \"2026-05\", \"value\": 0.0}, {"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/ar-aging",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"total_outstanding\": 60380000.0, \"count\": 19, \"buckets\": [{\"bucket\": \"belum_jatuh_tempo\", \"label\": \"Belum jatuh tempo\", \"amount\": 53780000.0, \"count\": 17}, {\"bucket\": \"0-30\", \"label\": \"0-30 hari\", \"amount\": 6600000.0, \""
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/forecast?metric=leads",
+      "role": "owner",
+      "note": "analytics/report read",
+      "status": 200,
+      "snippet": "{\"metric\": \"revenue\", \"method\": \"moving_average\", \"window\": 1, \"history\": [{\"month\": \"2026-02\", \"value\": 0.0}, {\"month\": \"2026-03\", \"value\": 0.0}, {\"month\": \"2026-04\", \"value\": 0.0}, {\"month\": \"2026-05\", \"value\": 0.0}, {"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/payouts/dpo_aca662e753e04bdf/slip?format=pdf",
+      "role": "owner",
+      "note": "payout slip pdf",
+      "status": 200,
+      "snippet": "%PDF-1.4\n%\ufffd\ufffd\ufffd\ufffd ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font\n>>\nendobj\n3 0 obj\n<<\n"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/payouts/dpo_aca662e753e04bdf/slip?format=excel",
+      "role": "owner",
+      "note": "payout slip excel",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/inv_53070da1ad3c46b4/export?format=pdf",
+      "role": "owner",
+      "note": "invoice export pdf",
+      "status": 200,
+      "snippet": "%PDF-1.4\n%\ufffd\ufffd\ufffd\ufffd ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nendobj\n2 0 obj\n<<\n/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font\n>>\nendobj\n3 0 obj\n<<\n"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/inv_53070da1ad3c46b4/export?format=excel",
+      "role": "owner",
+      "note": "invoice export excel",
+      "status": 200,
+      "snippet": "PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\F\ufffdMH\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0010\u0000\u0000\u0000docProps/app.xmlM\ufffdM\u000b\ufffd0\f\u0006\ufffdRv\ufffd\ufffd\ufffd\u001e\ufffd\u000eD=\ufffd\ufffd\ufffd\ufffd.u\ufffd\ufffd)m\ufffd\ufffd\ufffd\ufffd\u0004?nyy\ufffd\u001b\ufffd.\ufffd\"&\ufffd\ufffdE\ufffd.\ufffdm32\ufffd\r@\ufffd#\ufffd>\ufffd\u02a1\ufffd\ufffd\ufffd{\ufffd1\u0741\ufffd\ufffd\u001a\u000f\ufffd\u001f\u001e\u0003\u00e2m\u05c0\ufffd1\f8\ufffd\u2df0\ufffd\ufffd.Fgu\u03d6Bw\ufffd:Q&\ufffd\ufffdX4:\ufffd'\u001f\ufffd\ufffd\u001c\n\u0010\ufffdz%>\ufffd\u0013K9\ufffd+\u0005\ufffd\ufffdS\ufffd\u0015S\ufffd\ufffd\ufffdo\ufffdd\u0005\ufffd\u0007\ufffd\u0017PK\u0003\u0004\u0014\u0000\u0000\u0000\b\u0000+\b\ufffd\\\ufffd~\ufffd\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\u0011\u0000\u0000\u0000doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/drivers/drv_15b3189ba75b43c2/performance",
+      "role": "owner",
+      "note": "driver performance",
+      "status": 200,
+      "snippet": "{\"stats\": {\"total_trips\": 4, \"completed\": 3, \"completion_rate\": 75.0, \"total_km\": 250.0, \"total_revenue\": 9800000.0, \"last_trip_at\": \"2026-07-05T01:01:22.310094+00:00\"}, \"trips\": [{\"id\": \"trp_abd7558b60a54964\", \"booking_"
+    },
+    {
+      "method": "GET",
+      "path": "/api/drivers/drv_15b3189ba75b43c2/compensation",
+      "role": "owner",
+      "note": "driver compensation read",
+      "status": 200,
+      "snippet": "{\"driver_id\": \"drv_15b3189ba75b43c2\", \"driver_name\": \"Driver Dua\", \"comp\": {\"base_salary_monthly\": 3500000.0, \"commission_per_trip\": 0.0, \"commission_pct_revenue\": 0.0, \"allowance_per_km\": 0.0, \"revenue_base\": \"trip\", \"e"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/veh_4b7f476c06954ef7/trips",
+      "role": "owner",
+      "note": "vehicle trips",
+      "status": 200,
+      "snippet": "{\"totals\": {\"trips\": 3, \"completed\": 0, \"distance_km\": 0.0, \"revenue\": 11100000.0}, \"trips\": [{\"id\": \"trp_7a819693fda1447d\", \"booking_id\": \"bk_2b5d72f6f4a64d3e\", \"code\": \"BK-0005\", \"customer_name\": \"CV Sentosa Wisata\", \""
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/trp_7a819693fda1447d/eta",
+      "role": "owner",
+      "note": "trip eta",
+      "status": 200,
+      "snippet": "{\"available\": true, \"eta_minutes\": 312.1, \"distance_km\": 399.68, \"approx\": false, \"dest_name\": \"Yogyakarta\", \"from\": {\"lat\": -6.91, \"lng\": 107.61}, \"to\": {\"lat\": -7.7956, \"lng\": 110.3695}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/trp_7a819693fda1447d/track",
+      "role": "owner",
+      "note": "trip track",
+      "status": 200,
+      "snippet": "[{\"id\": \"loc_66c7592cd6f041bd\", \"trip_id\": \"trp_7a819693fda1447d\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"lat\": -6.91, \"lng\": 107.61, \"speed\": 30.0, \"heading\": 0.0, \"timestamp\": \"2026"
+    },
+    {
+      "method": "POST",
+      "path": "/api/trips/trp_7a819693fda1447d/status",
+      "role": "owner",
+      "note": "trip status update",
+      "status": 200,
+      "snippet": "{\"id\": \"trp_7a819693fda1447d\", \"booking_id\": \"bk_2b5d72f6f4a64d3e\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"driver_id\": \"drv_8bb6306dbcf7425a\", \"status\": \"on_trip\", \"start_at\": \"2026-07-05T01:01:23.342894+00:00\", \"end_at\""
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/summary?start=GARBAGE",
+      "role": "owner",
+      "note": "analytics bad start (O-8)",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-06-06\", \"end\": \"2026-07-05\", \"end_excl\": \"2026-07-06\", \"prev_start\": \"2026-05-07\", \"prev_end_excl\": \"2026-06-06\", \"days\": 30, \"label\": \"2026-06-06 \\u2192 2026-07-05\"}, \"metrics\": {\"revenue\": {\"v"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/summary?start=2026-01-10&end=2026-01-01",
+      "role": "owner",
+      "note": "analytics reversed range (O-8)",
+      "status": 200,
+      "snippet": "{\"range\": {\"start\": \"2026-01-01\", \"end\": \"2026-01-10\", \"end_excl\": \"2026-01-11\", \"prev_start\": \"2025-12-22\", \"prev_end_excl\": \"2026-01-01\", \"days\": 10, \"label\": \"2026-01-01 \\u2192 2026-01-10\"}, \"metrics\": {\"revenue\": {\"v"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/company",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "{\"name\": \"Rahaza Travel\", \"city\": \"Bandung\", \"phone\": \"0811-2000-300\", \"whatsapp\": \"6281120003000\", \"email\": \"halo@rahazatravel.id\", \"address\": \"Jl. Asia Afrika No. 1, Bandung\", \"service_area\": \"Jawa & Bali\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/theme",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "{\"preset\": \"azure\", \"mode\": \"light\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/stats",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "{\"stats\": [{\"key\": \"fleet\", \"label\": \"Unit Armada Siap Jalan\", \"value\": 5, \"suffix\": \"\", \"decimals\": 0}, {\"key\": \"destinations\", \"label\": \"Destinasi Jawa\\u2013Bali\", \"value\": 5, \"suffix\": \"\", \"decimals\": 0}, {\"key\": \"rat"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/destinations",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "[{\"id\": \"dst_d9ae6c3d4ff5452c\", \"slug\": \"bali\", \"name\": \"Bali\", \"region\": \"bali\", \"description\": \"Pulau Dewata: pura ikonik, pantai sunset, dan budaya yang hidup. Cocok untuk wisata keluarga & korporat.\", \"intro\": \"Dari "
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/packages",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "[{\"id\": \"pkg_0848dd6e1381471b\", \"slug\": \"bromo-sunrise-3h2m\", \"name\": \"Bromo Sunrise 3H2M\", \"destination\": \"Gunung Bromo\", \"description\": \"Paket sunrise Penanjakan + kawah, termasuk Hiace & driver.\", \"days\": 3, \"price_fr"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/promos",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "[{\"code\": \"R11PROMO474948\", \"title\": \"R11 Promo\", \"discount_type\": \"percent\", \"discount_value\": 10.0, \"active\": true, \"id\": \"pro_7d5dd3a040284076\", \"created_at\": \"2026-07-05T01:01:18.478214+00:00\"}, {\"id\": \"pro_0968b1f10"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/testimonials",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "[{\"name\": \"R11 Tsti\", \"role\": \"Cust\", \"quote\": \"Great\", \"rating\": 5, \"approved\": true, \"id\": \"tst_8396822281df4ccb\", \"created_at\": \"2026-07-05T01:01:18.482829+00:00\"}, {\"id\": \"tst_e1aa19d22c6941c9\", \"name\": \"Keluarga Wij"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/articles",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "[{\"slug\": \"r11art-470164\", \"title\": \"R11 Art\", \"excerpt\": \"e\", \"body\": \"b\", \"read_minutes\": 5, \"published\": true, \"id\": \"art_6db946c327c941bd\", \"created_at\": \"2026-07-05T01:01:18.473244+00:00\", \"published_at\": \"2026-07-0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/fleet",
+      "role": "unauth",
+      "note": "public read",
+      "status": 200,
+      "snippet": "[{\"id\": \"veh_4b7f476c06954ef7\", \"code\": \"V-01\", \"name\": \"Hiace Premio 01\", \"type\": \"hiace_premio\", \"capacity\": 14, \"features\": [\"AC\", \"Reclining\", \"USB\", \"TV\", \"Karaoke\"], \"photos\": [\"https://images.unsplash.com/photo-14"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/destinations/bali",
+      "role": "unauth",
+      "note": "public destination detail",
+      "status": 200,
+      "snippet": "{\"id\": \"dst_d9ae6c3d4ff5452c\", \"slug\": \"bali\", \"name\": \"Bali\", \"region\": \"bali\", \"description\": \"Pulau Dewata: pura ikonik, pantai sunset, dan budaya yang hidup. Cocok untuk wisata keluarga & korporat.\", \"intro\": \"Dari B"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/articles/r11art-470164",
+      "role": "unauth",
+      "note": "public article detail",
+      "status": 200,
+      "snippet": "{\"slug\": \"r11art-470164\", \"title\": \"R11 Art\", \"excerpt\": \"e\", \"body\": \"b\", \"read_minutes\": 5, \"published\": true, \"id\": \"art_6db946c327c941bd\", \"created_at\": \"2026-07-05T01:01:18.473244+00:00\", \"published_at\": \"2026-07-05"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/fleet/veh_4b7f476c06954ef7",
+      "role": "unauth",
+      "note": "public fleet detail",
+      "status": 200,
+      "snippet": "{\"id\": \"veh_4b7f476c06954ef7\", \"code\": \"V-01\", \"name\": \"Hiace Premio 01\", \"type\": \"hiace_premio\", \"capacity\": 14, \"features\": [\"AC\", \"Reclining\", \"USB\", \"TV\", \"Karaoke\"], \"photos\": [\"https://images.unsplash.com/photo-148"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/destinations/nonexistent-slug",
+      "role": "unauth",
+      "note": "public detail 404",
+      "status": 404,
+      "snippet": "{\"detail\": \"Destinasi tidak ditemukan\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/shares",
+      "role": "owner",
+      "note": "create share",
+      "status": 200,
+      "snippet": "{\"id\": \"shr_29ffe33dbbe74713\", \"token\": \"YfoFtNW8kZzoTXDQS5xZq8IocTtFkiTd\", \"trip_id\": \"trp_7a819693fda1447d\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"label\": \"R11 share\", \"expires_at\": "
+    },
+    {
+      "method": "POST",
+      "path": "/api/shares/shr_29ffe33dbbe74713/revoke",
+      "role": "owner",
+      "note": "revoke share",
+      "status": 200,
+      "snippet": "{\"id\": \"shr_29ffe33dbbe74713\", \"token\": \"YfoFtNW8kZzoTXDQS5xZq8IocTtFkiTd\", \"trip_id\": \"trp_7a819693fda1447d\", \"vehicle_id\": \"veh_4b7f476c06954ef7\", \"vehicle_name\": \"Hiace Premio 01\", \"label\": \"R11 share\", \"expires_at\": "
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/shares/shr_29ffe33dbbe74713",
+      "role": "owner",
+      "note": "delete share",
+      "status": 200,
+      "snippet": "{\"deleted\": true, \"id\": \"shr_29ffe33dbbe74713\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/scan",
+      "role": "owner",
+      "note": "notifications scan",
+      "status": 200,
+      "snippet": "{\"created\": 1}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/ntf_b91fb1d329914a10/read",
+      "role": "owner",
+      "note": "notification read",
+      "status": 200,
+      "snippet": "{\"id\": \"ntf_b91fb1d329914a10\", \"dedupe_key\": \"payroll-pending:dpo_337878e6c2804ee8:20260705\", \"status\": \"read\", \"channel\": \"in_app\", \"read_at\": \"2026-07-05T01:01:23.473607+00:00\", \"created_at\": \"2026-07-05T01:01:23.45452"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/ntf_b91fb1d329914a10/dismiss",
+      "role": "owner",
+      "note": "notification dismiss",
+      "status": 200,
+      "snippet": "{\"dismissed\": true, \"id\": \"ntf_b91fb1d329914a10\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/read_all",
+      "role": "owner",
+      "note": "notifications read_all",
+      "status": 200,
+      "snippet": "{\"updated\": 134}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/onboarding/complete",
+      "role": "owner",
+      "note": "onboarding complete",
+      "status": 422,
+      "snippet": "{\"detail\": [{\"type\": \"missing\", \"loc\": [\"body\", \"task\"], \"msg\": \"Field required\", \"input\": {}, \"url\": \"https://errors.pydantic.dev/2.13/v/missing\"}]}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/onboarding/dismiss",
+      "role": "owner",
+      "note": "onboarding dismiss",
+      "status": 200,
+      "snippet": "{\"dismissed\": true}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/onboarding/reset",
+      "role": "owner",
+      "note": "onboarding reset",
+      "status": 200,
+      "snippet": "{\"role\": \"owner\", \"dismissed\": false, \"total\": 6, \"done\": 5, \"complete\": false, \"tasks\": [{\"key\": \"lengkapi_profil\", \"label\": \"Lengkapi profil perusahaan\", \"desc\": \"Isi nama, kontak, dan logo di Pengaturan.\", \"link\": \"/a"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pricing/quote",
+      "role": "owner",
+      "note": "pricing quote",
+      "status": 200,
+      "snippet": "{\"breakdown\": [{\"label\": \"Sewa unit (3 hari)\", \"amount\": 4500000}, {\"label\": \"Jasa driver (3 hari)\", \"amount\": 750000}, {\"label\": \"Estimasi BBM (250 km)\", \"amount\": 450000}, {\"label\": \"Tol & parkir (estimasi)\", \"amount\":"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pricing/quote",
+      "role": "owner",
+      "note": "pricing quote clamp negatives",
+      "status": 200,
+      "snippet": "{\"breakdown\": [{\"label\": \"Sewa unit (1 hari)\", \"amount\": 1200000}, {\"label\": \"Jasa driver (1 hari)\", \"amount\": 250000}, {\"label\": \"Tol & parkir (estimasi)\", \"amount\": 200000}], \"subtotal\": 1650000, \"surcharge_percent\": 0"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/settings",
+      "role": "owner",
+      "note": "SET-1: negative pricing_rules (expect 200)",
+      "status": 200,
+      "snippet": "{\"company_info\": {\"name\": \"Rahaza Travel\", \"city\": \"Bandung\", \"phone\": \"0811-2000-300\", \"whatsapp\": \"6281120003000\", \"email\": \"halo@rahazatravel.id\", \"address\": \"Jl. Asia Afrika No. 1, Bandung\", \"service_area\": \"Jawa & B"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/settings",
+      "role": "owner",
+      "note": "restore pricing_rules",
+      "status": 200,
+      "snippet": "{\"company_info\": {\"name\": \"Rahaza Travel\", \"city\": \"Bandung\", \"phone\": \"0811-2000-300\", \"whatsapp\": \"6281120003000\", \"email\": \"halo@rahazatravel.id\", \"address\": \"Jl. Asia Afrika No. 1, Bandung\", \"service_area\": \"Jawa & B"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/settings",
+      "role": "owner",
+      "note": "settings company_info",
+      "status": 200,
+      "snippet": "{\"company_info\": {\"name\": \"Rahaza Travel\"}, \"pricing_defaults\": {\"dp_percent\": 30, \"cancellation_policy\": \"Pembatalan H-3 dikenakan 50% DP; H-1 hangus.\", \"min_rental_hours\": 12}, \"pricing_rules\": {\"day_rates\": {\"hiace_pr"
+    },
+    {
+      "method": "POST",
+      "path": "/api/broadcasts",
+      "role": "owner",
+      "note": "create broadcast",
+      "status": 200,
+      "snippet": "{\"id\": \"brd_48fa87d9661b4e19\", \"title\": \"R11 Broadcast\", \"message\": \"Promo r11\", \"segment\": {\"stage\": \"quoted\", \"source\": null}, \"scheduled_at\": null, \"status\": \"draft\", \"recipients_count\": 1, \"created_by\": \"usr_1b90f69d"
+    },
+    {
+      "method": "POST",
+      "path": "/api/broadcasts/brd_48fa87d9661b4e19/send",
+      "role": "owner",
+      "note": "send broadcast",
+      "status": 200,
+      "snippet": "{\"id\": \"brd_48fa87d9661b4e19\", \"title\": \"R11 Broadcast\", \"message\": \"Promo r11\", \"segment\": {\"stage\": \"quoted\", \"source\": null}, \"scheduled_at\": null, \"status\": \"sent\", \"recipients_count\": 1, \"created_by\": \"usr_1b90f69db"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/quotation",
+      "role": "unauth",
+      "note": "public quotation",
+      "status": 200,
+      "snippet": "{\"id\": \"led_adc9dd0141944c6e\", \"status\": \"received\", \"message\": \"Permintaan penawaran diterima. Tim kami akan menghubungi Anda segera.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/quotation",
+      "role": "unauth",
+      "note": "public quotation honeypot (rejected)",
+      "status": 200,
+      "snippet": "{\"id\": \"led_f2007ad9d9a74193\", \"status\": \"received\", \"message\": \"Permintaan penawaran diterima. Tim kami akan menghubungi Anda segera.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/trip-estimate",
+      "role": "unauth",
+      "note": "public trip-estimate",
+      "status": 200,
+      "snippet": "{\"breakdown\": [{\"label\": \"Sewa unit (3 hari)\", \"amount\": 4500000}, {\"label\": \"Jasa driver (3 hari)\", \"amount\": 750000}, {\"label\": \"Estimasi BBM (300 km)\", \"amount\": 540000}, {\"label\": \"Tol & parkir (estimasi)\", \"amount\":"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/booking",
+      "role": "unauth",
+      "note": "public booking pending",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_4fa6fcafe552471a\", \"code\": \"BK-0035\", \"status\": \"received\", \"message\": \"Permintaan pesanan diterima. Tim kami akan mengonfirmasi ketersediaan & harga via WhatsApp.\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/chat",
+      "role": "unauth",
+      "note": "public chat",
+      "status": 200,
+      "snippet": "{\"token\": \"vwLGDeCCbDcPS2U5fhMtiCn0\", \"status\": \"received\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/lead-ads/meta",
+      "role": "unauth",
+      "note": "public lead-ads (mock)",
+      "status": 200,
+      "snippet": "{\"id\": \"led_7d8d435846ef4a2c\", \"status\": \"received\", \"channel\": \"meta_ads\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_13620886631d4272/approve",
+      "role": "owner",
+      "note": "approve public booking",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_13620886631d4272\", \"code\": \"BK-0032\", \"customer_id\": \"cus_31eb8c7b978744f1\", \"vehicle_id\": \"veh_4fc07bc7cf534fc8\", \"driver_id\": null, \"origin\": \"Bandung\", \"destination\": \"Bali\", \"start_datetime\": \"2027-01-31T0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/bk_4fa6fcafe552471a/reject",
+      "role": "owner",
+      "note": "reject public booking",
+      "status": 200,
+      "snippet": "{\"id\": \"bk_4fa6fcafe552471a\", \"code\": \"BK-0035\", \"customer_id\": \"cus_dbe2443000c94ec4\", \"vehicle_id\": null, \"driver_id\": null, \"origin\": \"Bandung\", \"destination\": \"Bromo\", \"start_datetime\": \"2026-11-02T01:01:23.590529+00"
+    }
+  ]
+}

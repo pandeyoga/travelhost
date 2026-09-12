@@ -1,0 +1,7 @@
+
+[1m============================================================[0m
+  HEALTH CHECK  (API: http://localhost:8001)
+  2026-07-05 00:06:13
+[1m============================================================[0m
+[91m  LOGIN ERROR: All connection attempts failed[0m
+[91mFATAL: tidak bisa login (backend up? sudah di-seed?).[0m

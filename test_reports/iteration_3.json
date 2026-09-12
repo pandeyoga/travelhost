@@ -1,0 +1,21 @@
+{
+  "summary": "Verified all 4 bug fixes (BUG1 CMS Page Builder, BUG2 marketing_admin role, BUG3 user CRUD/self-guards, BUG4 driver account linking) via 25 pytest backend tests (100% pass) + Playwright UI checks. All fixes appear correctly implemented.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_bugs_verify.py",
+    "/app/test_reports/pytest/bugs_verify.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "site_pages.py get_site_settings falls back to env PUBLIC_SITE_URL when persisted site_url is empty — after PUT with site_url='' the GET may return env value (not literally ''); tests handled by asserting (empty, None). Consistent behavior, but may surprise callers."
+  ],
+  "updated_files": ["/app/backend/tests/test_bugs_verify.py"],
+  "success_rate": {"backend": "100% (25/25)", "frontend": "100% (all testids present & flows verified)"},
+  "test_credentials": "owner@demo.local / ops@demo.local / marketing@demo.local / driver@demo.local — password demo12345",
+  "seed_data_creation": "Tests create ephemeral marketing_admin user + driver+account with random suffixes, and clean up (delete driver + user) at the end. Fleet page hero title was overridden to 'Toyota Hiace TEST <hex>' as part of the save-and-verify test — main agent may re-seed via `python scripts/seed_data.py` if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verification tests for these 4 bugs live in /app/backend/tests/test_bugs_verify.py; run with: cd /app/backend && REACT_APP_BACKEND_URL=<url> python -m pytest tests/test_bugs_verify.py -v -n0. UI checks confirmed pb-page-select lists 9 slugs, fleet preview iframe correctly loads public /fleet (not ERP), users role dropdown lists 4 roles incl. marketing_admin, drivers form lacks df-status/df-rating and has df-account-box with 3 modes, own-row delete button is disabled, no Rating column in drivers table.",
+  "rca of the issue": "N/A — all previously reported bugs are fixed and verified."
+}

@@ -1,0 +1,39 @@
+  [sweep] masterdata OK
+  [sweep] bookings OK
+  [sweep] bookings_deep OK
+  [sweep] quotations OK
+  [sweep] dispatch_driver OK
+  [sweep] finance OK
+  [sweep] maintenance OK
+  [sweep] crm_growth OK
+  [sweep] content OK
+  [sweep] payroll OK
+  [sweep] subcharters OK
+  [sweep] inbox OK
+  [sweep] wa_auto_gps OK
+  [sweep] automation_deep OK
+  [sweep] gps_deep OK
+  [sweep] campaign_reads OK
+  [sweep] auth_ratelimit OK
+  [sweep] driver_role OK
+  [sweep] scheduler_seed OK
+  [sweep] content_deep OK
+  [sweep] whatsapp_meta OK
+  [sweep] whatsapp_extra OK
+  [sweep] automation_conditions OK
+  [sweep] dispatch_sub_edges OK
+  [sweep] error_branches OK
+  [sweep] final_edges OK
+  [sweep] ceiling_push OK
+  [sweep] pod_reassign OK
+  [sweep] reads_exports OK
+  [sweep] public_reads OK
+  [sweep] misc OK
+  [sweep] public OK
+
+TOTAL mutation calls: 495
+By status: {"200": 373, "400": 28, "401": 21, "403": 4, "404": 48, "405": 1, "422": 12, "429": 2, "500": 3, "EXC": 3}
+5xx count: 3
+  5xx: GET /api/quotations/quo_6993ac24ded44bd9/pdf [owner] -> 500 :: EXPORT-1: PDF with <&markup (expect 500)
+  5xx: GET /api/crm/segments/seg_5fa3df35a22d4d9b/preview [owner] -> 500 :: R6-4: segment preview bad (expect 500)
+  5xx: POST /api/content/destinations [owner] -> 500 :: R6-5: content position=abc (expect 500)

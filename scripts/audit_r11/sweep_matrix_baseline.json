@@ -1,0 +1,3477 @@
+{
+  "api": "http://localhost:8001",
+  "total_routes": 268,
+  "get_routes": 130,
+  "matrix": [
+    {
+      "method": "GET",
+      "path": "/api/",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/ad-spend",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/ar-aging",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/channels",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/drivers",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/export",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/fleet",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/forecast",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/funnel",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/retention",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/summary",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/audit-logs",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/automation/event-types",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/automation/events",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/automation/rules",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/automation/rules/{rule_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/automation/runs",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/automation/stats",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings/availability",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings/calendar",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings/{booking_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/broadcasts",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/{resource}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/{conversation_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/aging",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/campaigns",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/campaigns/{campaign_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/growth-config",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/rfm",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/scoreboard",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/segments",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/segments/{segment_id}/preview",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/sequences",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/crm/sequences/{sequence_id}/enrollments",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/{customer_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/dispatch/today",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/driver/my-trips",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/driver/summary",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/driver/tasks",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/drivers",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/drivers/{driver_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/drivers/{driver_id}/compensation",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/drivers/{driver_id}/performance",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/expenses",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/ar",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/ar/overdue",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/cashflow",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/export",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/pl-full",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/profit-loss",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/reconciliation",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/summary",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/devices",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/live",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/gps/summary",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/{invoice_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/{invoice_id}/export",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads/agents",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads/pipeline",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads/reminders",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/leads/{lead_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations/history",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations/live",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/preventive",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/reminders",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/summary",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance/{maintenance_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/unread_count",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/onboarding",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/partners",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/partners/{partner_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/partners/{partner_id}/settlements",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/payments",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/payouts",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/payouts/{payout_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/payouts/{payout_id}/slip",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/summary",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/rules",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/articles",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/articles/{slug}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/chat/{token}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/company",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/destinations",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/destinations/{slug}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/fleet",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/fleet/{vehicle_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/packages",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/promos",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/stats",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/testimonials",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/theme",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/track/{token}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations/{quotation_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/quotations/{quotation_id}/pdf",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/drivers",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/drivers/export",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/export",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/payroll",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/payroll/export",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/summary",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-types",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/shares",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/subcharters",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/subcharters/available-partners",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/subcharters/{subcharter_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/{trip_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/{trip_id}/eta",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/{trip_id}/track",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/{user_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/{vehicle_id}",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/{vehicle_id}/maintenance",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/{vehicle_id}/trips",
+      "filled": false,
+      "status": {
+        "owner": "SKIP(no-sample)",
+        "ops": "SKIP(no-sample)",
+        "driver": "SKIP(no-sample)",
+        "unauth": "SKIP(no-sample)"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/wa/config",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/wa/templates",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/wa/webhook",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/workshops",
+      "filled": true,
+      "status": {
+        "owner": "EXC",
+        "ops": "EXC",
+        "driver": "EXC",
+        "unauth": "EXC"
+      }
+    }
+  ],
+  "five_xx": [
+    [
+      "owner",
+      "GET",
+      "/api/",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/ad-spend",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/ad-spend",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/ad-spend",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/ar-aging",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/ar-aging",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/ar-aging",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/channels",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/channels",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/channels",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/fleet",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/fleet",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/fleet",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/forecast",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/forecast",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/forecast",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/funnel",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/funnel",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/funnel",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/retention",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/retention",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/retention",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/analytics/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/analytics/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/analytics/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/audit-logs",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/audit-logs",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/audit-logs",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/auth/me",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/auth/me",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/auth/me",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/automation/event-types",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/automation/event-types",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/automation/event-types",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/automation/events",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/automation/events",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/automation/events",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/automation/rules",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/automation/rules",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/automation/rules",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/automation/runs",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/automation/runs",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/automation/runs",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/automation/stats",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/automation/stats",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/automation/stats",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/bookings",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/bookings",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/bookings",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/bookings/availability",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/bookings/availability",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/bookings/availability",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/bookings/calendar",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/bookings/calendar",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/bookings/calendar",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/broadcasts",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/broadcasts",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/broadcasts",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/conversations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/conversations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/conversations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/crm/aging",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/crm/aging",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/crm/aging",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/crm/campaigns",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/crm/campaigns",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/crm/campaigns",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/crm/growth-config",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/crm/growth-config",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/crm/growth-config",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/crm/rfm",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/crm/rfm",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/crm/rfm",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/crm/scoreboard",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/crm/scoreboard",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/crm/scoreboard",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/crm/segments",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/crm/segments",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/crm/segments",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/crm/sequences",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/crm/sequences",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/crm/sequences",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/customers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/customers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/customers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/dashboard",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/dashboard",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/dashboard",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/dispatch/today",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/dispatch/today",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/dispatch/today",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/driver/my-trips",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/driver/my-trips",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/driver/my-trips",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/driver/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/driver/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/driver/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/driver/tasks",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/driver/tasks",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/driver/tasks",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/expenses",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/expenses",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/expenses",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/ar",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/ar",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/ar",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/ar/overdue",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/ar/overdue",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/ar/overdue",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/cashflow",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/cashflow",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/cashflow",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/pl-full",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/pl-full",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/pl-full",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/profit-loss",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/profit-loss",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/profit-loss",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/reconciliation",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/reconciliation",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/reconciliation",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/finance/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/finance/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/finance/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/gps/devices",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/gps/devices",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/gps/devices",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/gps/live",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/gps/live",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/gps/live",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/gps/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/gps/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/gps/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/invoices",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/invoices",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/invoices",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/leads",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/leads",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/leads",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/leads/agents",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/leads/agents",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/leads/agents",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/leads/pipeline",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/leads/pipeline",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/leads/pipeline",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/leads/reminders",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/leads/reminders",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/leads/reminders",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/locations/history",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/locations/history",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/locations/history",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/locations/live",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/locations/live",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/locations/live",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/maintenance",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/maintenance",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/maintenance",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/maintenance/preventive",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/maintenance/preventive",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/maintenance/preventive",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/maintenance/reminders",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/maintenance/reminders",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/maintenance/reminders",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/maintenance/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/maintenance/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/maintenance/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/notifications",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/notifications",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/notifications",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/notifications/unread_count",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/notifications/unread_count",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/notifications/unread_count",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/onboarding",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/onboarding",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/onboarding",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/partners",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/partners",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/partners",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/payments",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/payments",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/payments",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/payroll/payouts",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/payroll/payouts",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/payroll/payouts",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/payroll/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/payroll/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/payroll/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/pricing/rules",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/pricing/rules",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/pricing/rules",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/articles",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/articles",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/articles",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/company",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/company",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/company",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/destinations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/destinations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/destinations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/fleet",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/fleet",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/fleet",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/packages",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/packages",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/packages",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/promos",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/promos",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/promos",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/stats",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/stats",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/stats",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/testimonials",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/testimonials",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/testimonials",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/public/theme",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/public/theme",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/public/theme",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/quotations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/quotations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/quotations",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/reports/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/reports/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/reports/drivers",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/reports/drivers/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/reports/drivers/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/reports/drivers/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/reports/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/reports/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/reports/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/reports/payroll",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/reports/payroll",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/reports/payroll",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/reports/payroll/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/reports/payroll/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/reports/payroll/export",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/reports/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/reports/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/reports/summary",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/service-types",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/service-types",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/service-types",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/settings",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/settings",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/settings",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/shares",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/shares",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/shares",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/subcharters",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/subcharters",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/subcharters",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/subcharters/available-partners",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/subcharters/available-partners",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/subcharters/available-partners",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/trips",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/trips",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/trips",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/users",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/users",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/users",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/vehicles",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/vehicles",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/vehicles",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/wa/config",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/wa/config",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/wa/config",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/wa/templates",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/wa/templates",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/wa/templates",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/wa/webhook",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/wa/webhook",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/wa/webhook",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "owner",
+      "GET",
+      "/api/workshops",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "ops",
+      "GET",
+      "/api/workshops",
+      "EXC",
+      "All connection attempts failed"
+    ],
+    [
+      "driver",
+      "GET",
+      "/api/workshops",
+      "EXC",
+      "All connection attempts failed"
+    ]
+  ],
+  "samples": {
+    "vehicle_id": null,
+    "driver_id": null,
+    "customer_id": null,
+    "booking_id": null,
+    "lead_id": null,
+    "trip_id": null,
+    "id": null,
+    "user_id": null,
+    "quotation_id": null,
+    "invoice_id": null,
+    "payment_id": null,
+    "maintenance_id": null,
+    "workshop_id": null,
+    "campaign_id": null,
+    "segment_id": null,
+    "partner_id": null,
+    "subcharter_id": null,
+    "conversation_id": null,
+    "service_type_id": null,
+    "location_id": null
+  }
+}

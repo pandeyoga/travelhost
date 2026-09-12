@@ -1,4 +1,4 @@
-import { Plus, Trash2, ArrowUp, ArrowDown, Images } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Images, Film } from "lucide-react";
 import { useState } from "react";
 import SelectField from "@/components/shared/SelectField";
 import { Switch } from "@/components/ui/switch";
@@ -185,7 +185,7 @@ export function ChipsEditor({ chips, onChange }) {
   );
 }
 
-/** Galeri: banyak media sekaligus. */
+/** Galeri: banyak media (foto & video) sekaligus. */
 export function GalleryEditor({ items, onChange }) {
   const [open, setOpen] = useState(false);
   const list = items || [];
@@ -193,17 +193,21 @@ export function GalleryEditor({ items, onChange }) {
   const abs = (u) => (u && u.startsWith("/") ? `${backend}${u}` : u || "");
   return (
     <div className="space-y-1.5 rounded-lg bg-[#F7F8FA] p-2.5">
-      <p className="text-[11.5px] font-semibold text-[#3a3f4a]">Foto galeri ({list.length})</p>
+      <p className="text-[11.5px] font-semibold text-[#3a3f4a]">Foto/video galeri ({list.length})</p>
       {!list.length ? (
         <p className="rounded-lg border border-dashed border-[#D9DEE6] bg-white px-2 py-3 text-center text-[11.5px] text-[#8E8E93]"
-          data-testid="lp-gallery-editor-empty">Belum ada foto di galeri ini</p>
+          data-testid="lp-gallery-editor-empty">Belum ada foto/video di galeri ini</p>
       ) : (
         <div className="grid grid-cols-4 gap-1.5" data-testid="lp-gallery-editor">
           {list.map((m, i) => (
-            <div key={i} className="relative overflow-hidden rounded border border-[#E5E5EA] bg-white">
-              <img src={abs(m.thumb_url || m.src)} alt={m.alt || ""} className="h-12 w-full object-cover" />
+            <div key={i} className="relative overflow-hidden rounded border border-[#E5E5EA] bg-white" data-kind={m.kind || "image"}>
+              {m.kind === "video" ? (
+                <span className="flex h-12 w-full items-center justify-center bg-[#0E1726] text-white"><Film size={14} /></span>
+              ) : (
+                <img src={abs(m.thumb_url || m.src)} alt={m.alt || ""} className="h-12 w-full object-cover" />
+              )}
               <button type="button" onClick={() => onChange(list.filter((_, j) => j !== i))}
-                aria-label="Hapus foto" data-testid={`lp-gallery-del-${i}`}
+                aria-label="Hapus media" data-testid={`lp-gallery-del-${i}`}
                 className="absolute right-0.5 top-0.5 rounded bg-black/60 p-0.5 text-white">
                 <Trash2 size={9} />
               </button>
@@ -212,10 +216,10 @@ export function GalleryEditor({ items, onChange }) {
         </div>
       )}
       <button type="button" className="secondary-button !h-8 w-full" onClick={() => setOpen(true)}
-        data-testid="lp-gallery-add"><Images size={12} /> Tambah foto dari Media Library</button>
-      <MediaLibrary open={open} onOpenChange={setOpen} pickKind="image" multiple
-        title="Pilih foto galeri"
-        description="Centang beberapa foto sekaligus — semuanya langsung ditambahkan ke galeri blok ini."
+        data-testid="lp-gallery-add"><Images size={12} /> Tambah foto/video dari Media Library</button>
+      <MediaLibrary open={open} onOpenChange={setOpen} pickKind="" multiple
+        title="Pilih foto & video galeri"
+        description="Centang beberapa foto/video sekaligus — semuanya langsung ditambahkan ke galeri blok ini. Video diputar otomatis tanpa suara."
         onPick={(assets) => {
           // Mode banyak mengirim ARRAY. Sebelumnya galeri hanya bisa ditambah satu-satu sehingga
           // mengisi galeri 12 foto berarti 12 kali membuka dialog — pekerjaan yang membuat orang

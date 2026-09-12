@@ -12,6 +12,7 @@ import Reveal from "@/components/public/Reveal";
 import GlassCard from "@/components/public/GlassCard";
 import TripEstimatorInline from "@/components/public/TripEstimatorInline";
 import PhotoGalleryGrid from "@/components/public/PhotoGalleryGrid";
+import MediaBackdrop from "@/components/public/MediaBackdrop";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const PhotoSphereTour = lazy(() => import("@/components/public/PhotoSphereTour"));
@@ -82,7 +83,7 @@ export default function DestinationDetail() {
     <div>
       {/* HERO */}
       <section className="relative flex min-h-[62vh] items-end overflow-hidden bg-primary">
-        <div className="absolute inset-0 bg-cover bg-center" style={d.hero_image ? { backgroundImage: `url('${d.hero_image}')` } : undefined} aria-hidden="true" />
+        <MediaBackdrop src={d.hero_image} testId="dest-hero-backdrop" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-hero)" }} aria-hidden="true" />
         <div className="pointer-events-none absolute inset-0 bg-noise opacity-[0.06] mix-blend-overlay" aria-hidden="true" />
         <div className="relative mx-auto w-full max-w-7xl px-4 pb-12 pt-32 sm:px-6 lg:px-8">

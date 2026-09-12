@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
+import MediaBackdrop from "@/components/public/MediaBackdrop";
 
 // PageHero — hero band untuk halaman publik bagian dalam (token-based, theme-aware).
+// `image` boleh URL video Media Library → autoplay muted.
 export default function PageHero({ title, subtitle, image, eyebrow, breadcrumb = [] }) {
   return (
     <section className="relative flex min-h-[46vh] items-end overflow-hidden bg-primary">
-      <div className="absolute inset-0 bg-cover bg-center" style={image ? { backgroundImage: `url('${image}')` } : undefined} aria-hidden="true" />
+      <MediaBackdrop src={image} testId="page-hero-backdrop" />
       <div className="absolute inset-0" style={{ background: "var(--gradient-hero)" }} aria-hidden="true" />
       <div className="pointer-events-none absolute inset-0 bg-noise opacity-[0.06] mix-blend-overlay" aria-hidden="true" />
       <div className="relative mx-auto w-full max-w-7xl px-4 pb-12 pt-32 sm:px-6 lg:px-8">

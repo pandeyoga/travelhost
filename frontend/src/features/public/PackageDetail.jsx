@@ -10,6 +10,7 @@ import useSlugRedirect from "@/hooks/useSlugRedirect";
 import PreviewBanner from "@/components/public/PreviewBanner";
 import Reveal from "@/components/public/Reveal";
 import CtaBand from "@/components/public/CtaBand";
+import MediaBackdrop from "@/components/public/MediaBackdrop";
 import { formatCurrency } from "@/utils/formatters";
 
 export default function PackageDetail() {
@@ -142,8 +143,7 @@ export default function PackageDetail() {
           {p.destination_ref ? (
             <Link to={`/destinations/${p.destination_ref.slug}`} data-testid="package-destination-link"
               className="mt-8 flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-              <div className="h-16 w-24 shrink-0 rounded-xl bg-cover bg-center bg-secondary"
-                style={p.destination_ref.hero_image ? { backgroundImage: `url('${p.destination_ref.hero_image}')` } : undefined} aria-hidden="true" />
+              <MediaBackdrop src={p.destination_ref.hero_image} className="h-16 w-24 shrink-0 overflow-hidden rounded-xl" />
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{t("nav.destinations", lang)}</p>
                 <p className="font-fraunces text-[17px] text-foreground">{p.destination_ref.name}</p>

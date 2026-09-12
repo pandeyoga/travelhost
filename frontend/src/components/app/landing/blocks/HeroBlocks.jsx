@@ -144,8 +144,12 @@ export function HeroMedia({ p, theme, mode, first, onCta }) {
   const ctas = useMemo(() => p.ctas || [], [p.ctas]);
   const topPad = mode === "public" && first ? "pt-[136px]" : "pt-14";
   return (
-    <section className={`relative px-5 pb-14 ${topPad}`} data-testid="lp-hero"
-      style={{ background: p.media?.src ? `url(${p.media.src}) center/cover no-repeat` : theme.primary }}>
+    <section className={`relative overflow-hidden px-5 pb-14 ${topPad}`} data-testid="lp-hero"
+      style={{ background: p.media?.src && p.media?.kind !== "video" ? `url(${p.media.src}) center/cover no-repeat` : theme.primary }}>
+      {p.media?.src && p.media?.kind === "video" ? (
+        <video src={p.media.src} poster={p.media.poster || undefined} autoPlay muted loop playsInline preload="metadata"
+          className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" data-testid="lp-hero-video" />
+      ) : null}
       <div className="absolute inset-0" style={{ background: `rgba(6,18,30,${(p.overlay ?? 45) / 100})` }} />
       <div className={`relative mx-auto max-w-[1120px] ${align ? "text-center" : ""}`}>
         {p.eyebrow ? (

@@ -6,14 +6,17 @@ import {
   SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Star, Trash2, Plus, ImageOff, Images } from "lucide-react";
+import { GripVertical, Star, Trash2, Plus, ImageOff, Images, Play } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import MediaPickerDialog from "@/components/media/MediaPickerDialog";
+import { assetUrl, isVideoUrl } from "@/lib/mediaKind";
 
-// GalleryManager — kelola array gambar (URL-based, tanpa storage).
+// GalleryManager — kelola array foto/video (URL-based, tanpa storage).
 // mode "urls"      => value: ["https://...", ...]
 // mode "captioned" => value: [{url, caption}, ...]
+// Video dari Media Library disimpan dengan penanda `?kind=video` (lihat lib/mediaKind.js) supaya
+// halaman publik tahu harus memakai <video autoplay muted> walau URL tak berekstensi.
 // Fitur: tambah URL (tunggal/batch newline/koma), reorder dnd-kit, set cover (geser ke depan),
 // edit caption (captioned), hapus. Komponen fully controlled via value/onChange.
 function normalize(value) {
@@ -25,13 +28,23 @@ function normalize(value) {
 function SortableThumb({ id, item, index, mode, onCover, onRemove, onCaption }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const video = isVideoUrl(item.url);
   return (
-    <div ref={setNodeRef} style={style} data-testid={`gm-item-${index}`}
+    <div ref={setNodeRef} style={style} data-testid={`gm-item-${index}`} data-kind={video ? "video" : "image"}
       className="group relative overflow-hidden rounded-xl border border-border bg-card">
       <div className="relative h-24 w-full bg-muted">
         {item.url ? (
-          <img src={item.url} alt="" className="h-full w-full object-cover" loading="lazy"
-            onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          video ? (
+            <video src={item.url} muted autoPlay loop playsInline preload="metadata" className="h-full w-full object-cover" />
+          ) : (
+            <img src={item.url} alt="" className="h-full w-full object-cover" loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          )
+        ) : null}
+        {video ? (
+          <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <Play size={9} className="fill-white" /> Video
+          </span>
         ) : null}
         {index === 0 ? (
           <span className="absolute left-1.5 top-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">Cover</span>
@@ -87,7 +100,7 @@ export default function GalleryManager({ value = [], onChange, mode = "captioned
     <div className="space-y-2" data-testid="gallery-manager">
       {items.length === 0 ? (
         <div className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-border py-6 text-muted-foreground" data-testid="gm-empty">
-          <ImageOff size={20} /><span className="text-[12px]">Belum ada gambar. Tempel URL di bawah.</span>
+          <ImageOff size={20} /><span className="text-[12px]">Belum ada foto/video. Pilih dari Library atau tempel URL di bawah.</span>
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -105,7 +118,7 @@ export default function GalleryManager({ value = [], onChange, mode = "captioned
       )}
       <div className="flex items-start gap-2">
         <Textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)}
-          placeholder="Tempel 1+ URL gambar (pisah baris/koma)" className="flex-1 text-[12px]" data-testid="gm-input" />
+          placeholder="Tempel 1+ URL gambar/video (pisah baris/koma)" className="flex-1 text-[12px]" data-testid="gm-input" />
         <div className="flex shrink-0 flex-col gap-1.5">
           <button type="button" onClick={addUrls} data-testid="gm-add"
             className="primary-button"><Plus size={14} /> Tambah</button>
@@ -113,17 +126,17 @@ export default function GalleryManager({ value = [], onChange, mode = "captioned
             className="secondary-button"><Images size={14} /> Dari Library</button>
         </div>
       </div>
-      <MediaPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} pickKind="image" multiple
-        title="Pilih foto galeri"
-        description="Centang beberapa foto sekaligus — jauh lebih cepat daripada menempel URL satu per satu."
+      <MediaPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} pickKind="" multiple
+        title="Pilih foto & video galeri"
+        description="Centang beberapa foto/video sekaligus — video akan diputar otomatis tanpa suara di halaman publik."
         onPick={(assets) => {
           // Galeri ini dulunya HANYA menerima tempelan URL manual, jadi foto di komputer pengguna
           // praktis tidak bisa dipakai tanpa mengunggahnya lewat halaman lain lebih dulu.
           const picked = Array.isArray(assets) ? assets : [assets];
           const existing = new Set(items.map((x) => x.url));
           const added = picked
-            .filter((a) => a?.url && !existing.has(a.url))
-            .map((a) => ({ url: a.url, caption: a.alt || "" }));
+            .map((a) => ({ url: assetUrl(a), caption: a?.alt || "" }))
+            .filter((x) => x.url && !existing.has(x.url));
           if (added.length) emit([...items, ...added]);
         }} />
     </div>

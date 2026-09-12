@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Film, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
+import { isVideoItem } from "@/lib/mediaKind";
 
 // Lightbox.jsx — galeri layar penuh (dialog) + crossfade + prev/next + thumbnail strip.
 // Keyboard arrows didukung. Controlled: {open,index,onClose,onIndex}.
@@ -24,6 +25,7 @@ export default function Lightbox({ images = [], open, index = 0, onClose, onInde
 
   if (!cur) return null;
   const url = cur.url || cur;
+  const video = isVideoItem(cur);
   const prev = () => onIndex((index - 1 + list.length) % list.length);
   const next = () => onIndex((index + 1) % list.length);
 
@@ -34,16 +36,31 @@ export default function Lightbox({ images = [], open, index = 0, onClose, onInde
         <div className="relative">
           <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-primary">
             <AnimatePresence mode="wait">
-              <motion.img
-                key={index}
-                src={url}
-                alt={cur.caption || bi("Foto armada", "Vehicle photo", lang)}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className="h-full w-full object-cover"
-              />
+              {video ? (
+                <motion.video
+                  key={index}
+                  src={url}
+                  poster={cur.poster || undefined}
+                  controls autoPlay muted playsInline loop
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="h-full w-full object-contain"
+                  data-testid="lightbox-video"
+                />
+              ) : (
+                <motion.img
+                  key={index}
+                  src={url}
+                  alt={cur.caption || bi("Foto armada", "Vehicle photo", lang)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="h-full w-full object-cover"
+                />
+              )}
             </AnimatePresence>
             {list.length > 1 ? (
               <>
@@ -62,9 +79,13 @@ export default function Lightbox({ images = [], open, index = 0, onClose, onInde
                   key={i}
                   onClick={() => onIndex(i)}
                   aria-label={bi(`Foto ${i + 1}`, `Photo ${i + 1}`, lang)}
-                  className={`h-12 w-16 overflow-hidden rounded-lg border-2 bg-cover bg-center transition ${i === index ? "border-white" : "border-transparent opacity-60 hover:opacity-100"}`}
-                  style={{ backgroundImage: `url('${im.url || im}')` }}
-                />
+                  className={`relative h-12 w-16 overflow-hidden rounded-lg border-2 bg-cover bg-center transition ${i === index ? "border-white" : "border-transparent opacity-60 hover:opacity-100"}`}
+                  style={isVideoItem(im) ? undefined : { backgroundImage: `url('${im.url || im}')` }}
+                >
+                  {isVideoItem(im) ? (
+                    <span className="flex h-full w-full items-center justify-center bg-black/70 text-white"><Film size={14} /></span>
+                  ) : null}
+                </button>
               ))}
             </div>
           ) : null}

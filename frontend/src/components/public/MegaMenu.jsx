@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { MapPin, ArrowRight } from "lucide-react";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
+import MediaBackdrop from "@/components/public/MediaBackdrop";
 
 const REGION_LABEL = {
   jawa_barat: "Jawa Barat",
@@ -54,10 +55,7 @@ export const MegaMenu = ({ destinations, loading, onNavigate }) => {
                     data-testid={`megamenu-dest-${d.slug}`}
                     className="group flex items-center gap-3 rounded-xl p-1.5 transition hover:bg-background/60"
                   >
-                    <span
-                      className="h-11 w-14 flex-shrink-0 rounded-lg bg-primary bg-cover bg-center"
-                      style={d.hero_image ? { backgroundImage: `url('${d.hero_image}')` } : undefined}
-                    />
+                    <MediaBackdrop src={d.hero_image} className="h-11 w-14 flex-shrink-0 overflow-hidden rounded-lg" />
                     <span className="min-w-0">
                       <span className="block truncate text-[13.5px] font-medium text-foreground">{d.name}</span>
                       <span className="flex items-center gap-1 text-[11.5px] text-muted-foreground">

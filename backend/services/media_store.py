@@ -46,7 +46,7 @@ IMAGE_TYPES = {
 VIDEO_TYPES = {"video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov",
                "video/x-m4v": ".mp4"}
 EXT_TYPES = {v: k for k, v in {**IMAGE_TYPES, **VIDEO_TYPES}.items()}
-EXT_TYPES.update({".jpeg": "image/jpeg", ".m4v": "video/mp4"})
+EXT_TYPES.update({".jpeg": "image/jpeg", ".mp4": "video/mp4", ".m4v": "video/mp4"})
 MAX_IMAGE_BYTES = 10 * 1024 * 1024   # 10 MB
 MAX_VIDEO_BYTES = 50 * 1024 * 1024   # 50 MB (batas sadar-performa, lihat docstring)
 THUMB_MAX = 480                       # sisi terpanjang thumbnail grid Media Library
@@ -307,6 +307,18 @@ def upload_bytes(data: bytes, content_type: str, filename: str = "", folder: str
         "original_filename": safe_stem(filename),
         "etag": res.get("etag") or "",
     }
+
+
+def local_file(storage_path: str, backend: str = ""):
+    """Path berkas lokal untuk streaming (Range) — None bila objstore / berkas tidak ada."""
+    which = (backend or "").strip().lower() or backend_name()
+    if which == "objstore":
+        return None
+    try:
+        target = _local_abs(storage_path)
+    except MediaError:
+        return None
+    return target if target.is_file() else None
 
 
 def fetch(storage_path: str, backend: str = ""):

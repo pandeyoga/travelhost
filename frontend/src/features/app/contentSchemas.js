@@ -26,7 +26,7 @@ export const SCHEMAS = {
       { k: "name", label: "Nama", type: "text", req: true },
       { k: "slug", label: "Slug (URL)", type: "text", req: true },
       { k: "region", label: "Region", type: "select", options: [["bali", "Bali"], ["jawa_timur", "Jawa Timur"], ["jawa_tengah", "Jawa Tengah"], ["jawa_barat", "Jawa Barat"], ["yogyakarta", "Yogyakarta"]] },
-      { k: "hero_image", label: "Gambar Hero", type: "image" },
+      { k: "hero_image", label: "Gambar/Video Hero", type: "image", video: true },
       { k: "intro", label: "Intro (kalimat pembuka)", type: "textarea" },
       { k: "description", label: "Deskripsi", type: "textarea" },
       { k: "highlights", label: "Highlight (JSON: title + desc)", type: "json", hint: '[{"title":"Pura & Budaya","desc":"Tanah Lot, Uluwatu..."}]' },

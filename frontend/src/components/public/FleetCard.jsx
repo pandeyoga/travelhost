@@ -3,8 +3,9 @@ import { Users, ArrowRight, Navigation, View } from "lucide-react";
 import { formatCurrency } from "@/utils/formatters";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
+import MediaBackdrop from "@/components/public/MediaBackdrop";
 
-// FleetCard — kartu armada premium (dipakai di Home & halaman Armada).
+// FleetCard — kartu armada premium (dipakai di Home & halaman Armada). Foto/video pertama = sampul.
 export default function FleetCard({ v }) {
   const lang = useLangValue();
   const img = v.photos && v.photos[0];
@@ -12,7 +13,7 @@ export default function FleetCard({ v }) {
   return (
     <Link to={`/fleet/${v.id}`} data-testid={`fleet-card-${v.id}`} className="group block h-full overflow-hidden rounded-2xl card-premium lift shimmer-on-hover">
       <div className="relative h-52 overflow-hidden">
-        <div className="absolute inset-0 bg-primary bg-cover bg-center transition duration-700 ease-out group-hover:scale-110" style={img ? { backgroundImage: `url('${img}')` } : undefined} />
+        <MediaBackdrop src={img} className="absolute inset-0 transition duration-700 ease-out group-hover:scale-110" />
         <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(8,14,32,0) 45%, rgba(8,14,32,0.5) 100%)" }} />
         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full glass-strong px-2.5 py-1 text-[11.5px] font-medium text-foreground"><Users size={12} /> {v.capacity} {bi("kursi", "seats", lang)}</span>
         {has360 ? (

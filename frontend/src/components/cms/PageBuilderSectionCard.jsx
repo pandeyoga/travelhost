@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import MediaPickerDialog from "@/components/media/MediaPickerDialog";
 import { absUrl } from "@/components/media/mediaApi";
+import { assetUrl, isVideoUrl } from "@/lib/mediaKind";
 import { SECTION_META } from "@/lib/siteSections";
 
 // Kartu section Page Builder: drag & drop (dnd-kit), pilih (sinkron dgn pratinjau),
-// editor field per tipe (teks/textarea/daftar/gambar dari Media Library).
+// editor field per tipe (teks/textarea/daftar/gambar-atau-video dari Media Library).
 
 function ImageField({ value, onChange, testId }) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -26,12 +27,18 @@ function ImageField({ value, onChange, testId }) {
         </button>
       </div>
       {value ? (
-        <img src={absUrl(value)} alt="Pratinjau gambar section" loading="lazy"
-          className="h-16 w-28 rounded-lg border border-[#E9E9EE] object-cover" data-testid={`${testId}-thumb`} />
+        isVideoUrl(value) ? (
+          <video src={absUrl(value)} muted autoPlay loop playsInline preload="metadata"
+            className="h-16 w-28 rounded-lg border border-[#E9E9EE] object-cover" data-testid={`${testId}-thumb`} data-kind="video" />
+        ) : (
+          <img src={absUrl(value)} alt="Pratinjau gambar section" loading="lazy"
+            className="h-16 w-28 rounded-lg border border-[#E9E9EE] object-cover" data-testid={`${testId}-thumb`} />
+        )
       ) : null}
-      <MediaPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} pickKind="image"
-        title="Pilih gambar section" description="Klik satu gambar dari Media Library — bisa juga unggah baru."
-        onPick={(a) => onChange((a && a.url) || "")} />
+      <MediaPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} pickKind=""
+        title="Pilih gambar atau video section"
+        description="Klik satu foto/video dari Media Library — bisa juga unggah baru. Video diputar otomatis tanpa suara."
+        onPick={(a) => onChange(assetUrl(a))} />
     </div>
   );
 }

@@ -69,3 +69,20 @@ Testing: test_reports/iteration_8.json — backend 8/8 & UI lulus.
 - P1: Galeri (GalleryManager / lp-gallery) masih khusus foto (`pickKind="image"`) — dukung video bila diperlukan (butuh render <video> di halaman publik).
 - P2: `GET /api/public/media/{id}` belum mendukung HTTP Range (seek video besar).
 - P2: Thumbnail/poster otomatis untuk video (saat ini ikon Film).
+
+## Sesi 12 Sep 2026 (lanjut 2) — Video di seluruh situs
+1. **Range streaming**: `GET /api/public/media/{id}` mendukung HTTP Range (206/416, Accept-Ranges, streaming chunk dari disk lokal;
+   objstore = slice bytes). Video bisa di-seek & mulai instan. (routers/public.py, media_store.local_file)
+2. **Penanda video**: URL Media Library tak berekstensi → saat video dipilih dari Library, URL disimpan `…?kind=video`
+   (backend mengabaikan query). SSOT deteksi: `frontend/src/lib/mediaKind.js` (isVideoUrl/isVideoItem/assetUrl).
+3. **Renderer publik** (autoplay muted loop playsInline): `components/public/MediaBackdrop.jsx` (MediaBackdrop + AutoVideo) dipakai
+   ParallaxHero (hero beranda), PageHero (hero semua halaman), DestCard, FleetCard, MegaMenu, PackageDetail, DestinationDetail hero,
+   FleetDetail hero+galeri utama+thumb; PhotoGalleryGrid (tile video + badge) & Lightbox (video controls); landing: Gallery block & HeroMedia.
+4. **Editor CMS**: PageBuilder ImageField (pickKind semua, preview video), section gallery item `url` kini field picker Library;
+   GalleryManager (destinasi/armada) menerima video; ContentFormDialog hero_image `video:true`; landing GalleryEditor & hero_media picker menerima video.
+Testing: test_reports/iteration_9.json — backend 10/10, UI lulus. Aset demo webm (test pattern) `med_ae5f57d1fcfe4bde` masih di Library; hero home & Bali sudah dikembalikan ke default.
+
+## Backlog
+- P2: Thumbnail/poster otomatis untuk video (grid Media Library & tile masih ikon Film / frame pertama).
+- P2: cover_image artikel & og_image tetap khusus gambar (by design).
+- P2: Drag & drop unggah di Media Library.

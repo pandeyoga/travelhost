@@ -5,6 +5,7 @@ trip-estimate (hitung server-side, tanpa tulis DB) + quotation (buat `leads` →
 Koleksi yang dipakai kanonik (vehicles/destinations/articles/testimonials/leads/settings).
 """
 from fastapi import APIRouter, Body, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 
 import hashlib
 import re
@@ -703,14 +704,81 @@ async def public_media(media_id: str, request: Request, thumb: int = Query(defau
     if (request.headers.get("if-none-match") or "").strip() == etag:
         return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "public, max-age=60"})
     path = (doc.get("thumb_path") if want_thumb else doc.get("storage_path")) or ""
+    fresh = str(v or "").strip() == str(version)
+    cache = "public, max-age=31536000, immutable" if fresh else "public, max-age=60, must-revalidate"
+    base_headers = {"Cache-Control": cache, "ETag": etag, "Accept-Ranges": "bytes"}
+    ctype_hint = doc.get("content_type") or "application/octet-stream"
+
+    # Video: dukung HTTP Range (206) agar browser bisa seek & mulai putar tanpa unduh penuh.
+    if doc.get("kind") == "video" and not want_thumb:
+        rng = _parse_range(request.headers.get("range") or "")
+        local = ms.local_file(path, backend=doc.get("storage_backend") or "")
+        if local is not None:
+            size = local.stat().st_size
+            ctype = ms.EXT_TYPES.get(local.suffix.lower(), ctype_hint)
+            start, end = _range_bounds(rng, size)
+            if start is None:
+                return Response(status_code=416, headers={**base_headers, "Content-Range": f"bytes */{size}"})
+            return StreamingResponse(_file_chunks(local, start, end), media_type=ctype,
+                                     status_code=206 if rng else 200,
+                                     headers={**base_headers, "Content-Length": str(end - start + 1),
+                                              **({"Content-Range": f"bytes {start}-{end}/{size}"} if rng else {})})
+        try:
+            data, ctype = ms.fetch(path, backend=doc.get("storage_backend") or "")
+        except Exception:  # noqa: BLE001
+            raise HTTPException(status_code=404, detail="Media tidak tersedia") from None
+        size = len(data)
+        start, end = _range_bounds(rng, size)
+        if start is None:
+            return Response(status_code=416, headers={**base_headers, "Content-Range": f"bytes */{size}"})
+        if rng:
+            return Response(content=data[start:end + 1], status_code=206, media_type=ctype or ctype_hint,
+                            headers={**base_headers, "Content-Range": f"bytes {start}-{end}/{size}",
+                                     "Content-Length": str(end - start + 1)})
+        return Response(content=data, media_type=ctype or ctype_hint,
+                        headers={**base_headers, "Content-Length": str(size)})
+
     try:
         data, ctype = ms.fetch(path, backend=doc.get("storage_backend") or "")
     except Exception:  # noqa: BLE001
         raise HTTPException(status_code=404, detail="Media tidak tersedia") from None
-    fresh = str(v or "").strip() == str(version)
-    cache = "public, max-age=31536000, immutable" if fresh else "public, max-age=60, must-revalidate"
-    return Response(content=data, media_type=ctype or doc.get("content_type") or "application/octet-stream",
-                    headers={"Cache-Control": cache, "ETag": etag})
+    return Response(content=data, media_type=ctype or ctype_hint, headers=base_headers)
+
+
+def _parse_range(header: str):
+    m = re.match(r"^bytes=(\d*)-(\d*)$", (header or "").strip())
+    if not m or (m.group(1) == "" and m.group(2) == ""):
+        return None
+    return (int(m.group(1)) if m.group(1) else None, int(m.group(2)) if m.group(2) else None)
+
+
+def _range_bounds(rng, size: int):
+    """(start, end) inklusif; (None, None) bila rentang tidak terpenuhi."""
+    if size <= 0:
+        return (None, None) if rng else (0, -1)
+    if not rng:
+        return 0, size - 1
+    start, end = rng
+    if start is None:  # suffix: bytes=-500
+        start = max(0, size - (end or 0))
+        end = size - 1
+    else:
+        end = size - 1 if end is None else min(end, size - 1)
+    if start >= size or start > end:
+        return None, None
+    return start, end
+
+
+def _file_chunks(path, start: int, end: int, chunk: int = 1024 * 512):
+    with open(path, "rb") as fh:
+        fh.seek(start)
+        left = end - start + 1
+        while left > 0:
+            buf = fh.read(min(chunk, left))
+            if not buf:
+                break
+            left -= len(buf)
+            yield buf
 
 
 # ── CMS-12: pengalihan URL saat slug konten berubah (anti 404 & anti kehilangan SEO) ──

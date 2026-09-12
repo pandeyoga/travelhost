@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Globe, ImagePlus, Images, Languages, Loader2, Save, Send, Upload } from "lucide-react";
 import apiClient from "@/services/apiClient";
 import MediaPickerDialog from "@/components/media/MediaPickerDialog";
+import { assetUrl, isVideoUrl } from "@/lib/mediaKind";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,7 +65,7 @@ function formToDoc(fields, form) {
 // ada di sistem tidak bisa dipakai ulang, dan setiap pemakaian membuat berkas duplikat baru di disk.
 // Sekarang tombol "Library" membuka pemilih yang sama dengan editor halaman iklan (folder, pencarian,
 // potong gambar, ganti berkas), sementara tombol "Unggah" tetap ada untuk jalur tercepat.
-function ImageField({ fieldKey, label, value, onChange, testId }) {
+function ImageField({ fieldKey, label, value, onChange, testId, allowVideo = false }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -101,15 +102,19 @@ function ImageField({ fieldKey, label, value, onChange, testId }) {
         <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={onPick} data-testid={`${testId}-file`} />
       </div>
       {previewSrc ? (
-        <img src={previewSrc} alt="" className="h-24 w-full rounded-lg border border-border object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+        isVideoUrl(value) ? (
+          <video src={previewSrc} muted autoPlay loop playsInline preload="metadata" className="h-24 w-full rounded-lg border border-border object-cover" data-testid={`${testId}-video-preview`} />
+        ) : (
+          <img src={previewSrc} alt="" className="h-24 w-full rounded-lg border border-border object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+        )
       ) : (
         <div className="flex h-24 w-full items-center justify-center rounded-lg border border-dashed border-[#E5E5EA] bg-[#F7F8FA] text-[11px] text-[#8A8A8F]">
-          <ImagePlus size={16} className="mr-1.5" /> Belum ada gambar
+          <ImagePlus size={16} className="mr-1.5" /> {allowVideo ? "Belum ada gambar/video" : "Belum ada gambar"}
         </div>
       )}
-      <MediaPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} pickKind="image"
-        title={`Pilih gambar — ${label || fieldKey}`}
-        onPick={(asset) => onChange(asset?.url || "")} />
+      <MediaPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} pickKind={allowVideo ? "" : "image"}
+        title={`Pilih ${allowVideo ? "gambar/video" : "gambar"} — ${label || fieldKey}`}
+        onPick={(asset) => onChange(assetUrl(asset))} />
     </div>
   );
 }
@@ -251,7 +256,7 @@ export default function ContentFormDialog({ resource, schema, item, open, onOpen
           <SelectContent>{(fl.options || []).map(([v, l]) => <SelectItem key={v} value={v} data-testid={`cf-${fl.k}-opt-${v}`}>{l}</SelectItem>)}</SelectContent>
         </Select>
       ) : fl.type === "image" ? (
-        <ImageField fieldKey={fl.k} label={fl.label} value={form[fl.k]} onChange={(v) => set(fl.k, v)} testId={`cf-${fl.k}`} />
+        <ImageField fieldKey={fl.k} label={fl.label} value={form[fl.k]} onChange={(v) => set(fl.k, v)} testId={`cf-${fl.k}`} allowVideo={Boolean(fl.video)} />
       ) : fl.type === "gallery" ? (
         <GalleryManager value={form[fl.k] || []} onChange={(arr) => set(fl.k, arr)} mode={fl.galleryMode || "captioned"} />
       ) : fl.type === "tour" ? (

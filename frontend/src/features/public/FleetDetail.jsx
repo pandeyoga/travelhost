@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   Users, ArrowRight, ArrowLeft, Loader2, Check, View, Calendar, Palette,
-  MessageCircle, ChevronLeft, ChevronRight, Tag, Maximize2, FileText, Compass,
+  MessageCircle, ChevronLeft, ChevronRight, Tag, Maximize2, FileText, Compass, Play,
 } from "lucide-react";
 import { useResource } from "@/hooks/useResource";
 import useSEO, { absUrl } from "@/hooks/useSEO";
@@ -12,6 +12,8 @@ import FleetSpecGrid from "@/components/public/FleetSpecGrid";
 import GlassCard from "@/components/public/GlassCard";
 import TripEstimatorInline from "@/components/public/TripEstimatorInline";
 import Exterior360 from "@/components/public/Exterior360";
+import MediaBackdrop, { AutoVideo } from "@/components/public/MediaBackdrop";
+import { isVideoItem } from "@/lib/mediaKind";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
@@ -102,7 +104,7 @@ export default function FleetDetail() {
     <div>
       {/* HERO — Interior 360° imersif (fallback foto bila unit belum punya tur) */}
       <section className="relative overflow-hidden bg-primary" data-testid="fleet-hero-360">
-        <div className="absolute inset-0 scale-105 bg-cover bg-center blur-[3px]" style={{ backgroundImage: `url('${(scenes[0] && (scenes[0].thumbnail || scenes[0].panorama)) || heroImg || ""}')` }} aria-hidden="true" />
+        <MediaBackdrop src={(scenes[0] && (scenes[0].thumbnail || scenes[0].panorama)) || heroImg || ""} className="absolute inset-0 scale-105 blur-[3px]" testId="fleet-hero-backdrop" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-hero)" }} aria-hidden="true" />
         <div className="pointer-events-none absolute inset-0 bg-noise opacity-[0.06] mix-blend-overlay" aria-hidden="true" />
         <div className="relative mx-auto w-full max-w-7xl px-4 pb-10 pt-28 sm:px-6 lg:px-8">
@@ -143,8 +145,12 @@ export default function FleetDetail() {
             ) : (
               <>
                 <div className="group relative overflow-hidden rounded-xl bg-primary">
-                  <button type="button" onClick={() => openLb(gIdx)} data-testid="fleet-gallery-main" className="block w-full">
-                    <span className="block aspect-[4/3] w-full bg-cover bg-center transition duration-500 group-hover:scale-[1.03]" style={curUrl ? { backgroundImage: `url('${curUrl}')` } : undefined} />
+                  <button type="button" onClick={() => openLb(gIdx)} data-testid="fleet-gallery-main" className="block w-full" data-kind={isVideoItem(cur) ? "video" : "image"}>
+                    {isVideoItem(cur) ? (
+                      <AutoVideo src={curUrl} poster={cur?.poster} className="block aspect-[4/3] w-full object-cover" testId="fleet-gallery-video" />
+                    ) : (
+                      <span className="block aspect-[4/3] w-full bg-cover bg-center transition duration-500 group-hover:scale-[1.03]" style={curUrl ? { backgroundImage: `url('${curUrl}')` } : undefined} />
+                    )}
                   </button>
                   {cur?.caption ? <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/55 px-3 py-1 text-[11.5px] text-white backdrop-blur-sm">{cur.caption}</span> : null}
                   <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/45 p-2 text-white opacity-0 transition group-hover:opacity-100"><Maximize2 size={14} /></span>
@@ -161,7 +167,11 @@ export default function FleetDetail() {
                   {gallery.map((g, i) => (
                     <button key={i} type="button" onClick={() => setGIdx(i)} data-testid={`fleet-gallery-${i}`}
                       className={`relative aspect-[4/3] overflow-hidden rounded-lg bg-primary transition ${i === gIdx ? "ring-2 ring-ring ring-offset-2 ring-offset-card" : "opacity-75 hover:opacity-100"}`}>
-                      <span className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${g.url || g}')` }} />
+                      {isVideoItem(g) ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/70 text-white"><Play size={14} className="fill-white" /></span>
+                      ) : (
+                        <span className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${g.url || g}')` }} />
+                      )}
                     </button>
                   ))}
                 </div>

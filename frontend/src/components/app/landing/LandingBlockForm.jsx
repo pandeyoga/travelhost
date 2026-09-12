@@ -116,7 +116,7 @@ export default function LandingBlockForm({ block, onChange, onDelete, fleet = []
 
         {["search_hero", "hero_media", "video"].includes(type) ? (
           <MediaPicker label={type === "video" ? "Berkas video" : "Foto/video latar"}
-            kind={type === "video" ? "video" : "image"} value={p.media}
+            kind={type === "video" ? "video" : ""} value={p.media}
             onChange={(v) => setProp("media", v)} testId="lp-media" />
         ) : null}
         {["search_hero", "hero_media"].includes(type) ? (

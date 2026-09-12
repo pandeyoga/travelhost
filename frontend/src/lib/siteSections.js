@@ -27,7 +27,7 @@ export const SECTION_META = {
   hero: {
     label: "Hero Utama", desc: "Judul besar + gambar latar + tombol aksi di paling atas beranda.",
     fields: [TXT("eyebrow", "Label kecil (eyebrow)"), TXT("title", "Judul besar"), TA("subtitle", "Subjudul"),
-      { key: "image", label: "Gambar latar", kind: "image" }, { key: "chips", label: "Chip keunggulan (satu per baris)", kind: "lines" },
+      { key: "image", label: "Gambar/video latar", kind: "image" }, { key: "chips", label: "Chip keunggulan (satu per baris)", kind: "lines" },
       TXT("primary_label", "Tombol utama — teks"), TXT("primary_href", "Tombol utama — tautan"),
       TXT("secondary_label", "Tombol kedua — teks"), TXT("secondary_href", "Tombol kedua — tautan")],
   },
@@ -42,9 +42,9 @@ export const SECTION_META = {
   destinations_featured: { label: "Destinasi Populer", desc: "Destinasi ber-tanda populer dari CMS.", fields: [TXT("title", "Judul"), TA("subtitle", "Subjudul")] },
   testimonials: { label: "Testimoni", desc: "Testimoni tersetujui dari CMS.", fields: [TXT("title", "Judul"), TA("subtitle", "Subjudul")] },
   gallery: {
-    label: "Galeri Momen Tamu", desc: "Grid foto perjalanan tamu (klik untuk memperbesar).",
+    label: "Galeri Momen Tamu", desc: "Grid foto & video perjalanan tamu (video diputar otomatis; klik untuk memperbesar).",
     fields: [TXT("eyebrow", "Eyebrow"), TXT("title", "Judul"), TA("subtitle", "Subjudul"),
-      { key: "items", label: "Foto", kind: "items", itemFields: [TXT("url", "URL gambar (Media Library)"), TXT("caption", "Keterangan")] }],
+      { key: "items", label: "Foto / video", kind: "items", itemFields: [{ key: "url", label: "Foto/video (Media Library)", kind: "image" }, TXT("caption", "Keterangan")] }],
   },
   trust: {
     label: "Sinyal Kepercayaan", desc: "4 kartu kecil (CHSE, KIR, servis, GPS).",
@@ -60,8 +60,8 @@ export const SECTION_META = {
       TXT("secondary_label", "Tombol kedua — teks"), TXT("secondary_href", "Tombol kedua — tautan")],
   },
   page_hero: {
-    label: "Hero Halaman", desc: "Judul + gambar pembuka halaman.",
-    fields: [TXT("eyebrow", "Eyebrow"), TXT("title", "Judul"), TA("subtitle", "Subjudul"), { key: "image", label: "Gambar latar", kind: "image" }],
+    label: "Hero Halaman", desc: "Judul + gambar/video pembuka halaman.",
+    fields: [TXT("eyebrow", "Eyebrow"), TXT("title", "Judul"), TA("subtitle", "Subjudul"), { key: "image", label: "Gambar/video latar", kind: "image" }],
   },
   stat_cards: {
     label: "Kartu Statistik", desc: "Angka pencapaian (mis. 500+ trip).",

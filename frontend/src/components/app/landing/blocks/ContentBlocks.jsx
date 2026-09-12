@@ -66,14 +66,25 @@ export function Gallery({ p, theme }) {
     <Wrap theme={theme}>
       <Heading title={p.title} theme={theme} />
       {!items.length ? (
-        <EmptyNote testId="lp-gallery-empty">Belum ada foto pada galeri ini.</EmptyNote>
+        <EmptyNote testId="lp-gallery-empty">Belum ada foto/video pada galeri ini.</EmptyNote>
       ) : (
         <div className={`grid grid-cols-2 gap-2.5 ${cols}`} data-testid="lp-gallery">
           {items.map((m, i) => (
             <button key={i} type="button" onClick={() => setOpen(i)} data-testid={`lp-gallery-${i}`}
+              data-kind={m.kind === "video" ? "video" : "image"}
               className="group relative h-[140px] overflow-hidden bg-[#EEF1F5]" style={{ borderRadius: theme.radius }}>
-              <img src={m.src} alt={m.alt || `Foto ${i + 1}`} loading="lazy"
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              {m.kind === "video" ? (
+                <>
+                  <video src={m.src} poster={m.poster || undefined} autoPlay muted loop playsInline preload="metadata"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <Play size={9} className="fill-white" /> Video
+                  </span>
+                </>
+              ) : (
+                <img src={m.src} alt={m.alt || `Foto ${i + 1}`} loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              )}
             </button>
           ))}
         </div>
@@ -86,8 +97,14 @@ export function Gallery({ p, theme }) {
             className="absolute right-4 top-4 rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
             <X size={18} />
           </button>
-          <img src={items[open].src} alt={items[open].alt || "Foto"}
-            className="max-h-[86vh] max-w-[92vw] rounded-xl object-contain" />
+          {items[open].kind === "video" ? (
+            <video src={items[open].src} poster={items[open].poster || undefined} controls autoPlay muted playsInline
+              onClick={(e) => e.stopPropagation()} data-testid="lp-gallery-viewer-video"
+              className="max-h-[86vh] max-w-[92vw] rounded-xl" />
+          ) : (
+            <img src={items[open].src} alt={items[open].alt || "Foto"}
+              className="max-h-[86vh] max-w-[92vw] rounded-xl object-contain" />
+          )}
         </div>
       ) : null}
     </Wrap>

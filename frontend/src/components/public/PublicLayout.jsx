@@ -171,7 +171,7 @@ function PublicShell() {
         <div className={`transition-all duration-300 ${solid ? "glass-strong border-b border-[hsla(var(--glass-border))]" : "bg-transparent"}`}>
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <Link to="/" data-testid="public-nav-home" className={navText}>
-              <Logo name={company.name || "RahazaTrans"} />
+              <Logo name={company.name || "RahazaTrans"} logoUrl={company.logo_url} />
             </Link>
 
             <nav className="hidden items-center gap-6 lg:flex">
@@ -282,7 +282,7 @@ function PublicShell() {
       <footer className="border-t border-border bg-primary text-primary-foreground dark:bg-card dark:text-card-foreground">
         <div className="mx-auto flex max-w-7xl flex-col gap-10 px-5 py-14 md:flex-row md:flex-wrap md:justify-between">
           <div className="md:max-w-xs">
-            <Logo name={company.name || "RahazaTrans"} wordmarkClass="text-current" />
+            <Logo name={company.name || "RahazaTrans"} logoUrl={company.logo_url} wordmarkClass="text-current" />
             <p className="mt-3 text-[13px] leading-relaxed opacity-75">{company.footer_text || bi("Perjalanan korporat & wisata premium dengan armada Toyota Hiace Premio, driver profesional, dan pelacakan real-time.", "Premium corporate & leisure travel with a Toyota Hiace Premio fleet, professional drivers and real-time tracking.", lang)}</p>
             {(company.instagram || company.facebook || company.tiktok || company.youtube) ? (
               <div className="mt-4 flex flex-wrap gap-3 text-[13px]" data-testid="footer-socials">

@@ -1,18 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Upload, X } from "lucide-react";
 import apiClient from "@/services/apiClient";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { LoadingState } from "@/components/shared/DataStates";
 import { invalidateSiteFeatures } from "@/hooks/useSiteFeatures";
+import { resolveLogoUrl } from "@/components/public/Logo";
 
 // Pengaturan Situs (CMS): identitas & kontak yang tampil di header, footer, dan halaman
 // Kontak publik. Satu sumber dgn settings.company_info (Profil Perusahaan di /app/settings).
 const GROUPS = [
   ["Identitas", [
-    ["name", "Nama brand"], ["tagline", "Tagline singkat"], ["logo_url", "URL logo"],
+    ["name", "Nama brand"], ["tagline", "Tagline singkat"], ["logo_url", "Logo (unggah / URL)"],
     ["site_url", "URL situs publik (mis. https://rahazatrans.com) — dipakai pratinjau CMS"],
   ]],
   ["Kontak", [
@@ -26,6 +27,42 @@ const GROUPS = [
     ["tiktok", "URL TikTok"], ["youtube", "URL YouTube"],
   ]],
 ];
+
+function LogoField({ value, onChange }) {
+  const ref = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const onPick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    try {
+      const fd = new FormData(); fd.append("image", file);
+      const { data } = await apiClient.post("/uploads/cms", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      onChange(data.url);
+      toast.success("Logo diunggah — klik Simpan agar tampil di website");
+    } catch (err) { toast.error(err?.response?.data?.detail || "Gagal mengunggah logo"); }
+    finally { setBusy(false); }
+  };
+  const src = resolveLogoUrl(value);
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <Input className="!h-9 text-[13px]" value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder="URL logo atau unggah berkas" data-testid="ss-logo_url" />
+        <button type="button" className="secondary-button !h-9 shrink-0 !px-3" onClick={() => ref.current?.click()} disabled={busy} data-testid="ss-logo_url-upload">
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Unggah
+        </button>
+        <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={onPick} data-testid="ss-logo_url-file" />
+      </div>
+      {src ? (
+        <div className="flex items-center gap-2">
+          <img src={src} alt="Logo" className="h-12 w-12 rounded border border-[#E5E5EA] bg-white object-contain" data-testid="ss-logo_url-preview" />
+          <button type="button" className="icon-button !h-7 !w-7" title="Hapus logo" onClick={() => onChange("")} data-testid="ss-logo_url-clear"><X size={12} /></button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function SiteSettingsPanel() {
   const [form, setForm] = useState(null);
@@ -62,7 +99,9 @@ export default function SiteSettingsPanel() {
             {fields.map(([key, label, kind]) => (
               <div key={key} className={kind === "textarea" ? "sm:col-span-2" : ""}>
                 <label className="text-[11.5px] font-semibold text-[#6B6B73]">{label}</label>
-                {kind === "textarea"
+                {key === "logo_url" ? (
+                  <LogoField value={form.logo_url} onChange={(v) => set("logo_url", v)} />
+                ) : kind === "textarea"
                   ? <Textarea className="min-h-[64px] text-[12.5px]" value={form[key] || ""} onChange={(e) => set(key, e.target.value)} data-testid={`ss-${key}`} />
                   : <Input className="!h-9 text-[13px]" value={form[key] || ""} onChange={(e) => set(key, e.target.value)} data-testid={`ss-${key}`} />}
               </div>

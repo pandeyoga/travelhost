@@ -13,7 +13,7 @@ import { initTracking, trackPageView } from "@/lib/tracking";
 import ConsentBanner from "@/components/public/ConsentBanner";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import ChatWidget from "@/components/public/ChatWidget";
-import Logo from "@/components/public/Logo";
+import Logo, { resolveLogoUrl } from "@/components/public/Logo";
 import MegaMenu from "@/components/public/MegaMenu";
 import Preloader from "@/components/public/Preloader";
 import PageTransition from "@/components/public/PageTransition";
@@ -117,6 +117,18 @@ function PublicShell() {
       }
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const href = resolveLogoUrl(company.logo_url);
+    if (!href) return undefined;
+    const links = ["icon", "apple-touch-icon"].map((rel) => {
+      let el = document.head.querySelector(`link[data-auto-favicon="${rel}"]`);
+      if (!el) { el = document.createElement("link"); el.setAttribute("data-auto-favicon", rel); document.head.appendChild(el); }
+      el.rel = rel; el.href = href;
+      return el;
+    });
+    return () => links.forEach((el) => el.remove());
+  }, [company.logo_url]);
 
   const solid = !atTop;
   // FASE F8 — halaman iklan (`/lp/:slug`) memakai header RINGKAS: hanya logo + telepon + WhatsApp.

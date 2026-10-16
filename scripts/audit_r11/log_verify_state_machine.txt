@@ -1,0 +1,14 @@
+
+[1m============================================================[0m
+  STATE-MACHINE GATE (RC-02/03/04/05)  API=http://localhost:8001
+[1m============================================================[0m
+  [92m[OK][0m SM1 (RC-04) cancel → trip cancelled & armada beres (vehicle=on_trip).
+  [92m[OK][0m SM2 (RC-03) /trips/status=completed → booking completed & armada beres (vehicle=available).
+  [92m[OK][0m SM3 (RC-02) complete tanpa lunas → payment_status='belum_bayar' & muncul di AR (jujur).
+  [92m[OK][0m SM4 (RC-05) pembayaran ke booking cancelled ditolak (400).
+
+[1m============================================================[0m
+  [91mFAIL 0[0m | [93mSKIP 0[0m
+[1m============================================================[0m
+[92m[1m  State-machine sehat (RC-02/03/04/05 tertutup).[0m
+

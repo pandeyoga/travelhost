@@ -1,0 +1,25 @@
+[TIDAK TERBUKTI] BUG-A: veh=on_trip, trip={'_id': ObjectId('6a49acd61b790784adffcfae'), 'status': 'cancelled'}
+[TIDAK TERBUKTI] BUG-B: HTTP 400: {"detail":"Booking dibatalkan — pembayaran ditolak"}
+[TIDAK TERBUKTI] BUG-C: {'_id': ObjectId('6a49acd61b790784adffcfb9'), 'total_amount': 2000000, 'paid_amount': 0, 'payment_status': 'belum_bayar'}
+[TIDAK TERBUKTI] BUG-D: veh=available, booking=completed
+[TIDAK TERBUKTI] BUG-E: p1=200 p2=400 {"detail":"Payout periode tumpang-tindih sudah ada (2026-07-05—2026-07-05)"}
+[TIDAK TERBUKTI] BUG-F: r1=200 r2=400
+[TIDAK TERBUKTI (single-worker serialize)] BUG-G race-overpayment: HTTP=[200, 400, 400, 400]; total_paid=800000
+
+=== CLEANUP selesai ===
+{
+"bookings": 6,
+"payments": 1,
+"trips": 3,
+"driver_payouts": 1,
+"expenses": 0
+}
+
+=== RINGKASAN ===
+  TIDAK TERBUKTI | BUG-A
+  TIDAK TERBUKTI | BUG-B
+  TIDAK TERBUKTI | BUG-C
+  TIDAK TERBUKTI | BUG-D
+  TIDAK TERBUKTI | BUG-E
+  TIDAK TERBUKTI | BUG-F
+  TIDAK TERBUKTI (single-worker serialize) | BUG-G race-overpayment

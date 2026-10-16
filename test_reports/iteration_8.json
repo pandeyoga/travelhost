@@ -1,0 +1,22 @@
+{
+  "summary": "Verified Media Library video upload fix end-to-end. Backend: 8/8 pytest cases pass — POST /api/media accepts .mov/.webm/.mp4 including application/octet-stream & empty Content-Type (MIME inferred from extension via ms.resolve_content_type), rejects .avi with Indonesian 400, POST /api/media/{id}/replace accepts .mov as octet-stream, GET /api/media?kind=video lists uploads, GET /api/public/media/{id} returns bytes with correct video content-type, PNG regression OK. Frontend: login as owner@demo.local, /app/media loads; hidden [data-testid=media-file-input] accept string is correct on all three tabs (Semua/Foto/Video); Video-tab excludes image extensions, Image-tab excludes video extensions; uploading a fake .mov via set_input_files shows toast '1 berkas terunggah', asset appears in grid, MediaDetailPanel renders [data-testid=media-detail-video] player; [data-testid=media-detail-replace-input] accept is video-only when video asset selected; PNG upload regression on 'Semua' tab still returns 200. Cleaned up TEST_ assets.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_media_video_upload.py",
+    "/app/test_reports/pytest/media_video_upload.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "services/media_store.py resolve_content_type() correctly falls back to guess_content_type when browser sends empty or application/octet-stream — clean, minimal fix.",
+    "mediaApi.js acceptFor() correctly returns kind-specific accept list; MediaBrowser passes pickKind || kind, MediaDetailPanel passes asset.kind — consistent."
+  ],
+  "updated_files": ["/app/backend/tests/test_media_video_upload.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (all assertions passed)"},
+  "test_credentials": "owner@demo.local / demo12345 (works, seeded)",
+  "seed_data_creation": "Created 4 TEST_ prefixed video/image assets during backend tests and 2 during UI test; all cleaned up via DELETE /api/media/{id}.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression file /app/backend/tests/test_media_video_upload.py covers all MIME-inference paths for the media upload endpoint; reuse for future media changes. BASE_URL is loaded from /app/frontend/.env fallback if REACT_APP_BACKEND_URL isn't in shell env.",
+  "rca of the issue": "Root cause: (1) frontend accept='video/*' relied on OS MIME registry — Windows without QuickTime doesn't register .mov/.webm so file explorer hid videos; (2) backend classified() only checked Content-Type header, so browsers sending application/octet-stream got 400. Fix applied by main agent: explicit extension+MIME list in ACCEPT_VIDEO/ACCEPT_IMAGE and ms.resolve_content_type() that infers MIME from filename extension when the header is empty or generic. Verified both layers work together."
+}

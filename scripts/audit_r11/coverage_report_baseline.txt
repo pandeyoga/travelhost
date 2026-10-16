@@ -1,0 +1,1 @@
+scripts/audit_r6/run_coverage.sh: line 60: coverage: command not found

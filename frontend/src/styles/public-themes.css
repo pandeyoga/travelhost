@@ -1,0 +1,257 @@
+/* public-themes.css — 4 preset tema glass untuk surface PUBLIC (P10).
+   Sumber kebenaran: /app/design_guidelines.md. JANGAN ubah arsitektur token.
+   Scope: [data-surface="public"][data-theme="..."] (+ .dark untuk mode gelap).
+   Aturan emas: HANYA set CSS variables di sini (tidak ada properti visual langsung),
+   sehingga aman terhadap cascade utilities Tailwind. */
+
+/* =========================== AZURE =========================== */
+[data-surface="public"][data-theme="azure"] {
+  --background: 210 25% 98%;
+  --foreground: 220 30% 12%;
+  --card: 210 30% 99%;
+  --card-foreground: 220 30% 12%;
+  --popover: 210 30% 99%;
+  --popover-foreground: 220 30% 12%;
+  --primary: 220 45% 14%;
+  --primary-foreground: 210 25% 98%;
+  --secondary: 210 22% 95%;
+  --secondary-foreground: 220 30% 12%;
+  --muted: 210 18% 94%;
+  --muted-foreground: 220 10% 40%;
+  --accent: 196 70% 78%;
+  --accent-foreground: 220 45% 14%;
+  --destructive: 0 72% 52%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 215 16% 86%;
+  --input: 215 16% 86%;
+  --ring: 196 70% 55%;
+
+  --glass-bg: 210 30% 99% / 0.80;
+  --glass-bg-strong: 210 30% 99% / 0.92;
+  --glass-border: 196 70% 55% / 0.22;
+  --glass-shadow: 220 45% 14% / 0.10;
+  --glass-highlight: 0 0% 100% / 0.55;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,45%,14%,0.92) 0%, hsla(205,70%,35%,0.55) 45%, hsla(190,75%,55%,0.35) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(196,70%,55%,0.35), hsla(186,70%,52%,0.18));
+  --gradient-cta: linear-gradient(135deg, hsla(196,70%,45%,1) 0%, hsla(186,70%,42%,1) 100%);
+}
+.dark [data-surface="public"][data-theme="azure"],
+[data-surface="public"][data-theme="azure"].dark {
+  --background: 220 45% 8%;
+  --foreground: 210 25% 96%;
+  --card: 220 40% 10%;
+  --card-foreground: 210 25% 96%;
+  --popover: 220 40% 10%;
+  --popover-foreground: 210 25% 96%;
+  --primary: 196 70% 55%;
+  --primary-foreground: 220 45% 8%;
+  --secondary: 220 30% 14%;
+  --secondary-foreground: 210 25% 96%;
+  --muted: 220 25% 16%;
+  --muted-foreground: 210 10% 70%;
+  --accent: 186 70% 45%;
+  --accent-foreground: 220 45% 8%;
+  --border: 220 25% 18%;
+  --input: 220 25% 18%;
+  --ring: 196 70% 55%;
+
+  --glass-bg: 220 40% 10% / 0.80;
+  --glass-bg-strong: 220 40% 10% / 0.92;
+  --glass-border: 196 70% 55% / 0.18;
+  --glass-shadow: 0 0% 0% / 0.35;
+  --glass-highlight: 0 0% 100% / 0.10;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,45%,8%,0.92) 0%, hsla(205,70%,28%,0.55) 45%, hsla(190,75%,45%,0.25) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(196,70%,55%,0.22), hsla(186,70%,45%,0.12));
+  --gradient-cta: linear-gradient(135deg, hsla(196,70%,55%,1) 0%, hsla(186,70%,45%,1) 100%);
+}
+
+/* =========================== MIDNIGHT =========================== */
+[data-surface="public"][data-theme="midnight"] {
+  --background: 215 30% 97%;
+  --foreground: 222 35% 10%;
+  --card: 215 35% 99%;
+  --card-foreground: 222 35% 10%;
+  --popover: 215 35% 99%;
+  --popover-foreground: 222 35% 10%;
+  --primary: 220 55% 12%;
+  --primary-foreground: 210 25% 98%;
+  --secondary: 215 24% 95%;
+  --secondary-foreground: 222 35% 10%;
+  --muted: 215 18% 94%;
+  --muted-foreground: 220 10% 40%;
+  --accent: 200 80% 70%;
+  --accent-foreground: 220 55% 12%;
+  --destructive: 0 72% 52%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 218 18% 84%;
+  --input: 218 18% 84%;
+  --ring: 200 80% 52%;
+
+  --glass-bg: 215 35% 99% / 0.80;
+  --glass-bg-strong: 215 35% 99% / 0.92;
+  --glass-border: 200 80% 52% / 0.20;
+  --glass-shadow: 220 55% 12% / 0.12;
+  --glass-highlight: 0 0% 100% / 0.55;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,55%,12%,0.94) 0%, hsla(210,70%,28%,0.55) 55%, hsla(195,80%,55%,0.22) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(200,80%,52%,0.30), hsla(195,80%,52%,0.16));
+  --gradient-cta: linear-gradient(135deg, hsla(200,80%,48%,1) 0%, hsla(190,80%,44%,1) 100%);
+}
+.dark [data-surface="public"][data-theme="midnight"],
+[data-surface="public"][data-theme="midnight"].dark {
+  --background: 220 55% 6%;
+  --foreground: 210 25% 96%;
+  --card: 220 45% 9%;
+  --card-foreground: 210 25% 96%;
+  --popover: 220 45% 9%;
+  --popover-foreground: 210 25% 96%;
+  --primary: 200 80% 60%;
+  --primary-foreground: 220 55% 6%;
+  --secondary: 220 35% 13%;
+  --secondary-foreground: 210 25% 96%;
+  --muted: 220 28% 15%;
+  --muted-foreground: 210 10% 70%;
+  --accent: 190 80% 48%;
+  --accent-foreground: 220 55% 6%;
+  --border: 220 30% 16%;
+  --input: 220 30% 16%;
+  --ring: 200 80% 60%;
+
+  --glass-bg: 220 45% 9% / 0.80;
+  --glass-bg-strong: 220 45% 9% / 0.92;
+  --glass-border: 200 80% 60% / 0.16;
+  --glass-shadow: 0 0% 0% / 0.40;
+  --glass-highlight: 0 0% 100% / 0.10;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,55%,6%,0.94) 0%, hsla(210,70%,22%,0.55) 55%, hsla(195,80%,45%,0.18) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(200,80%,60%,0.22), hsla(190,80%,48%,0.12));
+  --gradient-cta: linear-gradient(135deg, hsla(200,80%,60%,1) 0%, hsla(190,80%,48%,1) 100%);
+}
+
+/* =========================== SUNRISE =========================== */
+[data-surface="public"][data-theme="sunrise"] {
+  --background: 210 25% 98%;
+  --foreground: 220 30% 12%;
+  --card: 210 30% 99%;
+  --card-foreground: 220 30% 12%;
+  --popover: 210 30% 99%;
+  --popover-foreground: 220 30% 12%;
+  --primary: 220 45% 14%;
+  --primary-foreground: 210 25% 98%;
+  --secondary: 210 22% 95%;
+  --secondary-foreground: 220 30% 12%;
+  --muted: 210 18% 94%;
+  --muted-foreground: 220 10% 40%;
+  --accent: 190 75% 62%;
+  --accent-foreground: 220 45% 14%;
+  --destructive: 0 72% 52%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 215 16% 86%;
+  --input: 215 16% 86%;
+  --ring: 190 75% 50%;
+
+  --glass-bg: 210 30% 99% / 0.80;
+  --glass-bg-strong: 210 30% 99% / 0.92;
+  --glass-border: 190 75% 50% / 0.18;
+  --glass-shadow: 220 45% 14% / 0.10;
+  --glass-highlight: 0 0% 100% / 0.55;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,45%,14%,0.92) 0%, hsla(200,70%,35%,0.55) 55%, hsla(35,90%,70%,0.18) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(35,90%,70%,0.22), hsla(190,75%,50%,0.12));
+  --gradient-cta: linear-gradient(135deg, hsla(190,75%,48%,1) 0%, hsla(35,90%,62%,1) 100%);
+}
+.dark [data-surface="public"][data-theme="sunrise"],
+[data-surface="public"][data-theme="sunrise"].dark {
+  --background: 220 45% 8%;
+  --foreground: 210 25% 96%;
+  --card: 220 40% 10%;
+  --card-foreground: 210 25% 96%;
+  --popover: 220 40% 10%;
+  --popover-foreground: 210 25% 96%;
+  --primary: 190 75% 55%;
+  --primary-foreground: 220 45% 8%;
+  --secondary: 220 30% 14%;
+  --secondary-foreground: 210 25% 96%;
+  --muted: 220 25% 16%;
+  --muted-foreground: 210 10% 70%;
+  --accent: 35 90% 62%;
+  --accent-foreground: 220 45% 8%;
+  --border: 220 25% 18%;
+  --input: 220 25% 18%;
+  --ring: 190 75% 55%;
+
+  --glass-bg: 220 40% 10% / 0.80;
+  --glass-bg-strong: 220 40% 10% / 0.92;
+  --glass-border: 190 75% 55% / 0.16;
+  --glass-shadow: 0 0% 0% / 0.38;
+  --glass-highlight: 0 0% 100% / 0.10;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,45%,8%,0.92) 0%, hsla(200,70%,25%,0.55) 55%, hsla(35,90%,55%,0.14) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(35,90%,62%,0.20), hsla(190,75%,55%,0.12));
+  --gradient-cta: linear-gradient(135deg, hsla(190,75%,55%,1) 0%, hsla(35,90%,62%,1) 100%);
+}
+
+/* =========================== HARBOR =========================== */
+[data-surface="public"][data-theme="harbor"] {
+  --background: 205 30% 98%;
+  --foreground: 220 28% 12%;
+  --card: 205 35% 99%;
+  --card-foreground: 220 28% 12%;
+  --popover: 205 35% 99%;
+  --popover-foreground: 220 28% 12%;
+  --primary: 220 45% 14%;
+  --primary-foreground: 205 30% 98%;
+  --secondary: 205 22% 95%;
+  --secondary-foreground: 220 28% 12%;
+  --muted: 205 18% 94%;
+  --muted-foreground: 220 10% 40%;
+  --accent: 175 55% 55%;
+  --accent-foreground: 220 45% 14%;
+  --destructive: 0 72% 52%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 210 16% 86%;
+  --input: 210 16% 86%;
+  --ring: 175 55% 45%;
+
+  --glass-bg: 205 35% 99% / 0.80;
+  --glass-bg-strong: 205 35% 99% / 0.92;
+  --glass-border: 175 55% 45% / 0.18;
+  --glass-shadow: 220 45% 14% / 0.10;
+  --glass-highlight: 0 0% 100% / 0.55;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,45%,14%,0.92) 0%, hsla(195,55%,35%,0.55) 55%, hsla(175,55%,55%,0.22) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(175,55%,55%,0.22), hsla(195,55%,45%,0.12));
+  --gradient-cta: linear-gradient(135deg, hsla(175,55%,45%,1) 0%, hsla(195,55%,42%,1) 100%);
+}
+.dark [data-surface="public"][data-theme="harbor"],
+[data-surface="public"][data-theme="harbor"].dark {
+  --background: 220 45% 8%;
+  --foreground: 205 30% 96%;
+  --card: 220 40% 10%;
+  --card-foreground: 205 30% 96%;
+  --popover: 220 40% 10%;
+  --popover-foreground: 205 30% 96%;
+  --primary: 175 55% 55%;
+  --primary-foreground: 220 45% 8%;
+  --secondary: 220 30% 14%;
+  --secondary-foreground: 205 30% 96%;
+  --muted: 220 25% 16%;
+  --muted-foreground: 205 10% 70%;
+  --accent: 195 55% 50%;
+  --accent-foreground: 220 45% 8%;
+  --border: 220 25% 18%;
+  --input: 220 25% 18%;
+  --ring: 175 55% 55%;
+
+  --glass-bg: 220 40% 10% / 0.80;
+  --glass-bg-strong: 220 40% 10% / 0.92;
+  --glass-border: 175 55% 55% / 0.16;
+  --glass-shadow: 0 0% 0% / 0.38;
+  --glass-highlight: 0 0% 100% / 0.10;
+
+  --gradient-hero: linear-gradient(135deg, hsla(220,45%,8%,0.92) 0%, hsla(195,55%,25%,0.55) 55%, hsla(175,55%,45%,0.18) 100%);
+  --gradient-accent: linear-gradient(90deg, hsla(175,55%,55%,0.20), hsla(195,55%,50%,0.12));
+  --gradient-cta: linear-gradient(135deg, hsla(175,55%,55%,1) 0%, hsla(195,55%,50%,1) 100%);
+}

@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential curl libffi-dev libjpeg-dev zlib1g-dev procps \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+COPY backend/requirements.txt ./requirements.txt
+# emergentintegrations + wheel internal litellm hanya ada di workspace Emergent -> dilewati di VPS.
+RUN grep -viE '^(emergentintegrations|litellm)([=<>@ ]|$)' requirements.txt > /tmp/req.prod.txt \
+    && pip install --upgrade pip \
+    && pip install -r /tmp/req.prod.txt
+
+COPY backend /app/backend
+COPY scripts/seed_data.py /app/scripts/seed_data.py
+COPY scripts/import_content.py /app/scripts/import_content.py
+COPY content_import/assets /app/content_import/assets
+COPY deploy/create_owner.py /app/deploy/create_owner.py
+
+RUN rm -f /app/backend/.env && mkdir -p /app/backend/uploads
+
+EXPOSE 8001
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001", \
+     "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]

@@ -1,0 +1,16 @@
+======================================================================
+LIVE EXTERNAL INTEGRATION CHECK (Item #4)
+======================================================================
+[92m[OK][0m geocode('Bandung') -> lat=-6.9218 lng=107.6071  (Kota Bandung, Jawa Barat, Jawa, Indonesia)
+[92m[OK][0m geocode('Bandara Soekarno-Hatta') -> lat=-6.1274 lng=106.6522  (Bandara Soekarno-Hatta, Jalan Raya Bandara, Paja)
+[92m[OK][0m geocode('Malioboro Yogyakarta') -> lat=-7.7953 lng=110.3657  (Malioboro, Jalan Malioboro, Kampung Sosrokusuman)
+[92m[OK][0m route_eta(Bandung->Jakarta) -> distance_km=154.88 duration_min=None
+[93m[INFO][0m WhatsApp provider = 'mock'; meta creds present = False
+[93m     -> MODE MOCK (by design). Real send TIDAK dieksekusi (butuh set provider=meta_cloud + kredensial Meta).[0m
+----------------------------------------------------------------------
+RINGKASAN: 5/5 cek eksternal OK
+  PASS  geocode:Bandung
+  PASS  geocode:Bandara Soekarno-Hatta
+  PASS  geocode:Malioboro Yogyakarta
+  PASS  osrm:route_eta
+  PASS  whatsapp:provider_reported

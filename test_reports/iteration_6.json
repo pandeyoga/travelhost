@@ -1,0 +1,36 @@
+{
+  "summary": "Verified iteration_6 scope: Broadcasts PATCH/DELETE, Invoices PATCH/DELETE, Sub-charter DELETE. 10/10 backend pytest cases pass; frontend flows (CRM Broadcast edit+delete, Finance Invoice edit+delete, Partners Sub-charter delete) all functional with correct toasts and row updates. One discrepancy noted vs spec: marketing_admin is allowed on /api/broadcasts (200) per permissions_config.py (crm section includes marketing_admin) — spec expected 403.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/broadcasts", "issue": "Spec expected marketing_admin to receive 403 on /api/broadcasts, but permissions_config.py grants marketing_admin access to section 'crm'. Actual response is 200. Either update spec expectation or restrict crm section (remove marketing_admin) if broadcasts should be owner/ops-only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_edit_delete_completions.py",
+    "/app/test_reports/pytest/iter6.xml"
+  ],
+  "action_items": [
+    "Clarify RBAC intent for broadcasts: current code allows marketing_admin (grants 200); if you truly want 403 for marketing_admin as per spec, remove 'marketing_admin' from CRM section or gate broadcasts with require_role('owner','ops_admin')."
+  ],
+  "critical_code_review_comments": [
+    "Broadcast delete allows deleting a 'sending' broadcast? No — routers/broadcasts.py explicitly blocks status 'sending' with 400. Good.",
+    "Invoice delete correctly restricts to draft/void; PATCH amount blocked after paid/void; status whitelist enforced. Solid.",
+    "Sub-charter delete rejects confirmed/settled properly; cancel-then-delete path works."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_edit_delete_completions.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (3/3 flows)"},
+  "test_credentials": "owner@demo.local / demo12345; marketing@demo.local / demo12345",
+  "seed_data_creation": "Created and deleted transient TEST_ broadcasts, invoices, and subcharters (sbc SC-0010) during tests; all cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration_5 (Users/Leads/Quotations/Expenses) and iteration_6 (Broadcasts/Invoices/Sub-charter) edit-delete verified. Marketing_admin RBAC on /api/broadcasts is a spec vs code mismatch — awaiting main-agent decision. Backend regression suite at /app/backend/tests/test_edit_delete_completions.py.",
+  "rca_of_the_issue": "N/A — no functional bug found. Only a spec-vs-implementation discrepancy on marketing_admin CRM access."
+}

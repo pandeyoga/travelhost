@@ -1,0 +1,38 @@
+{
+  "summary": "Executed comprehensive backend + frontend tests for the new document/invoicing system: doc-layouts (list/get/put/reset), doc-script (get/save/reset + placeholder validation), preview PDFs (INVOICE_DP, KWITANSI, __default__), doc-assets (PNG upload + serving + non-image rejection + logo used in preview), numbering (list rules, preview, save/reset, invalid pattern rejections), invoice-config (get/put + bank_account ids), invoices e2e (quote → create DP → PDF → export PDF/XLSX → settlement → sync-status after payment → DP-again 400 → PATCH status → booking-not-found 400), receipts (list, issue idempotent, PDF inline+download), RBAC (ops can read but not write; driver blocked from invoices). Frontend flows verified: Documents page all 3 tabs (Template & Tampilan sub-tabs, script chip insertion, save naskah toast, brand accent save, preview iframe blob src, Numbering rules list + edit dialog with live preview + save+reset, Invoice-config bank add + save + persistence after reload). Finance page invoice-add dialog with kind buttons, list view+pdf buttons, receipts tab. RBAC verified: ops user does not see nav-documents and /app/documents redirects to /app/dashboard with 'Akses ditolak' toast.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/doc-layouts/{code}/script", "issue": "Placeholder validator only detects double-brace tokens ({{foo}}). Single-brace strings like {foo} are treated as literal text and NOT validated/rejected. Review spec called for '{foo}' rejection but implementation uses Jinja-style {{...}}. Frontend chip inserter also emits {{customer_name}}, so this is consistent within the app; only the spec wording is off."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_documents_invoicing.py",
+    "/app/test_reports/pytest/documents_invoicing.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: If the spec really wants single-brace {foo} tokens to be rejected too, update services/doc_script.py::_PH regex to also catch \\{(\\w+)\\} (excluding {{ }})."
+  ],
+  "critical_code_review_comments": [
+    "doc_script.validate uses {{...}} placeholders — good, but the user-facing spec/task description shows single-brace {customer_name}; align docs or expand validator.",
+    "InvoiceCreate for kind='dp' with dp_percent 30 correctly computes 30% of total and returns amount>0; 400 on subsequent DP creation is correct.",
+    "receipt idempotency is enforced by checking pay.get('receipt_no') — good; verified twice-invoke returns same number.",
+    "GET /api/invoices/{id}/export?format=excel returns real XLSX (PK zip header) — good.",
+    "RBAC works: ops_admin blocked from PUT on doc-layouts / numbering / invoice-config with 403; driver blocked from GET /api/invoices with 403."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_documents_invoicing.py"
+  ],
+  "success_rate": {"backend": "100% (31/31)", "frontend": "100% (all flows OK)"},
+  "test_credentials": "owner@demo.local/demo12345 (owner), ops@demo.local/demo12345 (ops_admin), driver@demo.local/demo12345 (driver)",
+  "seed_data_creation": "Test created one booking (future dates, first available vehicle) to run invoice e2e + one payment which auto-triggered receipt issuance. Invoice-config was updated (dp_percent_default=40, one BCA bank account). These are minor data artifacts and don't interfere with future testing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests at /app/backend/tests/test_documents_invoicing.py cover doc-layouts + numbering + invoice-config + invoice e2e + receipts + RBAC (31 tests, all pass in ~37s parallel). The `booking_id` fixture iterates vehicles+dates to avoid clash — safe to re-run. Frontend RBAC redirect shows 'Akses ditolak' toast (not a hard-deny page) — script asserts URL redirect from /app/documents to /app/dashboard.",
+  "rca of the issue": "N/A — no blocking issues found."
+}

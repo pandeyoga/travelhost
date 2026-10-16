@@ -259,7 +259,7 @@ async def public_company():
     db = get_db()
     s = await db.settings.find_one({"key": "company_info"}, {"_id": 0})
     out = safe_doc(s.get("value")) if s and s.get("value") else {}
-    if out and not (out.get("logo_url") or "").strip():
+    if not (out.get("logo_url") or "").strip():
         lay = await db.document_layouts.find_one({"code": "__default__"}, {"_id": 0}) or {}
         fid = ((lay.get("layout") or {}).get("brand") or {}).get("logo_file_id")
         rec = await db.doc_assets.find_one({"id": fid}, {"_id": 0}) if fid else None

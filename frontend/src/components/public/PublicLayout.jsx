@@ -111,7 +111,10 @@ function PublicShell() {
 
   useEffect(() => {
     apiClient.get("/public/company").then((r) => {
-      if (r.data && r.data.name) setCompany((c) => ({ ...c, ...r.data }));
+      if (r.data && typeof r.data === "object") {
+        const filled = Object.fromEntries(Object.entries(r.data).filter(([, v]) => v !== "" && v != null));
+        setCompany((c) => ({ ...c, ...filled }));
+      }
     }).catch(() => {});
   }, []);
 

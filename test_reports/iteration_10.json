@@ -1,0 +1,35 @@
+{
+  "summary": "Tested the uploaded-logo propagation flow (CMS Site Settings -> public /api/public/company -> public header/footer <img>). Backend side works perfectly (4/4 pytest). Frontend upload+save works and the DB is updated (GET /api/public/company returns logo_url). HOWEVER, the public website STILL does NOT render the uploaded logo - it keeps showing the default SVG 'R' monogram. Root cause is a guard clause in PublicLayout.jsx that only merges /public/company into state when response has a non-empty `name` field; since site_settings has no `name` filled in a fresh DB, logo_url is dropped on the floor. This directly reproduces the user's complaint ('logo upload tapi di website tidak terupdate').",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/public/company", "issue": "Fallback to doc_assets brand.logo_file_id is gated by `if out and not ...`; when settings.company_info document is absent entirely (out == {}), fallback is skipped. Low priority (user already created settings), but inconsistent with the design intent."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PublicLayout.jsx (PublicShell useEffect fetching /public/company)", "issue": "Guard `if (r.data && r.data.name) setCompany(...)` prevents applying API response when `name` is empty. Fresh DB has company_info only populated with logo_url -> company.logo_url is never set in state -> <Logo /> renders SVG monogram instead of <img data-testid='brand-logo-img'>.", "selector": "brand-logo-img never rendered", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "CMS logo upload -> public header/footer render", "issue": "Backend persists logo_url and /api/public/company returns it (verified: `{logo_url: '/api/public/media/med_de8497ae9caf49d9', site_url: ''}`), but the public layout never applies it due to the frontend `name` guard. End-to-end fix is incomplete.", "affected_selectors": ["[data-testid=brand-logo-img]", "[data-testid=brand-logo]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_logo_upload.py", "/app/test_reports/pytest/logo_upload.xml"],
+  "action_items": [
+    "Fix PublicLayout.jsx: remove the `&& r.data.name` guard (or change to `if (r.data) setCompany(c => ({...c, ...r.data}))`), so uploaded logo_url (and any other field) propagates even when name is empty. This is THE blocker for the user's report.",
+    "Optional: in backend/routers/public.py `public_company()`, drop the `if out and` prefix so the doc_assets brand fallback also runs when settings.company_info is entirely absent."
+  ],
+  "critical_code_review_comments": [
+    "PublicLayout.jsx `name`-only guard silently discards all other legitimate company fields (logo_url, phone, email, socials...). It should merge unconditionally once r.data is an object.",
+    "Backend public_company fallback should trigger whenever logo_url missing, independent of whether other settings exist."
+  ],
+  "updated_files": ["/app/backend/tests/test_logo_upload.py"],
+  "success_rate": {"backend": "100%", "frontend": "50% (upload UI + save work; public rendering of uploaded logo fails)"},
+  "test_credentials": "owner@rahazatrans.test / Owner#12345",
+  "seed_data_creation": "Via tests: uploaded 2 CMS media (med_...) and 1 doc_asset, PUT /api/doc-layouts/__default__ brand.logo_file_id set, settings.company_info.logo_url saved then cleared.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest suite /app/backend/tests/test_logo_upload.py covers upload+settings PUT, clear flow, and doc-asset brand fallback. The remaining UI bug reproduces by just loading '/' - look at brand-logo wrapper: it still contains <svg> instead of <img data-testid='brand-logo-img'>. After fix, verify by GET /api/public/company returning logo_url AND the public homepage showing <img data-testid='brand-logo-img'> twice (header+footer) with naturalWidth>0.",
+  "rca of the issue": "User-visible symptom: 'logo yang diupload tidak muncul di website'. The CMS flow correctly uploads via POST /api/uploads/cms and saves logo_url via PUT /api/site/settings. The backend GET /api/public/company returns the logo_url. BUT PublicLayout.jsx (`PublicShell` component, line 113) only applies the response when `r.data.name` is truthy: `if (r.data && r.data.name) setCompany((c) => ({ ...c, ...r.data }))`. Fresh DB has no name set, so the whole merge is skipped, company.logo_url stays undefined, and <Logo logoUrl={company.logo_url}> falls into the SVG-monogram branch. Mitigation: drop the `.name` guard; the `useResource/useEffect` can safely merge any object returned."
+}

@@ -1,0 +1,22 @@
+{
+  "summary": "RETEST after main agent fix. Both frontend (PublicLayout.jsx now merges /public/company response without the name guard, filtering empty values) and backend (public_company fallback now runs when settings absent) fixes verified end-to-end. User's reported bug ('upload logo tapi di website tidak terupdate') is RESOLVED. Pytest 3/4 pass (the 1 fail is a stale-state assertion in the clear-logo test, not a product bug - previous iteration's doc-asset brand still bound to __default__ layout correctly triggered the fallback). UI test: scenario A (uploaded logo via CMS/site-settings) -> 2x <img data-testid=brand-logo-img> in header+footer with naturalWidth=200 and correct src. Scenario B (cleared) -> 0 img + 2 SVG monograms. Scenario C (doc-asset brand fallback) -> 2x <img> pointing to /api/uploads/docs/... . Wordmark 'RahazaTrans' still visible; footer phone (0811-2000-300) and email (halo@rahazatrans.id) defaults still render when settings empty.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_logo_upload.py", "/app/test_reports/pytest/logo_upload.xml"],
+  "action_items": [
+    "OPTIONAL: /app/frontend/src/features/public/Contact.jsx line 37 still has the old 'if (r.data && r.data.name)' guard. On the public Contact page, uploaded logo_url + phone/email overrides won't apply unless company_info.name is set. Low priority (Contact page company card isn't on the user's complaint path) but recommended to converge with PublicLayout's logic.",
+    "DEV-ENV NOTE: Hot reload did not auto-apply the PublicLayout.jsx fix - testing agent had to `sudo supervisorctl restart frontend` to force recompile of bundle.js (grep of /static/js/bundle.js still showed 'r.data && r.data.name' before restart, exactly 1 occurrence after restart). Main agent should always verify bundle hash/content after webpack edits in this repo rather than trust CRA HMR."
+  ],
+  "critical_code_review_comments": [
+    "Contact.jsx keeps the same silent-drop bug fixed in PublicLayout.jsx; apply identical merge pattern.",
+    "Test file test_logo_upload.py test_clear_logo_falls_back assumes a clean __default__ layout - should set brand.logo_file_id='' at the start of the test (teardown-safe) instead of expecting empty logo_url after clear. Not a product bug, just test hygiene."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (functional - 1 pytest fail is stale-fixture issue)", "frontend": "100% (all 3 UI scenarios pass)"},
+  "test_credentials": "owner@rahazatrans.test / Owner#12345",
+  "seed_data_creation": "Created ephemeral CMS media + doc_asset during test, all cleaned up at end (logo_url='' and brand.logo_file_id='' on exit). GET /api/public/company returns {logo_url:'', site_url:''} post-run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "User-reported logo upload bug is fully resolved. Only outstanding is Contact.jsx having the same old `.name` guard pattern (not user-facing on the header/footer path). Backend fallback and frontend merging both verified via live site. If main agent touches PublicLayout.jsx or public.py again, run /app/backend/tests/test_logo_upload.py and manually visit '/' after setting+clearing logo via CMS -> look for data-testid=brand-logo-img count toggling between 2 and 0.",
+  "rca of the issue": "Root cause (confirmed from iteration 10 and now closed): PublicLayout.jsx had `if (r.data && r.data.name) setCompany(...)` which silently dropped the whole /public/company response whenever company_info.name was empty - uploading a logo alone (no name) left company.logo_url undefined, so <Logo> fell to SVG. Fix (verified): the useEffect now unconditionally merges non-empty fields from the response. Backend public_company also now runs the doc_assets brand fallback regardless of whether settings.company_info exists. End-to-end test performed on https://travel-host-app.preview.emergentagent.com/ with 3 scenarios all green. Reproduction steps for user: login /app/login as owner -> CMS Pengaturan Situs -> upload logo -> Save -> open / in new tab -> header + footer should show uploaded image (previously showed SVG R)."
+}

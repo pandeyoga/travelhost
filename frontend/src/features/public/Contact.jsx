@@ -34,7 +34,7 @@ export default function Contact() {
   const ctaSec = sections.find((s) => s.type === "contact_cta");
   const cta = (ctaSec || {}).data || {};
   const [c, setC] = useState({ phone: "0811-2000-300", whatsapp: "6281120003000", email: "halo@rahazatrans.id", address: "Jl. Asia Afrika No. 1, Bandung", name: "RahazaTrans" });
-  useEffect(() => { apiClient.get("/public/company").then((r) => { if (r.data && r.data.name) setC((p) => ({ ...p, ...r.data })); }).catch(() => {}); }, []);
+  useEffect(() => { apiClient.get("/public/company").then((r) => { if (r.data && typeof r.data === "object") setC((p) => ({ ...p, ...Object.fromEntries(Object.entries(r.data).filter(([, v]) => v !== "" && v != null)) })); }).catch(() => {}); }, []);
   const waLink = `https://wa.me/${c.whatsapp}?text=${encodeURIComponent(bi("Halo RahazaTrans, saya ingin bertanya.", "Hi RahazaTrans, I'd like to ask a question.", lang))}`;
 
   // CMS-02 SEO: meta dasar halaman Kontak (dua bahasa).

@@ -1,0 +1,22 @@
+{
+  "summary": "Verified automatic favicon feature in PublicLayout.jsx. After uploading a logo via CMS > Pengaturan Situs and saving, document.head on the public site contains exactly one link[data-auto-favicon='icon'] and one link[data-auto-favicon='apple-touch-icon'], both with href equal to the brand-logo-img src and both URLs return HTTP 200. Favicon persists (no duplication) when navigating between /, /fleet, /contact. After clearing the logo via ss-logo_url-clear + Simpan, both data-auto-favicon links are removed from document.head on reload of /. Logo was cleared at the end as instructed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Favicon effect in PublicLayout.jsx returns early (return undefined) when href is empty, so previously injected favicon links are NOT removed when the user clears the logo WITHOUT a full page reload (SPA session). In practice this works because clearing logo requires server round-trip and users reload; but a cleaner approach would be to always remove existing link[data-auto-favicon] elements first, then re-add if href is truthy."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@rahazatrans.test / Owner#12345",
+  "seed_data_creation": "Created /tmp/testlogo.png (200x200 red PNG) via PIL. Uploaded as media, then cleared at end so logo_url is empty.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Favicon auto-update feature works correctly. Note: after modifying PublicLayout.jsx the CRA dev server bundle may be stale; a fresh test session initially saw 0 favicon links until `sudo supervisorctl restart frontend`. After restart the feature worked end-to-end: upload -> favicon appears, navigate -> single instance persists, clear -> favicon removed. CMS Site Settings is reached via /app/cms then click data-testid='content-tab-site' (not /app/cms/site-settings).",
+  "rca of the issue": "N/A - no bug. Initial dev-bundle staleness resolved by restarting the frontend supervisor process."
+}

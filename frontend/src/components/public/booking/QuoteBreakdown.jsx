@@ -12,7 +12,7 @@ import { bi } from "@/lib/i18n";
 // sewa kendaraan. Validasi promo dilakukan SERVER — pesan penolakannya ditampilkan apa adanya
 // supaya pengunjung tahu apa yang harus diubah (mis. "minimal 2 hari").
 export default function QuoteBreakdown({ quote, promo, onApplyPromo, onClearPromo, applying,
-                                        policy, dpNote, promoContext }) {
+                                        policy, dpNote, promoContext, onCodeInput }) {
   const lang = useLangValue();
   const [code, setCode] = useState("");
   const q = quote || {};
@@ -72,7 +72,7 @@ export default function QuoteBreakdown({ quote, promo, onApplyPromo, onClearProm
           </div>
         ) : (
           <div className="mt-1 flex gap-2">
-            <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
+            <input value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); if (onCodeInput) onCodeInput(); }}
               placeholder={bi("MIS. GATHERING500", "E.G. GATHERING500", lang)} data-testid="booking-promo-input"
               className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-[13.5px] uppercase text-foreground outline-none focus:border-ring" />
             <button type="button" disabled={!code.trim() || applying} data-testid="booking-promo-apply"

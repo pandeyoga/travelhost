@@ -29,7 +29,7 @@ di katalog/pencarian berasal dari fungsi ini juga, jadi tidak bisa berbeda lagi.
 
 Uang = INTEGER rupiah (RC-11). Semua nominal keluaran sudah dibulatkan.
 """
-from datetime import datetime, timezone  # noqa: F401  (timezone dipakai konsumen)
+from datetime import datetime, timedelta, timezone  # noqa: F401  (timezone dipakai konsumen)
 
 # Default contoh agar sistem langsung jalan; owner ubah via Pengaturan tanpa deploy.
 DEFAULT_PRICING_RULES = {
@@ -258,9 +258,20 @@ def compute_quote(rules, *, vehicle_type=None, days=1, distance_km=0,
         core = int(round(rate * days))
         breakdown.append({"label": f"Sewa unit ({days} hari)", "amount": core})
 
-    pct, label = _surcharge_for_date(rules, _parse_dt(when), holidays)
-    if pct:
-        breakdown.append({"label": f"{label} (+{int(pct)}%)", "amount": int(round(core * pct / 100.0))})
+    # Surcharge akhir pekan/libur PER HARI sewa (kalender WIB). Dulu hanya tanggal MULAI yang
+    # dilihat: sewa Rabu–Senin (melewati Sabtu–Minggu) kena Rp 0, sewa mulai Sabtu kena +20%
+    # utk SEMUA hari. Hari ke-i = mulai + i×24 jam; tarif flat (bandara) = satu tanggal.
+    start = _parse_dt(when)
+    applied = {}
+    for i in range(1 if flat_amount is not None else days):
+        p, lbl = _surcharge_for_date(rules, start + timedelta(days=i) if start else None, holidays)
+        if p:
+            applied[(lbl, p)] = applied.get((lbl, p), 0) + 1
+    unit = core if flat_amount is not None else rate
+    for (lbl, p), n in applied.items():
+        text = f"{lbl} (+{int(p)}%)" if flat_amount is not None else f"{lbl} ({n} hari × +{int(p)}%)"
+        breakdown.append({"label": text, "amount": int(round(unit * n * p / 100.0))})
+    pct = max((p for _lbl, p in applied), default=0)
 
     if include_travel:
         breakdown.append({"label": f"Jasa driver ({days} hari)",

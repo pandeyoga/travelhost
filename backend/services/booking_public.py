@@ -305,6 +305,9 @@ def created_payload(doc: dict, flow: dict) -> dict:
 def status_message(doc: dict, flow: dict) -> str:
     status = doc.get("status")
     if status == "hold":
+        if doc.get("proof_status") == "pending":
+            return ("Bukti transfer Anda sudah kami terima dan sedang diverifikasi. "
+                    "Kami kabari begitu pesanan terkonfirmasi.")
         return ("Unit Anda sudah kami tahan. Selesaikan pembayaran DP sebelum batas waktu, "
                 "lalu unggah bukti transfer pada halaman ini.")
     if status == "pending":
@@ -313,7 +316,11 @@ def status_message(doc: dict, flow: dict) -> str:
                 f"maksimal {sla} jam kerja — unit belum dikunci sampai disetujui.")
     if status == "confirmed":
         return "Pesanan Anda sudah dikonfirmasi. Terima kasih!"
-    if status == "cancelled":
+    if status == "ongoing":
+        return "Perjalanan Anda sedang berlangsung. Selamat jalan!"
+    if status == "completed":
+        return "Perjalanan selesai. Terima kasih telah memakai layanan kami!"
+    if status == "cancelled":  # alasan dikirim terpisah (`cancellation_reason`) — tidak diulang di sini
         return "Pesanan ini sudah dibatalkan."
     return ""
 
@@ -328,8 +335,13 @@ async def status_payload(db, booking: dict, flow: dict = None) -> dict:
     ).sort("paid_at", 1).to_list(50)
     total = money(booking.get("total_amount"))
     paid = money(booking.get("paid_amount"))
+    status = booking.get("status")
     dp_amount = money(booking.get("dp_amount")) or money(
         total * money(booking.get("dp_percent")) / 100.0)
+    # DP hanya DIMINTA saat unit ditahan (hold). 'pending' = belum disetujui (unit belum dikunci)
+    # dan 'confirmed' langsung = tanpa gerbang DP → halaman tidak boleh menagih "DP 0%/30%".
+    dp_required = status == "hold" and dp_amount > 0
+    proof_waiting = any(p.get("status") == "pending" for p in proofs)
     return {
         "code": booking.get("code"), "status": booking.get("status"),
         "payment_status": booking.get("payment_status"),
@@ -350,15 +362,21 @@ async def status_payload(db, booking: dict, flow: dict = None) -> dict:
         "total_amount": total, "paid_amount": paid,
         "outstanding": max(total - paid, 0),
         "dp_amount": dp_amount, "dp_percent": int(money(booking.get("dp_percent"))),
-        "dp_met": bool(dp_amount and paid >= dp_amount),
+        "dp_met": bool(dp_amount and paid >= dp_amount), "dp_required": dp_required,
         "hold_expires_at": booking.get("hold_expires_at"),
         "message": status_message(booking, flow),
         "payment": flow.get("payment"),
         "cancellation_policy": flow.get("cancellation_policy"),
         "mode": flow.get("mode"),
-        "can_upload_proof": booking.get("status") in ("hold", "pending", "confirmed")
-        and paid < total,
-        "can_cancel": booking.get("status") in ("hold", "pending"),
+        # Bukti sedang diverifikasi → form unggah disembunyikan (cegah bukti ganda utk transfer sama).
+        "can_upload_proof": status in ("hold", "confirmed", "ongoing") and paid < total and not proof_waiting,
+        # Bukti DP sedang diverifikasi → uang mungkin sudah masuk: batal lewat admin (refund).
+        "can_cancel": status in ("hold", "pending") and not proof_waiting,
+        "cancel_blocked_reason": ("Bukti transfer Anda sedang diverifikasi. Untuk membatalkan, "
+                                  "hubungi kami agar dana dapat dikembalikan.") if (
+            status in ("hold", "pending") and proof_waiting) else "",
+        "cancellation_reason": (booking.get("cancellation_reason") or booking.get("cancel_reason") or "")
+        if status == "cancelled" else "",
         "payments": safe_doc(payments),
         "proofs": [{"id": p.get("id"), "status": p.get("status"),
                     "amount_claimed": money(p.get("amount_claimed")),
@@ -436,6 +454,9 @@ async def cancel_public(db, booking: dict, reason: str = "") -> dict:
     if booking.get("status") not in ("hold", "pending"):
         raise BookingPublicError("Pesanan ini tidak bisa dibatalkan sendiri. "
                                 "Hubungi kami via WhatsApp untuk bantuan.")
+    if await bf.pending_proof(db, booking["id"]):
+        raise BookingPublicError("Bukti transfer Anda sedang diverifikasi. Untuk membatalkan, "
+                                "hubungi kami via WhatsApp agar dana dapat dikembalikan.")
     res = await db.bookings.find_one_and_update(
         {"id": booking["id"], "status": {"$in": ["hold", "pending"]}},
         {"$set": {"status": "cancelled", "cancelled_at": now_iso(),

@@ -9,9 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { formatDateTime, formatQty } from "@/utils/formatters";
-
-const TRIP_TONE = { standby: "neutral", to_pickup: "warning", on_trip: "info", completed: "success" };
-const TRIP_LABEL = { standby: "Standby", to_pickup: "Menuju Penjemputan", on_trip: "Dalam Perjalanan", completed: "Selesai" };
+import { tripStatusLabel, tripStatusTone } from "@/lib/statusLabels";
 
 export default function DriverCheckin() {
   const [trips, setTrips] = useState([]);
@@ -126,7 +124,7 @@ export default function DriverCheckin() {
               <SelectTrigger data-testid="driver-trip-select"><SelectValue placeholder="Pilih trip" /></SelectTrigger>
               <SelectContent>
                 {trips.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{(t.dest_name || "Trip")} — {TRIP_LABEL[t.status] || t.status}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>{(t.dest_name || "Trip")} — {tripStatusLabel(t.status)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -139,23 +137,31 @@ export default function DriverCheckin() {
                   <MapPin size={15} className="text-[#FF3B30]" />
                   <span className="text-[14px] font-semibold text-[#1C1C1E]">{trip.dest_name || "Tujuan"}</span>
                 </div>
-                <StatusPill value={trip.status} tone={TRIP_TONE[trip.status] || "neutral"} />
+                <StatusPill value={trip.status} tone={tripStatusTone(trip.status)} />
               </div>
             </div>
           ) : null}
 
-          {/* AKSI STATUS */}
+          {/* AKSI STATUS — hanya langkah berikutnya yang aktif (dulu ketiganya selalu aktif:
+              "Selesai" dari Terjadwal menutup trip & mengkredit fee tanpa pernah berangkat). */}
           <div className="flex flex-wrap gap-2">
-            <button className="secondary-button" disabled={busy} onClick={() => setStatus("checkin")} data-testid="driver-checkin-btn">
-              <MapPin size={14} /> Check-in (Menuju Jemput)
+            <button className="secondary-button" disabled={busy || trip?.status !== "standby"} onClick={() => setStatus("checkin")} data-testid="driver-checkin-btn">
+              <MapPin size={14} /> Berangkat Menjemput
             </button>
-            <button className="secondary-button" disabled={busy} onClick={() => setStatus("start")} data-testid="driver-start-btn">
-              <Play size={14} /> Mulai Perjalanan
+            <button className="secondary-button" disabled={busy || trip?.status !== "to_pickup"} onClick={() => setStatus("start")} data-testid="driver-start-btn">
+              <Play size={14} /> Penumpang Naik
             </button>
-            <button className="secondary-button" disabled={busy} onClick={() => setStatus("checkout")} data-testid="driver-checkout-btn">
+            <button className="secondary-button" disabled={busy || trip?.status !== "on_trip"} onClick={() => setStatus("checkout")} data-testid="driver-checkout-btn">
               <Flag size={14} /> Selesai
             </button>
           </div>
+          {trip ? (
+            <p className="text-[11.5px] text-[#8E8E93]" data-testid="driver-next-step">
+              {{ standby: "Langkah berikutnya: berangkat menjemput penumpang.", to_pickup: "Langkah berikutnya: tandai saat penumpang sudah naik.",
+                on_trip: "Langkah berikutnya: selesaikan trip setelah sampai (isi odometer di Ruang Kerja Driver untuk jarak akurat).",
+                completed: "Trip sudah selesai.", cancelled: "Trip dibatalkan oleh tim operasional." }[trip.status] || ""}
+            </p>
+          ) : null}
         </div>
       </section>
 

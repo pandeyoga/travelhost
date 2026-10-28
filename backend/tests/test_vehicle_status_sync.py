@@ -162,7 +162,8 @@ class TestTripSync:
         bk = _create_booking(owner_headers, created)
         assert bk["status"] in ("confirmed", "hold")
 
-        # Assign via dispatch -> vehicle status on_trip
+        # Assign via dispatch -> armada BELUM on_trip (keputusan 2026-10-28: unit dipakai saat
+        # sopir berangkat, bukan saat dijadwalkan — dulu trip bulan depan membuat unit sibuk sekarang).
         r = requests.post(f"{API}/dispatch/{bk['id']}/assign",
                           json={"driver_id": created["driver_id"],
                                 "vehicle_id": vid},
@@ -170,7 +171,7 @@ class TestTripSync:
         assert r.status_code == 200, r.text
         trip = r.json()["trip"]
         created["trip_ids"].append(trip["id"])
-        assert _get_vehicle(vid, owner_headers)["status"] == "on_trip"
+        assert _get_vehicle(vid, owner_headers)["status"] == "available"
 
         # Move trip to on_trip explicitly (also confirms driver online)
         r = requests.post(f"{API}/trips/{trip['id']}/status",

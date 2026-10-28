@@ -5,7 +5,8 @@ jadi tiap langkah di sini berjalan sekali per booking (dulu cancel paralel me-re
   1) tagihan terbuka booking → void (tidak lagi ditagih / ikut piutang);
   2) refund → payment negatif (method="refund") + recompute paid_amount (INV-2/INV-3);
   3) denda → invoice `cancellation_fee` dgn status JUJUR ('paid' hanya bila uang yang
-     ditahan = terbayar − refund menutup denda).
+     ditahan = terbayar − refund menutup denda);
+  4) kuota promo dikembalikan (dulu hanya pembatalan pelanggan & hold hangus yang melepasnya).
 """
 from core_utils import money, new_id
 from services.finance import next_invoice_number, recompute_booking_payment
@@ -14,6 +15,9 @@ from services.finance import next_invoice_number, recompute_booking_payment
 async def post_cancellation(db, booking: dict, *, reason: str, cfee: float, refund: float,
                             paid: float, ts: str, user=None) -> None:
     booking_id = booking["id"]
+    if booking.get("promo_id"):
+        from services import promos as promo_svc
+        await promo_svc.release(db, booking["promo_id"])
     # Tagihan terbuka booking ini tidak lagi berlaku → void (dulu tetap 'sent' & ikut ditagih/AR).
     await db.invoices.update_many(
         {"booking_id": booking_id, "status": {"$in": ["draft", "sent", "partial"]},

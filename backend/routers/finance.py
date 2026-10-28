@@ -92,14 +92,16 @@ async def export_finance(format: str = Query(default="excel"), period: str = Que
 @router.get("/finance/summary")
 async def get_summary(period: str = Query(default=None), user=Depends(FIN)):
     db = get_db()
-    pl = await profit_loss(db, period)
+    # KPI header = angka Laba-Rugi yang SAMA (pl_full: opex + perawatan selesai). Dulu header
+    # memakai profit_loss tanpa perawatan → dua "Laba Bersih" berbeda di satu halaman.
+    pl = await fa.pl_full(db, period)
     ar = await accounts_receivable(db)
-    invoices_total = await db.invoices.count_documents({})
-    invoices_unpaid = await db.invoices.count_documents({"status": {"$ne": "paid"}})
+    invoices_total = await db.invoices.count_documents({"status": {"$ne": "void"}})
+    invoices_unpaid = await db.invoices.count_documents({"status": {"$nin": ["paid", "void"]}})
     return {
         "period": pl["period"],
         "revenue": pl["revenue"],
-        "expenses": pl["expenses"],
+        "expenses": pl["total_cost"],
         "profit": pl["profit"],
         "margin": pl["margin"],
         "outstanding_ar": ar["total_outstanding"],

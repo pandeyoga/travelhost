@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentPill } from "@/components/shared/StatusPill";
+import { dpShortfall } from "@/lib/bookingRules";
 import { formatCurrency, formatDateTime } from "@/utils/formatters";
 
 const METHODS = [{ v: "transfer", l: "Transfer" }, { v: "cash", l: "Tunai" }, { v: "qris", l: "QRIS" }];
@@ -25,10 +26,15 @@ export default function PaymentDialog({ open, onOpenChange, booking, onSaved }) 
   const total = Number(booking?.total_amount || 0);
   const paid = Number(booking?.paid_amount || 0);
   const remaining = Math.max(total - paid, 0);
+  // DP belum tertutup (hold = DP wajib agar pesanan terkonfirmasi) → jenis default "dp" dan
+  // kekurangannya terlihat. Dulu default selalu "Pelunasan" walau booking masih menunggu DP.
+  const dpAmount = Number(booking?.dp_amount || 0);
+  const dpShort = Math.min(dpShortfall(booking), remaining);
+  const dpOpen = remaining > 0 && dpAmount > 0 && (booking?.status === "hold" || dpShort > 0);
 
   useEffect(() => {
     if (!open || !booking?.id) return;
-    setAmount(""); setType("settlement"); setMethod("transfer");
+    setAmount(""); setType(dpOpen ? "dp" : "settlement"); setMethod("transfer");
     // Kunci idempotensi baru per sesi dialog → retry/klik-ganda submit yang sama tidak dobel.
     setIdemKey((crypto?.randomUUID?.() || `${booking.id}-${Date.now()}-${Math.random()}`));
     let active = true;
@@ -36,6 +42,7 @@ export default function PaymentDialog({ open, onOpenChange, booking, onSaved }) 
       .then((r) => { if (active) setPayments(Array.isArray(r.data) ? r.data : []); })
       .catch(() => { if (active) setPayments([]); });
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, booking]);
 
   const submit = async () => {
@@ -79,6 +86,14 @@ export default function PaymentDialog({ open, onOpenChange, booking, onSaved }) 
             </div>
           </div>
 
+          {dpOpen ? (
+            <div className="rounded-[10px] border border-[#FFDDAD] bg-[#FFF4E5] px-3 py-2 text-[12.5px] text-[#8C4A00]" data-testid="pay-dp-info">
+              <span className="font-semibold">{booking?.status === "hold" ? "DP wajib" : "DP"} {formatCurrency(dpAmount)}</span>
+              {dpShort > 0 ? <>, kurang <span className="font-semibold tabular-nums">{formatCurrency(dpShort)}</span></> : null}
+              {booking?.status === "hold" ? <span className="block text-[11.5px]">Booking terkonfirmasi otomatis setelah DP terpenuhi.</span> : null}
+            </div>
+          ) : null}
+
           {payments.length > 0 ? (
             <div className="rounded-[10px] border border-[#EFF0F2]" data-testid="pay-history">
               {payments.map((p) => (
@@ -114,10 +129,17 @@ export default function PaymentDialog({ open, onOpenChange, booking, onSaved }) 
               </div>
               <div className="space-y-1.5">
                 <Label>Nominal (Rp)</Label>
-                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(remaining)} data-testid="pay-amount" />
-                <button type="button" className="text-[12px] font-semibold text-[#007AFF]" onClick={() => setAmount(String(remaining))} data-testid="pay-fill-remaining">
-                  Isi sisa tagihan ({formatCurrency(remaining)})
-                </button>
+                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(type === "dp" && dpShort > 0 ? dpShort : remaining)} data-testid="pay-amount" />
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {dpShort > 0 ? (
+                    <button type="button" className="text-[12px] font-semibold text-[#8C4A00]" onClick={() => { setType("dp"); setAmount(String(dpShort)); }} data-testid="pay-fill-dp">
+                      Isi kekurangan DP ({formatCurrency(dpShort)})
+                    </button>
+                  ) : null}
+                  <button type="button" className="text-[12px] font-semibold text-[#007AFF]" onClick={() => setAmount(String(remaining))} data-testid="pay-fill-remaining">
+                    Isi sisa tagihan ({formatCurrency(remaining)})
+                  </button>
+                </div>
               </div>
             </>
           )}

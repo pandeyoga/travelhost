@@ -8,6 +8,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { LoadingState, EmptyState, ErrorState } from "@/components/shared/DataStates";
 import { formatCurrency, formatDateTime } from "@/utils/formatters";
+import { backendHref } from "@/lib/mediaKind";
 
 const WD_STATUS = { requested: ["Diajukan", "warning"], paid: ["Dicairkan", "success"], rejected: ["Ditolak", "danger"] };
 const th = "px-3 py-2.5 text-left text-[11px] uppercase tracking-wide text-[#8E8E93]";
@@ -15,7 +16,7 @@ const td = "px-3 py-2.5 text-[12.5px]";
 
 // DriverWithdrawalsPanel — sisi FINANCE: saldo fee per driver + proses pencairan.
 // Bayar WAJIB unggah bukti transfer → otomatis tercatat sebagai expense gaji_driver (paid).
-export default function DriverWithdrawalsPanel() {
+export default function DriverWithdrawalsPanel({ onChanged }) {
   const [balances, setBalances] = useState([]);
   const [wds, setWds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,8 @@ export default function DriverWithdrawalsPanel() {
       fd.append("proof", proofFile);
       fd.append("note", note || "");
       await apiClient.post(`/payroll/withdrawals/${payTarget.id}/pay`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-      toast.success(`Pencairan ${formatCurrency(payTarget.amount)} untuk ${payTarget.driver_name} tercatat (expense gaji_driver)`);
+      toast.success(`Pencairan ${formatCurrency(payTarget.amount)} untuk ${payTarget.driver_name} dibayar — fee sopir terkait ditandai lunas`);
+      onChanged && onChanged(); // KPI header Keuangan ikut segar (dulu tetap angka lama)
       setPayTarget(null); setProofFile(null); setNote("");
       load();
     } catch (e) {
@@ -65,6 +67,7 @@ export default function DriverWithdrawalsPanel() {
     try {
       await apiClient.post(`/payroll/withdrawals/${rejectTarget.id}/reject`, { reason: reason.trim() });
       toast.success("Pengajuan ditolak — saldo driver kembali tersedia");
+      onChanged && onChanged();
       setRejectTarget(null); setReason("");
       load();
     } catch (e) {
@@ -139,7 +142,7 @@ export default function DriverWithdrawalsPanel() {
                       <td className={td}>
                         <span className={`status-pill tone-${st[1]}`}>{st[0]}</span>
                         {w.status === "paid" && w.proof_url ? (
-                          <a className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-[#007AFF] hover:underline" href={w.proof_url} target="_blank" rel="noreferrer" data-testid={`wd-proof-${w.id}`}>
+                          <a className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-[#007AFF] hover:underline" href={backendHref(w.proof_url)} target="_blank" rel="noreferrer" data-testid={`wd-proof-${w.id}`}>
                             <ExternalLink size={11} /> Bukti transfer
                           </a>
                         ) : null}

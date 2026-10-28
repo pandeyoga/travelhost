@@ -38,7 +38,7 @@ REGISTRY = {
     "bookings.create_group_booking": "vehicle_lock",
     "bookings.confirm_booking": "vehicle_lock",
     "bookings.reschedule_booking": "vehicle_lock",
-    "bookings.approve_booking": "vehicle_lock",
+    "booking_lifecycle.approve_booking": "vehicle_lock",
     "bookings.update_booking": "driver_lock",
     "dispatch.assign_trip": "vehicle_lock",
     "quotations.convert_quotation": "vehicle_lock",

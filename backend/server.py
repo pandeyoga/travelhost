@@ -28,6 +28,7 @@ from routers import (  # noqa: E402
     automation,
     bookings,
     booking_admin,
+    booking_lifecycle,
     booking_public,
     pickup_points,
     transfer_routes,
@@ -130,6 +131,7 @@ app.include_router(customers.router)
 # PENTING (urutan rute): booking_admin WAJIB didaftarkan SEBELUM bookings, karena bookings
 # punya `/bookings/{booking_id}` yang akan menelan literal `/bookings/payment-proofs`
 # (FastAPI memakai kecocokan PERTAMA) sehingga antrean bukti bayar balas 404 — ditemukan POC.
+app.include_router(booking_lifecycle.router)  # setujui / tolak / selesai + pratinjau harga
 app.include_router(booking_admin.router)    # verifikasi bukti DP + ACC permintaan web (ops)
 app.include_router(bookings.router)
 app.include_router(pickup_points.router)    # master titik jemput (INV-REF-02 batch 2)
@@ -305,6 +307,13 @@ async def _startup():
         await _crd.ensure_indexes(db)
     except Exception as exc:  # index opsional; jangan gagalkan boot
         logger.warning("index init skip: %s", exc)
+    try:  # fee sopir lama → biaya akrual per trip (idempotent; lihat services/driver_fee_ledger)
+        from services.driver_fee_ledger import backfill as _fee_backfill
+        made = await _fee_backfill(db)
+        if made:
+            logger.info("driver fee accrual backfill: %s expense", made)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("driver fee backfill skip: %s", exc)
     try:  # fee sopir SEKALI per trip (finalize paralel tak bisa mengkredit dua kali)
         await db.driver_fee_entries.create_index(
             "trip_id", unique=True, partialFilterExpression={"trip_id": {"$type": "string"}})

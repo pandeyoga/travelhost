@@ -139,8 +139,8 @@ export default function Finance() {
       {tab === "ar" && <FinanceReceivables onChanged={loadSummary} />}
       {tab === "recon" && <FinanceReconciliation onChanged={loadSummary} />}
       {tab === "cashflow" && <FinanceCashflow />}
-      {tab === "payroll" && <PayrollManager />}
-      {tab === "fees" && <DriverWithdrawalsPanel />}
+      {tab === "payroll" && <PayrollManager onChanged={loadSummary} />}
+      {tab === "fees" && <DriverWithdrawalsPanel onChanged={loadSummary} />}
     </div>
   );
 }

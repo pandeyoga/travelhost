@@ -123,6 +123,11 @@ export default function PayoutDetailDialog({ payoutId, onOpenChange, onChanged, 
               <div className="rounded-[10px] bg-[#FAFAFB] px-3 py-2">Trip selesai: <span className="font-semibold tabular-nums">{formatQty(p.trips_count || 0)}</span></div>
               <div className="rounded-[10px] bg-[#FAFAFB] px-3 py-2">Total KM: <span className="font-semibold tabular-nums">{formatQty(p.total_km || 0)}</span></div>
             </div>
+            {p.fee_trips_count ? (
+              <p className="rounded-[10px] bg-[#EAF7EE] px-3 py-2 text-[12px] text-[#0F5227]" data-testid="payout-fee-note">
+                {formatQty(p.fee_trips_count)} trip lain dibayar lewat fee keberangkatan ({formatCurrency(p.fee_total || 0)}) — tidak dihitung lagi sebagai komisi/uang jalan di payout ini.
+              </p>
+            ) : null}
 
             <Row label={`Gaji Pokok (${PERIOD_LABEL[p.period_type] || "-"})`} value={p.base_salary} />
             <Row label={`Komisi per Trip (${formatQty(p.trips_count || 0)} trip)`} value={p.commission_trip} />

@@ -203,3 +203,29 @@ def service_meta(service) -> dict:
     return SERVICES.get(str(service or "").strip(), {
         "value": SERVICE_REQUEST_ONLY, "label": "Permintaan Khusus",
         "tagline": "Harga & unit ditetapkan tim kami", "price_basis": "penawaran"})
+
+
+async def emit_booking_confirmed(db, booking, source="bookings"):
+    """Pancarkan booking.confirmed (idempotent per booking) dgn telepon pelanggan utk WA.
+
+    SATU SUMBER DP (services.pricing.get_dp_percent) — dulu router membaca
+    `pricing_defaults.dp_percent` sendiri sehingga DP di WhatsApp bisa berbeda dari situs.
+    Dipakai create/confirm (routers/bookings) & setujui (routers/booking_lifecycle).
+    """
+    from services.events import emit
+    from services.pricing import get_dp_percent
+    cust = await db.customers.find_one({"id": booking.get("customer_id")}, {"_id": 0, "phone": 1}) or {}
+    await emit(db, "booking.confirmed", {
+        "booking_id": booking["id"], "code": booking.get("code"),
+        "customer_name": booking.get("customer_name"), "phone": cust.get("phone"),
+        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": await get_dp_percent(db),
+        "vehicle_name": booking.get("vehicle_name"),
+        "start_datetime": (booking.get("start_datetime") or "")[:16].replace("T", " "),
+    }, source=source, ref_type="booking", ref_id=booking["id"],
+        dedupe_key=f"booking.confirmed:{booking['id']}")
+
+
+async def pending_proof(db, booking_id: str):
+    """Bukti transfer pelanggan yang MENUNGGU verifikasi (uang mungkin sudah masuk)."""
+    return await db.payment_proofs.find_one({"booking_id": booking_id, "status": "pending"}, {"_id": 0, "id": 1})
+

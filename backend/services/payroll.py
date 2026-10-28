@@ -103,7 +103,16 @@ async def build_accrual(db, driver: dict, period_type: str, start: str, end: str
                         bonuses=None, deductions=None, notes: str = "") -> dict:
     """Rakit dokumen payout DRAFT (akrual) dari trip selesai + konfigurasi kompensasi driver."""
     comp = get_comp(driver)
-    trips = await _period_trips(db, driver["id"], start, end)
+    all_trips = await _period_trips(db, driver["id"], start, end)
+    # Keputusan 2026-10-28: trip yang dibayar lewat FEE KEBERANGKATAN tidak diberi komisi/trip,
+    # %revenue, maupun uang jalan/km lagi (dulu dua skema membayar trip yang sama dua kali).
+    # Gaji pokok & bonus/potongan tetap dari payroll.
+    fee_rows = await db.driver_fee_entries.find(
+        {"driver_id": driver["id"], "trip_id": {"$in": [t["id"] for t in all_trips]}},
+        {"_id": 0, "trip_id": 1, "amount": 1}).to_list(5000)
+    fee_trip_ids = {r["trip_id"] for r in fee_rows}
+    trips = [t for t in all_trips if t["id"] not in fee_trip_ids
+             and not float(t.get("driver_fee_rate") or 0) > 0]
     trips_count = len(trips)
     total_km = round(sum(float(t.get("distance_km") or 0) for t in trips), 1)
     total_revenue = await _revenue_for(db, trips, comp["revenue_base"])
@@ -118,6 +127,9 @@ async def build_accrual(db, driver: dict, period_type: str, start: str, end: str
         "driver_id": driver["id"], "driver_name": driver.get("name"),
         "period_type": period_type, "period_start": start, "period_end": end,
         "trips_count": trips_count, "total_km": total_km, "total_revenue": total_revenue,
+        # Info saja (dibayar lewat pencairan fee, BUKAN bagian total payout ini):
+        "fee_trips_count": len(all_trips) - trips_count,
+        "fee_total": money(sum(money(r.get("amount")) for r in fee_rows)),
         "revenue_base": comp["revenue_base"],
         "base_salary": base_salary, "commission_trip": commission_trip,
         "commission_pct": commission_pct, "allowance_km": allowance_km,

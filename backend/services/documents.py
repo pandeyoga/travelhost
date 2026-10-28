@@ -90,7 +90,22 @@ def default_due(kind: str, cfg: dict, booking: dict) -> str:
 
 
 def booking_items(booking: dict) -> list:
-    """Baris rincian dari booking: harga dasar + add-on."""
+    """Baris rincian invoice. Bila booking punya `price_breakdown` (dihitung mesin harga:
+    sewa unit, surcharge, jasa driver, tol, add-on, promo) baris itulah yang dipakai — invoice
+    SAMA dengan rincian di halaman status pelanggan (dulu hanya satu baris "Sewa …").
+    Selisih pembulatan dicatat sebagai baris penyesuaian."""
+    breakdown = [b for b in booking.get("price_breakdown") or [] if isinstance(b, dict) and money(b.get("amount"))]
+    if breakdown:
+        route = ""
+        if booking.get("origin") or booking.get("destination"):
+            route = f" · {booking.get('origin') or '-'} → {booking.get('destination') or '-'}"
+        items = [{"label": (str(b.get("label") or "Biaya") + (route if i == 0 else ""))[:160], "qty": 1,
+                  "unit_price": money(b.get("amount")), "amount": money(b.get("amount"))}
+                 for i, b in enumerate(breakdown)]
+        diff = money(booking.get("total_amount") or 0) - sum(i["amount"] for i in items)
+        if diff:
+            items.append({"label": "Pembulatan", "qty": 1, "unit_price": diff, "amount": diff})
+        return items
     items = []
     base = money(booking.get("base_price") or 0)
     label = f"Sewa {booking.get('vehicle_name') or 'armada'}"

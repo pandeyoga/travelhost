@@ -20,6 +20,8 @@ import BookingEditDialog from "@/components/app/BookingEditDialog";
 import BookingRescheduleDialog from "@/components/app/BookingRescheduleDialog";
 import BookingApproveDialog from "@/components/app/BookingApproveDialog";
 import CancelBookingDialog from "@/components/app/CancelBookingDialog";
+import CompleteBookingDialog from "@/components/app/CompleteBookingDialog";
+import RejectBookingDialog from "@/components/app/RejectBookingDialog";
 import PaymentDialog from "@/components/app/PaymentDialog";
 import AttentionPanel from "@/components/app/calendar/AttentionPanel";
 import CalendarMonthGrid from "@/components/app/calendar/CalendarMonthGrid";
@@ -84,6 +86,9 @@ export default function DepartureCalendar() {
   const [editBooking, setEditBooking] = useState(null);
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
   const [approveBooking, setApproveBooking] = useState(null);
+  const [approveMode, setApproveMode] = useState("confirm"); // confirm | hold (ACC + Minta DP)
+  const [rejectBooking, setRejectBooking] = useState(null);
+  const [completeBooking, setCompleteBooking] = useState(null);
   const [payBooking, setPayBooking] = useState(null);
   const [cancelBooking, setCancelBooking] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -280,16 +285,6 @@ export default function DepartureCalendar() {
 
   const afterMutation = () => { reload(); if (selectedId) openDetail(selectedId); };
 
-  const act = async (id, action) => {
-    setBusy(true);
-    try {
-      await apiClient.post(`/bookings/${id}/${action}`);
-      toast.success(action === "complete" ? "Keberangkatan diselesaikan" : action === "reject" ? "Permintaan ditolak" : "Aksi berhasil");
-      afterMutation();
-    } catch (e) { toast.error(e?.response?.data?.detail || "Aksi gagal"); }
-    finally { setBusy(false); }
-  };
-
   const openCreate = (dk) => { setCreateStart(dk ? `${dk}T08:00` : ""); setCreateOpen(true); };
 
   const assignDriver = async () => {
@@ -437,8 +432,8 @@ export default function DepartureCalendar() {
               assignDriverId={assignDriverId} setAssignDriverId={setAssignDriverId}
               onAssign={assignDriver} onBack={backToDay}
               onOpenRelated={(id) => openDetail(id)}
-              onApprove={() => setApproveBooking(detail)} onReject={() => act(detail.id, "reject")}
-              onComplete={() => act(detail.id, "complete")} onEdit={() => setEditBooking(detail)}
+              onApprove={(mode) => { setApproveMode(mode); setApproveBooking(detail); }} onReject={() => setRejectBooking(detail)}
+              onComplete={() => setCompleteBooking(detail)} onEdit={() => setEditBooking(detail)}
               onReschedule={() => setRescheduleBooking(detail)} onPay={() => setPayBooking(detail)}
               onCancel={() => setCancelBooking(detail)} />
           ) : selectedDay ? (
@@ -459,7 +454,9 @@ export default function DepartureCalendar() {
       <BookingFormDialog open={createOpen} onOpenChange={setCreateOpen} initialStart={createStart} onCreated={() => { reload(); }} />
       <BookingEditDialog open={Boolean(editBooking)} onOpenChange={(v) => !v && setEditBooking(null)} booking={editBooking} onSaved={afterMutation} />
       <BookingRescheduleDialog open={Boolean(rescheduleBooking)} onOpenChange={(v) => !v && setRescheduleBooking(null)} booking={rescheduleBooking} onSaved={afterMutation} />
-      <BookingApproveDialog open={Boolean(approveBooking)} onOpenChange={(v) => !v && setApproveBooking(null)} booking={approveBooking} onSaved={afterMutation} />
+      <BookingApproveDialog open={Boolean(approveBooking)} onOpenChange={(v) => !v && setApproveBooking(null)} booking={approveBooking} mode={approveMode} onSaved={afterMutation} />
+      <RejectBookingDialog open={Boolean(rejectBooking)} onOpenChange={(v) => !v && setRejectBooking(null)} booking={rejectBooking} onSaved={afterMutation} />
+      <CompleteBookingDialog open={Boolean(completeBooking)} onOpenChange={(v) => !v && setCompleteBooking(null)} booking={completeBooking} onSaved={afterMutation} />
       <CancelBookingDialog open={Boolean(cancelBooking)} onOpenChange={(v) => !v && setCancelBooking(null)} booking={cancelBooking} onSaved={afterMutation} />
       {canManage ? (
         <ScheduleShareDialog open={shareOpen} onOpenChange={setShareOpen} defaultMonth={ymOf(viewDate)}

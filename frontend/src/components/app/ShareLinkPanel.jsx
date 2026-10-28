@@ -5,11 +5,11 @@ import apiClient from "@/services/apiClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { formatDateTime, formatQty } from "@/utils/formatters";
+import { tripStatusLabel } from "@/lib/statusLabels";
 
 const EXPIRY_OPTS = [
   { v: "24", l: "24 jam" }, { v: "72", l: "3 hari" }, { v: "168", l: "7 hari" }, { v: "720", l: "30 hari" },
 ];
-const TRIP_LABEL = { standby: "Standby", to_pickup: "Menuju Penjemputan", on_trip: "Dalam Perjalanan", completed: "Selesai" };
 
 function shareUrl(token) {
   return `${window.location.origin}/track/${token}`;
@@ -95,7 +95,7 @@ export default function ShareLinkPanel({ trips = [] }) {
               <SelectTrigger data-testid="share-trip-select"><SelectValue placeholder="Pilih trip" /></SelectTrigger>
               <SelectContent>
                 {trips.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{(t.dest_name || "Trip")} — {TRIP_LABEL[t.status] || t.status}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>{t.booking_code || t.dest_name || "Trip"} · {t.destination || t.dest_name || "-"} — {tripStatusLabel(t.status)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

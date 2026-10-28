@@ -6,17 +6,19 @@ dari klien — field harga sengaja tidak ada di skema ini (dijaga INV-BOOK-02).
 """
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from schemas import APIModel
 
 SERVICE_PATTERN = r"^(daily_rental|airport_transfer)$"
 
 
-class AddOnItem(BaseModel):
+class AddOnItem(APIModel):
     label: str = Field(min_length=1, max_length=80)
     amount: float = Field(default=0, ge=0)
 
 
-class BookingSearchRequest(BaseModel):
+class BookingSearchRequest(APIModel):
     """Cari unit yang bebas + harga (tanpa menulis apa pun ke database)."""
     service: str = Field(default="daily_rental", pattern=SERVICE_PATTERN)
     start_datetime: str = Field(min_length=4)
@@ -30,7 +32,7 @@ class BookingSearchRequest(BaseModel):
     destination: Optional[str] = Field(default="", max_length=160)
 
 
-class BookingQuoteRequest(BaseModel):
+class BookingQuoteRequest(APIModel):
     """Rincian harga satu unit untuk langkah tinjau (server yang menghitung)."""
     service: str = Field(default="daily_rental", pattern=SERVICE_PATTERN)
     vehicle_id: str = Field(min_length=1)
@@ -42,7 +44,7 @@ class BookingQuoteRequest(BaseModel):
     add_ons: Optional[List[AddOnItem]] = None
 
 
-class BookingPromoListRequest(BaseModel):
+class BookingPromoListRequest(APIModel):
     """Daftar promo yang berlaku untuk konteks pesanan (tanpa satu pun angka harga dari klien).
 
     Sengaja meminta `vehicle_id` + tanggal, BUKAN subtotal: subtotal dihitung ulang server
@@ -57,7 +59,7 @@ class BookingPromoListRequest(BaseModel):
     pax: Optional[int] = Field(default=1, ge=0, le=100)
 
 
-class PublicBookingSubmit(BaseModel):
+class PublicBookingSubmit(APIModel):
     """Buat pesanan sungguhan dari situs publik (unit + harga nyata)."""
     service: str = Field(default="daily_rental", pattern=SERVICE_PATTERN)
     vehicle_id: str = Field(min_length=1)
@@ -80,17 +82,17 @@ class PublicBookingSubmit(BaseModel):
     hp: Optional[str] = ""  # honeypot anti-bot
 
 
-class BookingLookupRequest(BaseModel):
+class BookingLookupRequest(APIModel):
     code: str = Field(min_length=3, max_length=20)
     phone: str = Field(min_length=6, max_length=24)
 
 
-class BookingCancelRequest(BaseModel):
+class BookingCancelRequest(APIModel):
     token: str = Field(min_length=8, max_length=80)
     reason: Optional[str] = Field(default="", max_length=400)
 
 
-class TransferRouteUpsert(BaseModel):
+class TransferRouteUpsert(APIModel):
     """Rute antar-jemput bandara + tarif FLAT per tipe armada."""
     code: Optional[str] = Field(default="", max_length=24)
     name: str = Field(min_length=2, max_length=120)
@@ -104,19 +106,25 @@ class TransferRouteUpsert(BaseModel):
     position: Optional[int] = Field(default=0, ge=0, le=999)
 
 
-class ProofVerifyRequest(BaseModel):
+class ProofVerifyRequest(APIModel):
     """Verifikasi bukti transfer oleh ops → catat pembayaran (hold otomatis → confirmed)."""
     amount: Optional[float] = Field(default=None, ge=0)
     method: Optional[str] = Field(default="transfer", max_length=24)
     note: Optional[str] = Field(default="", max_length=400)
 
 
-class ProofRejectRequest(BaseModel):
+class ProofRejectRequest(APIModel):
     reason: str = Field(min_length=3, max_length=240)
 
 
-class ApproveHoldRequest(BaseModel):
+class ApproveHoldRequest(APIModel):
     """Mode ops_approval: setujui permintaan → tahan unit + minta DP (pending → hold)."""
     vehicle_id: Optional[str] = ""
     hold_hours: Optional[int] = Field(default=None, ge=1, le=168)
     recompute_price: Optional[bool] = True
+
+
+class RejectBooking(APIModel):
+    """Tolak permintaan pending/hold — alasan ditampilkan ke pelanggan di halaman status."""
+    reason: Optional[str] = Field(default="", max_length=400)
+

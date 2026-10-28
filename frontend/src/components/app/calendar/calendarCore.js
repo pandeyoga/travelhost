@@ -1,24 +1,17 @@
 // calendarCore.js — konstanta + helper MURNI untuk Kalender Keberangkatan.
 // Dipakai bersama oleh grid bulan, timeline minggu, day-list, panel detail, dan
 // panel "Perlu Perhatian". Tidak ada dependensi React di sini (mudah diuji).
+import { BOOKING_STATUS } from "@/lib/statusLabels";
 
-export const STATUS_TONE = {
-  pending: "warning", hold: "warning", confirmed: "info", ongoing: "warning",
-  completed: "success", cancelled: "danger", draft: "neutral",
-};
+// Label & warna status booking = SSOT lib/statusLabels (dipakai juga Booking, Dispatch, publik).
+export const STATUS_TONE = Object.fromEntries(Object.entries(BOOKING_STATUS).map(([k, v]) => [k, v.tone]));
 export const TONE_DOT = { success: "#34C759", info: "#007AFF", warning: "#FF9500", danger: "#FF3B30", neutral: "#8E8E93" };
-export const STATUS_SHORT = {
-  pending: "Menunggu", hold: "Hold", confirmed: "Terkonfirmasi", ongoing: "Berjalan",
-  completed: "Selesai", cancelled: "Dibatalkan", draft: "Draft",
-};
-export const STATUS_SHORT_EN = {
-  pending: "Pending", hold: "On hold", confirmed: "Confirmed", ongoing: "On the road",
-  completed: "Completed", cancelled: "Cancelled", draft: "Draft",
-};
+export const STATUS_SHORT = Object.fromEntries(Object.entries(BOOKING_STATUS).map(([k, v]) => [k, v.short]));
+export const STATUS_SHORT_EN = Object.fromEntries(Object.entries(BOOKING_STATUS).map(([k, v]) => [k, v.en]));
 export const statusLabel = (s, lang = "id") => (lang === "en" ? STATUS_SHORT_EN : STATUS_SHORT)[s] || s || "-";
 export const STATUS_LEGEND = [
   { tone: "info", label: "Terkonfirmasi" },
-  { tone: "warning", label: "Hold / Berjalan / Menunggu" },
+  { tone: "warning", label: "Menunggu ACC / DP · Berjalan" },
   { tone: "success", label: "Selesai" },
   { tone: "danger", label: "Dibatalkan" },
 ];
@@ -27,9 +20,8 @@ export const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 export const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 export const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 export const STATUS_FILTERS = [
-  { v: "all", l: "Semua status" }, { v: "pending", l: "Menunggu" }, { v: "hold", l: "Hold" },
-  { v: "confirmed", l: "Terkonfirmasi" }, { v: "ongoing", l: "Berjalan" },
-  { v: "completed", l: "Selesai" }, { v: "cancelled", l: "Dibatalkan" },
+  { v: "all", l: "Semua status" },
+  ...Array.from(["pending", "hold", "confirmed", "ongoing", "completed", "cancelled"], (v) => ({ v, l: BOOKING_STATUS[v].short })),
 ];
 export const ACTIVE = ["hold", "confirmed", "ongoing"];
 // Share-link jadwal: status yang boleh dibagikan + default (sinkron backend

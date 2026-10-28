@@ -24,6 +24,18 @@ def business_date(value=None):
     return dt.astimezone(BUSINESS_TZ).date() if dt else None
 
 
+_MONTHS_ID = ("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
+
+
+def fmt_wib(value) -> str:
+    """ISO/datetime → "28 Okt 2026 16.00 WIB" (teks notifikasi & WA; data tetap UTC)."""
+    dt = parse_iso(value)
+    if not dt:
+        return "" if value is None else str(value)
+    w = dt.astimezone(BUSINESS_TZ)
+    return f"{w.day} {_MONTHS_ID[w.month - 1]} {w.year} {w:%H.%M} WIB"
+
+
 def parse_iso(value) -> Optional[datetime]:
     """Konversi string ISO/atau datetime menjadi datetime aware UTC. None bila gagal."""
     if value is None:

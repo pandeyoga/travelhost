@@ -2,9 +2,11 @@
 import {
   ArrowLeft, MapPin, Phone, Bus, User, Clock, Route as RouteIcon, CalendarDays,
   CheckCircle2, StickyNote, ChevronRight, ShieldCheck, Wallet, Pencil, CalendarClock,
-  AlertTriangle,
+  AlertTriangle, Ban,
 } from "lucide-react";
-import { StatusPill, PaymentPill } from "@/components/shared/StatusPill";
+import { StatusPill } from "@/components/shared/StatusPill";
+import { PaymentStatePill } from "@/components/app/bookings/BookingListParts";
+import { canComplete, canPay as canPayBooking, isWebSource } from "@/lib/bookingRules";
 import { LoadingState } from "@/components/shared/DataStates";
 import SelectField from "@/components/shared/SelectField";
 import { formatCurrency, formatDateTime, formatDate } from "@/utils/formatters";
@@ -58,7 +60,7 @@ export default function DepartureDetailPanel({
   const sisa = Math.max((Number(b.total_amount) || 0) - (Number(b.paid_amount) || 0), 0);
   const payments = Array.isArray(b.payments) ? b.payments : [];
   const canAssign = canManage && !["cancelled", "completed"].includes(b.status);
-  const canPay = !["cancelled", "pending"].includes(b.status) && !["lunas", "selesai"].includes(b.payment_status);
+  const canPay = canPayBooking(b);
 
   return (
     <div className="space-y-4" data-testid="dc-detail">
@@ -68,11 +70,11 @@ export default function DepartureDetailPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-mono text-[15px] font-bold text-[#1C1C1E]">{b.code}</p>
-          <p className="text-[12px] text-[#8E8E93]">Dibuat {formatDate(b.created_at)}{b.source === "public" ? " · dari situs publik" : ""}</p>
+          <p className="text-[12px] text-[#8E8E93]">Dibuat {formatDate(b.created_at)}{isWebSource(b.source) ? ` · dari situs publik${b.source === "public" ? " (permintaan khusus)" : ""}` : ""}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <StatusPill value={b.status} tone={STATUS_TONE[b.status] || "neutral"} testId="dc-detail-status" />
-          <PaymentPill value={b.payment_status} testId="dc-detail-payment" />
+          <PaymentStatePill booking={b} testId="dc-detail-payment" />
         </div>
       </div>
 
@@ -144,8 +146,12 @@ export default function DepartureDetailPanel({
         <div className="flex flex-wrap gap-2" data-testid="dc-detail-actions">
           {b.status === "pending" ? (
             <>
-              <button className="secondary-button !text-[#126E2C]" disabled={busy} onClick={onApprove} data-testid="dc-approve"><ShieldCheck size={14} /> Setujui</button>
-              <button className="secondary-button !text-[#A8221A]" disabled={busy} onClick={onReject} data-testid="dc-reject">Tolak</button>
+              {/* Dua keputusan yang sama dengan daftar Booking & panel Pesanan Website Masuk. */}
+              <button className="secondary-button !text-[#126E2C]" disabled={busy} onClick={() => onApprove("confirm")} data-testid="dc-approve"
+                title="Pesanan langsung terkonfirmasi tanpa menunggu DP"><ShieldCheck size={14} /> Setujui</button>
+              <button className="secondary-button !text-[#0A5BD3]" disabled={busy} onClick={() => onApprove("hold")} data-testid="dc-approve-hold"
+                title="Tahan unit lalu minta DP ke pelanggan"><Clock size={14} /> ACC + Minta DP</button>
+              <button className="secondary-button !text-[#A8221A]" disabled={busy} onClick={onReject} data-testid="dc-reject"><Ban size={14} /> Tolak</button>
             </>
           ) : (
             <>
@@ -154,7 +160,9 @@ export default function DepartureDetailPanel({
                 <>
                   <button className="secondary-button" onClick={onEdit} data-testid="dc-edit"><Pencil size={14} /> Edit</button>
                   <button className="secondary-button" onClick={onReschedule} data-testid="dc-reschedule"><CalendarClock size={14} /> Jadwal ulang</button>
-                  <button className="secondary-button" disabled={busy} onClick={onComplete} data-testid="dc-complete"><CheckCircle2 size={14} /> Selesai</button>
+                  {canComplete(b) ? (
+                    <button className="secondary-button" disabled={busy} onClick={onComplete} data-testid="dc-complete"><CheckCircle2 size={14} /> Selesai</button>
+                  ) : null}
                   <button className="secondary-button !text-[#A8221A]" disabled={busy} onClick={onCancel} data-testid="dc-cancel">Batal</button>
                 </>
               ) : null}

@@ -182,7 +182,7 @@ def test_parallel_cancel_posts_refund_once_and_voids_open_invoices(owner, env, d
     inv = requests.post(f"{API}/invoices", headers=owner, timeout=20,
                         json={"booking_id": bk["id"], "kind": "settlement"})
     assert inv.status_code == 200, inv.text
-    body = {"reason": "uji paralel", "refund_amount": 200000, "cancellation_fee": 100000}
+    body = {"reason": "uji paralel", "refund_amount": 400000, "cancellation_fee": 100000}
     with ThreadPoolExecutor(4) as ex:
         codes = [f.result().status_code for f in [ex.submit(
             requests.post, f"{API}/bookings/{bk['id']}/cancel", headers=owner, json=body, timeout=30)
@@ -190,7 +190,7 @@ def test_parallel_cancel_posts_refund_once_and_voids_open_invoices(owner, env, d
     assert all(c == 200 for c in codes), codes
     assert db.payments.count_documents({"booking_id": bk["id"], "type": "refund"}) == 1
     fee = list(db.invoices.find({"booking_id": bk["id"], "type": "cancellation_fee"}))
-    assert len(fee) == 1 and fee[0]["status"] == "paid"  # ditahan 300rb ≥ denda 100rb
+    assert len(fee) == 1 and fee[0]["status"] == "paid"  # ditahan 100rb = denda 100rb
     assert db.invoices.find_one({"id": inv.json()["id"]})["status"] == "void"
 
 
@@ -247,6 +247,8 @@ def test_trip_completion_keeps_held_vehicle_and_cannot_reopen(owner, env, db):
     assert r.status_code == 200, r.text
     trip = r.json()["trip"]
     assert "origin_lat" in trip and "origin_lng" in trip  # titik jemput disimpan utk geofence
+    r = requests.post(f"{API}/trips/{trip['id']}/status", headers=owner, json={"status": "on_trip"}, timeout=20)
+    assert r.status_code == 200, r.text  # trip harus berjalan dulu sebelum bisa diselesaikan
     db.vehicles.update_one({"id": vid}, {"$set": {"status": "maintenance"}})  # unit ditarik bengkel
     try:
         with ThreadPoolExecutor(3) as ex:

@@ -82,9 +82,10 @@ async def pl_full(db, period=None):
     profit = round(revenue - total_cost, 2)
     margin = round((profit / revenue * 100), 1) if revenue > 0 else 0.0
 
-    # Per unit: revenue dari trips (period), opex via expenses(trip→vehicle), maintenance.
+    # Per unit: revenue trip yang SELESAI pada periode (end_at) — dulu created_at & ikut trip
+    # batal/masa depan; opex = expense yg terkait trip itu (incl. fee sopir akrual) + maintenance.
     trips = await db.trips.find(
-        {"created_at": {"$regex": f"^{period}"}},
+        {"status": "completed", "end_at": {"$regex": f"^{period}"}},
         {"_id": 0, "id": 1, "vehicle_id": 1, "revenue": 1}).to_list(5000)
     rev_by_veh, trip_to_veh, trip_ids = {}, {}, []
     for t in trips:
@@ -95,7 +96,7 @@ async def pl_full(db, period=None):
     opex_by_veh = {}
     if trip_ids:
         ex_rows = await db.expenses.aggregate([
-            {"$match": {"trip_id": {"$in": trip_ids}, "created_at": {"$regex": f"^{period}"}}},
+            {"$match": {"trip_id": {"$in": trip_ids}}},
             {"$group": {"_id": "$trip_id", "amount": {"$sum": {"$ifNull": ["$amount", 0]}}}},
         ]).to_list(5000)
         for r in ex_rows:
@@ -219,11 +220,26 @@ async def cashflow(db, months_back=6, horizon=3):
                     "t": {"$sum": {"$ifNull": ["$amount", 0]}}}},
     ]).to_list(1000)
     cin = {r["_id"]: float(r["t"]) for r in pay_rows}
+    # KAS keluar = uang yang benar-benar keluar (basis kas). Dulu semua expense dihitung pada
+    # created_at → akrual payroll yang BELUM dibayar ikut jadi kas keluar.
+    #  - expense biasa (tanpa flag `paid`)            → tanggal dibuat
+    #  - akrual payroll (`paid` True/False)           → hanya bila lunas, pada paid_at
+    #  - akrual fee sopir (source=driver_fee)         → DILEWATI; kasnya = pencairan di bawah
     exp_rows = await db.expenses.aggregate([
-        {"$group": {"_id": {"$substrBytes": [{"$ifNull": ["$created_at", ""]}, 0, 7]},
+        {"$match": {"source": {"$ne": "driver_fee"}, "paid": {"$ne": False}}},
+        {"$group": {"_id": {"$substrBytes": [{"$ifNull": ["$paid_at", {"$ifNull": ["$created_at", ""]}]}, 0, 7]},
                     "t": {"$sum": {"$ifNull": ["$amount", 0]}}}},
     ]).to_list(1000)
     cout = {r["_id"]: float(r["t"]) for r in exp_rows}
+    # Pencairan fee sopir model baru (tanpa expense sendiri; model lama ber-expense_id sudah
+    # terhitung di atas).
+    wd_rows = await db.driver_withdrawals.aggregate([
+        {"$match": {"status": "paid", "expense_id": {"$in": [None, ""]}}},
+        {"$group": {"_id": {"$substrBytes": [{"$ifNull": ["$paid_at", ""]}, 0, 7]},
+                    "t": {"$sum": {"$ifNull": ["$amount", 0]}}}},
+    ]).to_list(1000)
+    for r in wd_rows:
+        cout[r["_id"]] = cout.get(r["_id"], 0.0) + float(r["t"])
     # maintenance per bulan (tanggal efektif)
     maint = await db.maintenance_records.find(_MAINT_REALIZED, {"_id": 0, "cost": 1, "completed_at": 1, "created_at": 1, "scheduled_date": 1}).to_list(5000)
     mout = {}

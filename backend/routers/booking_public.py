@@ -265,6 +265,8 @@ async def booking_proof(code: str, request: Request, token: str = Form(default="
         raise HTTPException(status_code=404, detail="Tautan status pesanan tidak valid")
     if booking.get("status") == "cancelled":
         raise _400("Pesanan sudah dibatalkan — bukti pembayaran tidak bisa diunggah")
+    if booking.get("status") == "pending":  # unit belum dikunci → belum ada yang perlu dibayar
+        raise _400("Pesanan masih menunggu persetujuan tim kami — transfer DP setelah pesanan disetujui")
     data = await image.read()
     try:
         proof = await bp.attach_proof(

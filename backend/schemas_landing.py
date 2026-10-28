@@ -8,10 +8,12 @@ tidak mengurangi perlindungan batas nilai numerik.
 """
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
+
+from schemas import APIModel
 
 
-class LandingLeadCreate(BaseModel):
+class LandingLeadCreate(APIModel):
     """Form lead di halaman iklan publik `/lp/{slug}`.
 
     Sengaja TOLERAN pada tipe (pax bisa datang sebagai teks dari input HTML) supaya pengunjung
@@ -47,7 +49,7 @@ class LandingLeadCreate(BaseModel):
             return 0
 
 
-class LandingTrackEvent(BaseModel):
+class LandingTrackEvent(APIModel):
     """Peristiwa ringan halaman iklan untuk statistik A/B (tanpa PII)."""
     type: str = Field(default="view", max_length=40)  # view | cta_click
     variant_id: Optional[str] = "A"

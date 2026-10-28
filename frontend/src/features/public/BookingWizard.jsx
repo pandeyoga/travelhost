@@ -77,6 +77,10 @@ export default function BookingWizard() {
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { trackBeginCheckout({ value: 0 }); }, []);
+  // Pesan penolakan promo dari server bertahan sampai kode atau tanggal berubah (lihat pickUnit).
+  useEffect(() => {
+    setPromo((p) => (p.error ? { ...p, error: "" } : p));
+  }, [search?.start, search?.end, search?.service, search?.route_id]);
 
   const isTransfer = search?.service === SERVICE_TRANSFER;
   const activeRoute = useMemo(
@@ -126,11 +130,13 @@ export default function BookingWizard() {
         pax: Number(search.pax) || 1, promo_code: code || "",
       });
       setQuote(data.quote);
-      setPromo((p) => ({ ...p, error: "" }));
+      // Kutipan ulang TANPA kode (setelah promo ditolak) tidak boleh menghapus pesan
+      // penolakannya — dulu AKHIRPEKAN10 di hari kerja ditolak lalu pesannya langsung hilang.
+      if (code) setPromo({ code, error: "" });
     } catch (e) {
       if (code) {
         setPromo({ code: "", error: e?.response?.data?.detail || bi("Kode promo tidak bisa dipakai.", "This promo code cannot be used.", lang) });
-        if (code !== "") pickUnit(option, "");
+        pickUnit(option, "");
       } else {
         toast.error(e?.response?.data?.detail || bi("Gagal menghitung harga", "Failed to calculate the price", lang));
       }
@@ -313,9 +319,12 @@ export default function BookingWizard() {
             ) : null}
 
             {step === 2 && picked ? (
+              // Ponsel (1 kolom): ringkasan → rincian harga & promo → data pemesan + CTA. Dulu CTA
+              // "Amankan unit & lanjut bayar DP" muncul SEBELUM rincian harga & kolom promo.
+              // `contents` meleburkan kolom kiri ke grid di bawah lg agar `order` berlaku.
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_.85fr]">
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-border bg-card p-5" data-testid="booking-summary">
+                <div className="contents lg:block lg:space-y-4">
+                  <div className="order-1 rounded-2xl border border-border bg-card p-5" data-testid="booking-summary">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-[12px] uppercase tracking-wide text-muted-foreground">{bi("Unit dipilih", "Selected unit", lang)}</p>
@@ -346,14 +355,17 @@ export default function BookingWizard() {
                       ) : null}
                     </dl>
                   </div>
-                  <BookerForm value={booker} onChange={setBooker} onSubmit={submit} submitting={submitting}
-                    consent={consent} onConsent={setConsent} showPickup
-                    ctaLabel={config?.mode === "hold_dp" ? bi("Amankan unit & lanjut bayar DP", "Secure unit & continue to deposit", lang) : bi("Kirim pesanan untuk dikonfirmasi", "Submit booking for confirmation", lang)}
-                    note={bi("Dengan menekan tombol ini Anda menyetujui ketentuan layanan & kebijakan pembatalan.", "By pressing this button you agree to the terms of service & cancellation policy.", lang)} />
+                  <div className="order-3">
+                    <BookerForm value={booker} onChange={setBooker} onSubmit={submit} submitting={submitting}
+                      consent={consent} onConsent={setConsent} showPickup
+                      ctaLabel={config?.mode === "hold_dp" ? bi("Amankan unit & lanjut bayar DP", "Secure unit & continue to deposit", lang) : bi("Kirim pesanan untuk dikonfirmasi", "Submit booking for confirmation", lang)}
+                      note={bi("Dengan menekan tombol ini Anda menyetujui ketentuan layanan & kebijakan pembatalan.", "By pressing this button you agree to the terms of service & cancellation policy.", lang)} />
+                  </div>
                 </div>
-                <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+                <div className="order-2 space-y-4 lg:order-none lg:sticky lg:top-24 lg:self-start">
                   <QuoteBreakdown quote={quote} promo={promo} onApplyPromo={applyPromo}
                     onClearPromo={clearPromo} applying={applying}
+                    onCodeInput={() => setPromo((p) => (p.error ? { ...p, error: "" } : p))}
                     promoContext={picked ? {
                       service: search.service, vehicle_id: picked.vehicle.id,
                       start_datetime: new Date(search.start).toISOString(),

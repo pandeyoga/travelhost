@@ -1,9 +1,12 @@
-const PAYMENT_LABEL = { lunas: "Lunas", dp: "DP", belum_bayar: "Belum Bayar", selesai: "Selesai" };
-const PAYMENT_TONE = { lunas: "success", dp: "warning", belum_bayar: "danger", selesai: "info" };
+import { BOOKING_STATUS, PAYMENT_STATUS, TRIP_STATUS } from "@/lib/statusLabels";
 
+const PAYMENT_LABEL = Object.fromEntries(Object.entries(PAYMENT_STATUS).map(([k, v]) => [k, v.label]));
+const PAYMENT_TONE = Object.fromEntries(Object.entries(PAYMENT_STATUS).map(([k, v]) => [k, v.tone]));
+
+// Label status booking & trip dari SSOT lib/statusLabels; sisanya status master data.
 const STATUS_LABEL = {
-  draft: "Draft", pending: "Menunggu Persetujuan", hold: "Hold (Menunggu DP)",
-  confirmed: "Terkonfirmasi", ongoing: "Berjalan", completed: "Selesai", cancelled: "Dibatalkan",
+  ...Object.fromEntries(Object.entries(TRIP_STATUS).map(([k, v]) => [k, v.label])),
+  ...Object.fromEntries(Object.entries(BOOKING_STATUS).map(([k, v]) => [k, v.label])),
   available: "Tersedia", on_trip: "Dalam Perjalanan", maintenance: "Perawatan",
   online: "Online", resting: "Istirahat", offline: "Offline",
   active: "Aktif", inactive: "Nonaktif",

@@ -22,9 +22,11 @@ function emptyUnit() {
   return {
     vehicle_id: "", driver_id: "", origin: "", destination: "",
     start: "", end: "", base_price: "",
-    avail: null, checking: false, pricing: false,
+    avail: null, checking: false, pricing: false, est: null,
   };
 }
+const unitKey = (u) => `${u.vehicle_id}|${u.start}|${u.end}`;
+const spanDays = (u) => Math.max(Math.ceil((new Date(u.end).getTime() - new Date(u.start).getTime()) / 86400000) || 1, 1);
 
 export default function GroupBookingDialog({ open, onOpenChange, onCreated }) {
   const [opts, setOpts] = useState({ customers: [], vehicles: [], drivers: [] });
@@ -53,6 +55,9 @@ export default function GroupBookingDialog({ open, onOpenChange, onCreated }) {
   const addUnit = () => setUnits((arr) => [...arr, emptyUnit()]);
   const removeUnit = (idx) => setUnits((arr) => (arr.length > 1 ? arr.filter((_, i) => i !== idx) : arr));
 
+  // Identitas (armada|mulai|selesai) semua unit — pemicu cek ketersediaan & estimasi harga.
+  const unitKeys = units.map(unitKey).join("~");
+
   // Per-unit availability check (debounced via useEffect on identity).
   useEffect(() => {
     units.forEach((u, idx) => {
@@ -68,7 +73,28 @@ export default function GroupBookingDialog({ open, onOpenChange, onCreated }) {
         }))
         .catch(() => setUnit(idx, { checking: false, avail: null }));
     });
-  }, [units.map((u) => `${u.vehicle_id}|${u.start}|${u.end}`).join("~")]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unitKeys]);
+
+  // Estimasi harga otomatis per unit. Harga dikosongkan = server menghitung dari tarif unit
+  // (compute_quote yang sama dengan /pricing/quote) — dulu Grand Total tampil Rp 0 padahal
+  // total yang tersimpan terisi. Debounce 400ms agar mengetik tanggal tak memicu banyak kutipan.
+  useEffect(() => {
+    if (!open) return undefined;
+    const timer = setTimeout(() => {
+      units.forEach((u) => {
+        if (!u.vehicle_id || !u.start || !u.end) return;
+        const key = unitKey(u);
+        if (u.est && u.est.key === key) return;
+        apiClient.post("/pricing/quote", { vehicle_id: u.vehicle_id, days: spanDays(u), start_date: toIso(u.start) })
+          .then(({ data }) => ({ key, total: Number(data?.total) || 0 }))
+          .catch(() => ({ key, total: null }))
+          .then((est) => setUnits((arr) => arr.map((x) => (unitKey(x) === key ? { ...x, est } : x))));
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unitKeys, open]);
 
   // Intra-group conflict: 2 unit di dalam form pakai armada sama + waktu overlap.
   const intraConflicts = useMemo(() => {
@@ -91,7 +117,7 @@ export default function GroupBookingDialog({ open, onOpenChange, onCreated }) {
     const u = units[idx];
     if (!u.vehicle_id || !u.start || !u.end) { toast.message("Lengkapi armada & tanggal unit dulu."); return; }
     setUnit(idx, { pricing: true });
-    const days = Math.max(Math.ceil((new Date(u.end).getTime() - new Date(u.start).getTime()) / 86400000) || 1, 1);
+    const days = spanDays(u);
     try {
       const { data } = await apiClient.post("/pricing/quote", {
         vehicle_id: u.vehicle_id, days, start_date: toIso(u.start),
@@ -104,7 +130,12 @@ export default function GroupBookingDialog({ open, onOpenChange, onCreated }) {
     }
   };
 
-  const grandTotal = units.reduce((sum, u) => sum + (Number(u.base_price) || 0), 0);
+  // Harga per unit: isian manual, atau estimasi tarif bila dikosongkan.
+  const unitEstimate = (u) => (u.est && u.est.key === unitKey(u) ? u.est.total : null);
+  const unitPrice = (u) => (Number(u.base_price) > 0 ? Number(u.base_price) : (unitEstimate(u) || 0));
+  const grandTotal = units.reduce((sum, u) => sum + unitPrice(u), 0);
+  const usesEstimate = units.some((u) => !(Number(u.base_price) > 0) && unitEstimate(u) !== null);
+  const unpriced = units.filter((u) => !(Number(u.base_price) > 0) && !unitEstimate(u)).length;
   const allUnitsValid = units.every((u, i) =>
     u.vehicle_id && u.start && u.end
     && u.avail && u.avail.available === true && !intraConflicts.has(i));
@@ -233,7 +264,17 @@ export default function GroupBookingDialog({ open, onOpenChange, onCreated }) {
                           {u.pricing ? <Loader2 size={11} className="animate-spin" /> : <Calculator size={11} />} Hitung Otomatis
                         </button>
                       </div>
-                      <Input type="number" value={u.base_price} onChange={(e) => setUnit(idx, { base_price: e.target.value })} placeholder="0" data-testid={`gb-price-${idx}`} />
+                      <Input type="number" value={u.base_price} onChange={(e) => setUnit(idx, { base_price: e.target.value })}
+                        placeholder={unitEstimate(u) ? `Otomatis: ${unitEstimate(u)}` : "Kosongkan = otomatis dari tarif"} data-testid={`gb-price-${idx}`} />
+                      {!(Number(u.base_price) > 0) ? (
+                        <p className="mt-1 text-[11px] text-[#8A8A8E]" data-testid={`gb-est-${idx}`}>
+                          {unitEstimate(u)
+                            ? <>Kosong = dihitung otomatis dari tarif: <span className="font-semibold tabular-nums text-[#1C1C1E]">estimasi {formatCurrency(unitEstimate(u))}</span> ({spanDays(u)} hari)</>
+                            : u.vehicle_id && u.start && u.end
+                              ? (u.est && u.est.key === unitKey(u) ? "Tarif otomatis tidak tersedia — isi harga manual." : "Menghitung estimasi tarif…")
+                              : "Kosong = dihitung otomatis dari tarif setelah armada & tanggal diisi."}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="min-h-[24px]" data-testid={`gb-avail-${idx}`}>
                       {intra ? (
@@ -252,9 +293,13 @@ export default function GroupBookingDialog({ open, onOpenChange, onCreated }) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-[#F7F8FA] px-3 py-2">
-            <span className="text-[12px] text-[#6B6B73]">Grand Total ({units.length} unit)</span>
-            <span className="text-[15px] font-bold tabular-nums text-[#1C1C1E]" data-testid="gb-grand-total">{formatCurrency(grandTotal)}</span>
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-[#F7F8FA] px-3 py-2">
+            <span className="text-[12px] text-[#6B6B73]">
+              Grand Total {usesEstimate ? "(estimasi) " : ""}({units.length} unit)
+              {usesEstimate ? <span className="block text-[11px]">Unit tanpa harga manual memakai tarif otomatis — angka final dihitung server saat disimpan.</span> : null}
+              {unpriced ? <span className="block text-[11px] text-[#8C4A00]" data-testid="gb-unpriced">{unpriced} unit belum terhitung.</span> : null}
+            </span>
+            <span className="shrink-0 text-[15px] font-bold tabular-nums text-[#1C1C1E]" data-testid="gb-grand-total">{usesEstimate ? "± " : ""}{formatCurrency(grandTotal)}</span>
           </div>
         </div>
 

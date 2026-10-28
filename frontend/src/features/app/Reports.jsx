@@ -299,7 +299,9 @@ export default function Reports() {
                     <th className="px-3 py-2 text-right">Gross</th>
                     <th className="px-3 py-2 text-right">Bonus</th>
                     <th className="px-3 py-2 text-right">Potongan</th>
-                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-right">Total Payroll</th>
+                    <th className="px-3 py-2 text-right" title="Fee per keberangkatan (biaya saat trip selesai)">Fee Trip</th>
+                    <th className="px-3 py-2 text-right" title="Payroll + fee = Biaya SDM">Total SDM</th>
                     <th className="px-3 py-2 text-right">YTD</th>
                     <th className="px-3 py-2 text-left">Status</th>
                   </tr>
@@ -313,7 +315,9 @@ export default function Reports() {
                       <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.gross)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-[#126E2C]">{formatCurrency(r.bonus)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-[#A8221A]">{formatCurrency(r.deduction)}</td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums text-[#1C1C1E]">{formatCurrency(r.total)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.total)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.fee || 0)}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-[#1C1C1E]">{formatCurrency(r.total_sdm ?? r.total)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-[#6B6B73]">{formatCurrency(r.ytd)}</td>
                       <td className="px-3 py-2 text-[11px] text-[#6B6B73]">{(r.statuses || []).join(", ")}</td>
                     </tr>

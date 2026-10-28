@@ -27,6 +27,17 @@ def _last_months(n: int, end: str = None):
     return list(reversed(keys))
 
 
+async def _maintenance_by_month(db) -> dict:
+    """Biaya perawatan SELESAI per bulan (tanggal selesai) — SSOT finance_automation."""
+    from services.finance_automation import _MAINT_REALIZED, _maint_date, _month
+    out = {}
+    async for m in db.maintenance_records.find(_MAINT_REALIZED, {"_id": 0, "cost": 1, "completed_at": 1,
+                                                                 "created_at": 1, "scheduled_date": 1}):
+        k = _month(_maint_date(m))
+        out[k] = out.get(k, 0.0) + float(m.get("cost", 0) or 0)
+    return out
+
+
 async def summary(db, period=None) -> dict:
     """Ringkasan laporan UNTUK PERIODE `YYYY-MM` (default bulan berjalan).
 
@@ -39,7 +50,9 @@ async def summary(db, period=None) -> dict:
     in_period = {"$regex": f"^{period}"}
     # Totalan via aggregation server-side (tanpa memuat semua dokumen ke memori).
     revenue_total = await _agg_sum(db, "payments", {"paid_at": in_period})
-    expense_total = await _agg_sum(db, "expenses", {"created_at": in_period})
+    # Biaya = pengeluaran + perawatan SELESAI (definisi sama dgn Keuangan → Laba-Rugi/pl_full).
+    maint_by_m = await _maintenance_by_month(db)
+    expense_total = await _agg_sum(db, "expenses", {"created_at": in_period}) + maint_by_m.get(period, 0.0)
     profit_total = round(revenue_total - expense_total, 2)
 
     ar = await accounts_receivable(db)
@@ -55,7 +68,9 @@ async def summary(db, period=None) -> dict:
                     "t": {"$sum": {"$ifNull": ["$amount", 0]}}}},
     ]).to_list(1000)
     rev_by_m = {r["_id"]: float(r["t"]) for r in rev_rows}
-    exp_by_m = {r["_id"]: float(r["t"]) for r in exp_rows_m}
+    exp_by_m = {r["_id"]: float(r["t"]) + maint_by_m.get(r["_id"], 0.0) for r in exp_rows_m}
+    for k, v in maint_by_m.items():
+        exp_by_m.setdefault(k, v)
     revenue_by_month = [
         {"month": k, "revenue": round(rev_by_m.get(k, 0.0), 2), "expenses": round(exp_by_m.get(k, 0.0), 2),
          "profit": round(rev_by_m.get(k, 0.0) - exp_by_m.get(k, 0.0), 2)}

@@ -1,22 +1,24 @@
 """schemas_ops.py — skema master Add-on, pencairan fee driver & share-link jadwal (dipisah dari schemas.py, jaga <800 baris)."""
 from typing import Annotated, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from schemas import APIModel
 
 
-class AddonCreate(BaseModel):
+class AddonCreate(APIModel):
     label: str = Field(min_length=1, max_length=80)
     default_amount: float = Field(default=0, ge=0)
     active: Optional[bool] = True
 
 
-class AddonUpdate(BaseModel):
+class AddonUpdate(APIModel):
     label: Optional[str] = Field(default=None, min_length=1, max_length=80)
     default_amount: Optional[float] = Field(default=None, ge=0)
     active: Optional[bool] = None
 
 
-class WithdrawCreate(BaseModel):
+class WithdrawCreate(APIModel):
     amount: float = Field(gt=0)
     bank_name: str = Field(min_length=1, max_length=60)
     account_number: str = Field(min_length=3, max_length=40)
@@ -26,11 +28,11 @@ class WithdrawCreate(BaseModel):
     driver_id: Optional[str] = Field(default=None, max_length=64)
 
 
-class WithdrawReject(BaseModel):
+class WithdrawReject(APIModel):
     reason: str = Field(min_length=1, max_length=300)
 
 
-class ScheduleShareVisibility(BaseModel):
+class ScheduleShareVisibility(APIModel):
     customer: bool = True
     driver: bool = True
     driver_phone: bool = False
@@ -38,7 +40,7 @@ class ScheduleShareVisibility(BaseModel):
     notes: bool = False
 
 
-class ScheduleShareCreate(BaseModel):
+class ScheduleShareCreate(APIModel):
     """Share-link jadwal keberangkatan (read-only publik). Lihat services/schedule_share.py."""
     label: Optional[str] = Field(default="", max_length=120)
     scope: Literal["upcoming", "month", "range", "all"] = "upcoming"
@@ -54,7 +56,7 @@ class ScheduleShareCreate(BaseModel):
 
 
 # === Phase 6: Maintenance + share-link tracking (dipindah dari schemas.py) ===
-class MaintenanceCreate(BaseModel):
+class MaintenanceCreate(APIModel):
     vehicle_id: str = Field(min_length=1)
     type: Optional[str] = Field(default="servis", max_length=40)  # servis | kir | pajak | perbaikan | lainnya
     title: Optional[str] = Field(default="", max_length=200)
@@ -70,7 +72,7 @@ class MaintenanceCreate(BaseModel):
     note: Optional[str] = Field(default="", max_length=1000)
 
 
-class MaintenanceUpdate(BaseModel):
+class MaintenanceUpdate(APIModel):
     type: Optional[str] = Field(default=None, max_length=40)
     title: Optional[str] = Field(default=None, max_length=200)
     description: Optional[str] = None
@@ -85,14 +87,14 @@ class MaintenanceUpdate(BaseModel):
     note: Optional[str] = Field(default=None, max_length=1000)
 
 
-class MaintenanceComplete(BaseModel):
+class MaintenanceComplete(APIModel):
     completed_at: Optional[str] = None
     odometer: Optional[float] = Field(default=None, ge=0)
     cost: Optional[float] = Field(default=None, ge=0)
     note: Optional[str] = Field(default="", max_length=1000)
 
 
-class ShareCreate(BaseModel):
+class ShareCreate(APIModel):
     trip_id: str = Field(min_length=1)
     label: Optional[str] = Field(default="", max_length=120)
     hours: Optional[int] = Field(default=72, ge=0)  # masa berlaku tautan (jam)

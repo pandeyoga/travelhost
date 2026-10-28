@@ -567,3 +567,39 @@ POST /api/maintenance/{id}/complete  odometer servis < odometer armada → 400
 POST /api/payroll/payouts/{id}/approve|pay · /payroll/withdrawals/{id}/reject   CAS → 409/400 bila
                                      sudah diproses; POST /driver/fees/withdraw serial per sopir
 ```
+
+## 10. AUDIT RONDE 2 — ALUR SOPIR · FEE → KEUANGAN · ATURAN BOOKING (2026-10-28)
+```
+# Router baru routers/booking_lifecycle.py (path API tetap):
+POST /api/bookings/{id}/approve          pending → confirmed. base_price kosong = harga dihitung ulang dari
+                                         tarif unit terpilih (add-on & promo tetap); isi = harga nego (promo gugur)
+POST /api/bookings/{id}/reject           body {reason?}; pending|hold → cancelled; alasan tampil ke pelanggan;
+                                         kuota promo kembali; 400 bila sudah ada pembayaran / bukti DP pending
+POST /api/bookings/{id}/complete         hanya confirmed|ongoing & jadwal mulai sudah lewat (trip standby
+                                         ditutup sbg override ops)
+GET  /api/bookings/{id}/reprice-preview?start&end&vehicle_id  → {available,old_total,new_total,difference,
+                                         breakdown,promo_dropped,paid_amount} (tanpa menyimpan)
+GET  /api/bookings                       + has_invoice per item
+POST /api/bookings/{id}/cancel           + aturan: (terbayar − refund) ≤ denda; 400 bila bukti DP pending
+PATCH /api/bookings/{id} driver_id       trip yang belum jalan IKUT pindah ke sopir baru (on_trip → 400)
+# Status trip (SSOT services/trips): standby → to_pickup → on_trip → completed; maju saja.
+POST /api/driver/checkout · /trips/{id}/status=completed  trip standby → 400; trip selesai = idempoten
+                                         (km/odometer tidak ditimpa); odometer akhir < awal/armada → 400
+POST …/arrived (dispatch & driver)       hanya on_trip
+POST …/pod (dispatch & driver)           hanya on_trip|completed; POD TIDAK lagi menyelesaikan trip
+POST /api/dispatch/{id}/assign · confirm-departure   hanya booking confirmed|ongoing; assign tidak lagi
+                                         membuat armada on_trip (on_trip saat sopir berangkat)
+GET  /api/dispatch/today                 + driver_ack_at, enroute_at, trip_started_at, arrived_at, can_dispatch
+GET  /api/trips?active=true              trip standby/to_pickup/on_trip + booking_code/origin/destination
+GET  /api/trips · /trips/{id} · /track · /eta   sopir hanya trip miliknya, tanpa revenue/profit
+# Keuangan fee sopir (services/driver_fee_ledger):
+#   trip selesai → expense gaji_driver akrual (source=driver_fee, trip/booking/vehicle, paid=false)
+#   POST /api/payroll/withdrawals/{id}/pay → TIDAK membuat expense; melunasi akrual FIFO
+#   GET /api/finance/cashflow → kas keluar basis kas (akrual belum dibayar tak dihitung; pencairan masuk)
+#   GET /api/finance/summary → expenses/profit = pl-full (incl. perawatan selesai)
+#   PATCH/DELETE /api/expenses/{id} → 400 utk expense otomatis (payroll/fee/pencairan lama/sewa mitra)
+#   POST /api/payroll/payouts/generate → trip ber-fee tidak diberi komisi/trip, %revenue, uang jalan
+#   GET /api/reports/payroll → per_driver.fee & total_sdm, total_fee
+# Publik GET /api/public/booking/{code}?token= → + dp_required, cancel_blocked_reason, cancellation_reason;
+#   can_upload_proof false saat pending; unggah bukti saat pending → 400
+```

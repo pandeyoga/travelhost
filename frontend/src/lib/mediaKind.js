@@ -24,3 +24,7 @@ export const assetUrl = (a) => {
   if (!u || a.kind !== "video" || isVideoUrl(u)) return u;
   return `${u}${u.includes("?") ? "&" : "?"}kind=video`;
 };
+
+/** Tautan berkas backend (`/api/uploads/...`, `/api/media/...`) → absolut ke REACT_APP_BACKEND_URL.
+ *  Dulu href relatif membuka halaman SPA (bukan gambar) saat frontend & API beda origin. */
+export const backendHref = (u) => (u && String(u).startsWith("/api/") ? `${process.env.REACT_APP_BACKEND_URL || ""}${u}` : u || "");

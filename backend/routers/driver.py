@@ -25,9 +25,8 @@ from db import get_db
 from dependencies import require_section
 from schemas import CheckinRequest
 from services.audit import record
-from services.events import emit
-from services.trips import (TERMINAL_TRIP_STATUSES, apply_trip_status, assert_trip_open,
-                            compute_distance, mark_trip_arrived)
+from services.trips import (_ACTIVE_TRIP_STATUSES, TERMINAL_TRIP_STATUSES, apply_trip_status, assert_trip_open,
+                            assert_trip_state, compute_distance, mark_trip_arrived, save_pod)
 
 router = APIRouter(prefix="/api", tags=["driver"])
 # RBAC-SECT-01: seluruh permukaan Ruang Kerja Driver lewat pintu section `driver-workspace`
@@ -41,21 +40,6 @@ POD_DIR = UPLOAD_DIR / "pod"
 POD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMG = {"image/jpeg": ".jpg", "image/jpg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 MAX_POD_BYTES = 6 * 1024 * 1024  # 6 MB
-
-
-async def _emit_trip(db, booking_id, event_type):
-    """Pancarkan event trip (started/completed/arrived) dgn payload WA lengkap (SSOT).
-
-    Memakai services.wa_payload.build_wa_payload agar variabel WA (company/destination/
-    driver_phone/pickup dll.) konsisten dengan dispatch — cegah drift template kosong.
-    """
-    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    if not bk:
-        return
-    from services.wa_payload import build_wa_payload
-    payload = await build_wa_payload(db, bk)
-    await emit(db, event_type, payload, source="driver", ref_type="booking",
-              ref_id=booking_id, dedupe_key=f"{event_type}:{booking_id}")
 
 
 async def _resolve_driver(db, user):
@@ -134,19 +118,8 @@ async def checkin(body: CheckinRequest, user=Depends(WORKSPACE)):
     # perawatan/nonaktif/terjual); driver online. Trip yg sudah berjalan tidak dimundurkan.
     target = trip.get("status") if trip.get("status") == "on_trip" else "to_pickup"
     extra = {"odometer_start": float(body.odometer_start)} if body.odometer_start is not None else None
-    await apply_trip_status(db, trip, target, user, extra=extra)
-    # G2: booking yang trip-nya dimulai => 'ongoing' (hanya bila masih 'confirmed').
-    if trip.get("booking_id"):
-        res = await db.bookings.update_one(
-            {"id": trip["booking_id"], "status": "confirmed"},
-            {"$set": {"status": "ongoing"}},
-        )
-        if res.modified_count:
-            await record(db, actor=user, action="trip_start", entity_type="booking",
-                         entity_id=trip["booking_id"], summary="Trip dimulai -> booking ongoing")
-            await _emit_trip(db, trip["booking_id"], "trip.started")
-    doc = await db.trips.find_one({"id": trip["id"]}, {"_id": 0})
-    return safe_doc(doc)
+    # Booking → 'ongoing' + WA "sopir menjemput" + notifikasi ops ada di SSOT apply_trip_status.
+    return await apply_trip_status(db, trip, target, user, extra=extra)
 
 
 @router.post("/driver/checkout")
@@ -228,7 +201,7 @@ async def my_summary(driver_id: str = Query(default=None), user=Depends(WORKSPAC
         return {"is_driver": False, "today": 0, "active": 0, "completed": 0, "need_pod": 0, "total": 0}
     trips = await db.trips.find({"driver_id": drv["id"]}, {"_id": 0}).to_list(500)
     today = datetime.now(timezone.utc).date().isoformat()
-    active_st = {"standby", "assigned", "to_pickup", "arrived", "on_trip"}
+    active_st = set(_ACTIVE_TRIP_STATUSES)
     completed = sum(1 for t in trips if t.get("status") == "completed")
     return {
         "is_driver": True, "driver_name": drv.get("name"), "total": len(trips),
@@ -248,6 +221,7 @@ async def ack_task(trip_id: str, user=Depends(WORKSPACE)):
     if not is_manager and not drv:
         raise HTTPException(status_code=403, detail="Akun Anda belum tertaut ke data driver")
     trip = await _owned_trip(db, trip_id, drv, manager=is_manager)
+    await assert_trip_open(db, trip, "dikonfirmasi")
     await db.trips.update_one({"id": trip_id}, {"$set": {"driver_ack_at": now_iso()}})
     await record(db, actor=user, action="trip_ack", entity_type="trip", entity_id=trip_id,
                  summary="Driver mengonfirmasi tugas")
@@ -278,7 +252,7 @@ async def upload_pod(trip_id: str, photo: UploadFile = File(default=None),
     if not is_manager and not drv:
         raise HTTPException(status_code=403, detail="Akun Anda belum tertaut ke data driver")
     trip = await _owned_trip(db, trip_id, drv, manager=is_manager)
-    await assert_trip_open(db, trip, "menerima POD", allow_completed=True)
+    await assert_trip_state(trip, ("on_trip", "completed"), "menerima POD (penumpang belum naik)")
     photo_url = None
     if photo is not None:
         ext = ALLOWED_IMG.get((photo.content_type or "").lower())
@@ -294,7 +268,7 @@ async def upload_pod(trip_id: str, photo: UploadFile = File(default=None),
         raise HTTPException(status_code=400, detail="Sertakan foto, nama penerima, atau catatan POD")
     pod = {"photo_url": photo_url, "recipient_name": recipient_name or None,
            "note": note or None, "at": now_iso(), "by": user.get("id")}
-    await db.trips.update_one({"id": trip_id}, {"$set": {"pod": pod}})
+    doc = await save_pod(db, trip, pod, user)  # SSOT services/trips (guard + notifikasi ops)
     await record(db, actor=user, action="pod_upload", entity_type="trip", entity_id=trip_id,
                  summary=f"Driver unggah bukti layanan (POD)—penerima {recipient_name or '-'}")
-    return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
+    return doc

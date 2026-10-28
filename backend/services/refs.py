@@ -43,7 +43,8 @@ CUSTOMER_TYPES = ("individual", "corporate")
 PAYMENT_TYPES = ("dp", "settlement", "refund", "penalty")
 PAYMENT_METHODS = ("transfer", "cash", "qris", "card", "other")
 MAINTENANCE_STATUSES = ("scheduled", "in_progress", "done", "cancelled")
-EXPENSE_CATEGORIES = ("bbm", "tol", "uang_jalan", "gaji_driver", "other")
+# Kategori pengeluaran: SSOT di services.finance.EXPENSE_CATEGORIES (salinan lama di sini tanpa
+# 'sewa_mitra' tidak dipakai siapa pun → dihapus agar tak ada dua daftar).
 
 # label koleksi → pesan yang bisa dibaca pengguna
 COLLECTION_LABELS = {

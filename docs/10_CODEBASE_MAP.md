@@ -318,3 +318,27 @@ frontend BookingRescheduleDialog  + opsi "Hitung ulang harga"; Finance.jsx statu
 tests/test_flow_fixes.py     BARU — 22 test regresi (fungsi murni + API/race paralel).
 scripts/guardrails/verify_price_master.py  mengenali basis model APIModel.
 ```
+
+**Ronde 4 (2026-10-28) — audit sopir, fee → keuangan, UI booking**
+```
+routers/booking_lifecycle.py BARU — setujui/tolak/selesai + reprice-preview (dipindah dari bookings.py)
+services/booking_flow.py     + emit_booking_confirmed() (SSOT WA confirmed), pending_proof()
+services/trips.py            + _FORWARD/TRIP_LABEL, assert_trip_state, notify_ops (notifikasi in-app tiap
+                             update sopir), _on_trip_started (booking ongoing + WA enroute di SEMUA jalur),
+                             save_pod (POD = bukti saja), reassign_trip_driver; finalize idempoten & menolak
+                             trip standby (kecuali force) / odometer mundur
+services/driver_fee_ledger.py BARU — akrual fee per trip, pelunasan FIFO, backfill data lama, proteksi
+                             expense otomatis
+services/payroll*.py         payroll tak membayar ulang trip ber-fee; rekap per sopir memuat fee
+services/finance_automation  arus kas basis kas; laba per unit dari trip selesai
+services/pricing.py          surcharge akhir pekan/libur PER HARI sewa
+services/documents.py        item invoice = price_breakdown
+services/events.py · geo.py  tanggal ISO di template notifikasi/WA → "28 Okt 2026 16.00 WIB" (fmt_wib)
+routers/trips.py             scope sopir (trip sendiri), ?active=true + konteks booking
+schemas_*.py                 semua model memakai APIModel (tolak Infinity/NaN)
+frontend lib/statusLabels.js BARU — SSOT label/warna status booking, trip, pembayaran (paymentState)
+frontend Dispatch.jsx        badge diterima sopir/tiba, tombol per fase + "Selesaikan" eksplisit
+frontend DriverTaskCard/DriverWorkspace/DriverCheckin  aksi mengikuti fase, tugas batal tetap terlihat
+frontend GpsTracking.jsx     trip aktif + segar 30 dtk; lib/mediaKind.backendHref utk tautan POD/bukti
+tests/test_flow_fixes_r2.py  BARU — 12 test regresi ronde ini
+```

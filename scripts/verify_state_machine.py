@@ -6,8 +6,10 @@ ke baseline. Bug kelas ini lolos gate lama karena gate lama menguji clean-seed+h
 
 Cek:
   SM1 (RC-04) assign→cancel : trip terkait → cancelled & armada dibebaskan (available).
-  SM2 (RC-03) /trips/{id}/status=completed : efek identik checkout (booking completed, armada bebas).
-  SM5 (RC-03) geofence tiba tujuan (POST /locations) : ditandai tiba sekali (arrived_at + WA), bukan selesai.
+  SM2 (RC-03) /trips/{id}/status=completed : efek identik checkout (booking completed, armada bebas);
+              trip yang belum dimulai (standby) DITOLAK (2026-10-28: tak bisa selesai tanpa berangkat).
+  SM5 (RC-03) geofence tiba tujuan (POST /locations) : ditandai tiba sekali (arrived_at + WA), bukan selesai;
+              booking 'ongoing' sejak trip berjalan (semua jalur mulai trip, bukan hanya check-in).
   SM3 (RC-02) complete tanpa lunas : payment_status ∈ {dp,belum_bayar} & TETAP muncul di AR (jujur).
   SM4 (RC-05) pembayaran ke booking cancelled : DITOLAK (400).
 
@@ -127,10 +129,14 @@ async def main():
             tid2 = r.json().get("trip", {}).get("id") if r.status_code == 200 else None
             if tid2:
                 CREATED["trips"].append(tid2)
+            early = await c.post(f"{API}/api/trips/{tid2}/status", headers=H, json={"status": "completed"})
+            await c.post(f"{API}/api/trips/{tid2}/status", headers=H, json={"status": "on_trip"})
             rs = await c.post(f"{API}/api/trips/{tid2}/status", headers=H, json={"status": "completed"})
             veh2 = DBC.vehicles.find_one({"id": v2["id"]}, {"_id": 0, "status": 1}) or {}
             bk2 = DBC.bookings.find_one({"id": b2["id"]}, {"_id": 0, "status": 1}) or {}
-            if rs.status_code == 200 and bk2.get("status") == "completed" and _veh_ok(v2["id"], tid2, veh2.get("status")):
+            if early.status_code != 400:
+                fail(f"SM2 (RC-03) trip standby bisa langsung selesai (http={early.status_code}) — harus 400")
+            elif rs.status_code == 200 and bk2.get("status") == "completed" and _veh_ok(v2["id"], tid2, veh2.get("status")):
                 ok(f"SM2 (RC-03) /trips/status=completed → booking completed & armada beres (vehicle={veh2.get('status')}).")
             else:
                 fail(f"SM2 (RC-03) split-brain: http={rs.status_code}, booking={bk2.get('status')}, vehicle={veh2.get('status')}")
@@ -158,13 +164,13 @@ async def main():
                 arrived_evt = DBC.events.count_documents({"type": "trip.arrived", "ref_id": b5["id"]})
                 geo = (rl.json() or {}).get("geofence") if rl.status_code == 200 else None
                 if (geo and geo.get("arrived") and tr5.get("status") == "on_trip" and tr5.get("arrived_at")
-                        and bk5.get("status") == "confirmed" and arrived_evt == 1):
+                        and bk5.get("status") == "ongoing" and arrived_evt == 1):
                     ok("SM5 (RC-03) geofence tiba tujuan → ditandai tiba (on_trip + arrived_at), "
                        "WA trip.arrived 1×, booking belum diselesaikan.")
                 else:
                     fail(f"SM5 (RC-03) geofence tujuan salah: http={rl.status_code}, geofence={geo}, "
                          f"trip={tr5.get('status')}/{tr5.get('arrived_at')}, booking={bk5.get('status')}, "
-                         f"trip.arrived={arrived_evt} (harus on_trip+arrived_at, confirmed, 1×)")
+                         f"trip.arrived={arrived_evt} (harus on_trip+arrived_at, ongoing, 1×)")
             else:
                 skip(f"SM5 assign → {r.status_code}")
         else:

@@ -37,6 +37,7 @@ import MediaManager from "@/features/app/MediaManager";
 import LandingPage from "@/features/public/LandingPage";
 import PublicLayout from "@/components/public/PublicLayout";
 import PublicTrack from "@/features/public/PublicTrack";
+import PublicSchedule from "@/features/public/PublicSchedule";
 import Home from "@/features/public/Home";
 import Fleet from "@/features/public/Fleet";
 import FleetDetail from "@/features/public/FleetDetail";
@@ -129,6 +130,8 @@ function App() {
 
           {/* PUBLIC TRACKING (share-link korporat, tanpa login) */}
           <Route path="/track/:token" element={<PublicTrack />} />
+          {/* PUBLIC SCHEDULE (share-link jadwal keberangkatan, read-only, tanpa login) */}
+          <Route path="/schedule/:token" element={<PublicSchedule />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

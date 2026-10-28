@@ -8,6 +8,14 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
+// Layar sempit: `renderCard` (opsional) menggantikan tabel dengan daftar kartu di bawah
+// breakpoint ini — tabel 9 kolom di ponsel hanya bisa digeser horizontal dan tombol aksinya
+// berada di luar layar. Nama kelas ditulis utuh agar terbaca Tailwind JIT.
+const CARD_BREAKPOINT = {
+  lg: { table: "hidden lg:block", cards: "lg:hidden" },
+  wide: { table: "hidden min-[1300px]:block", cards: "min-[1300px]:hidden" },
+};
+
 // Tabel data gaya "Kain Nusantara": dibungkus section-card, header muted, baris hover.
 // State (loading/empty/error) ditangani di halaman pemanggil.
 export default function DataTable({
@@ -20,11 +28,15 @@ export default function DataTable({
   getRowKey,
   onRowClick,
   testId = "data-table",
+  headClassName,
+  renderCard,
+  cardBreakpoint = "lg",
 }) {
+  const bp = renderCard ? CARD_BREAKPOINT[cardBreakpoint] || CARD_BREAKPOINT.lg : null;
   return (
     <div className="section-card" data-testid={`${testId}-card`}>
       {(title || actions) && (
-        <div className="section-head">
+        <div className={cn("section-head", headClassName)}>
           <div className="flex min-w-0 items-center gap-2">
             {Icon ? <Icon size={16} className="text-[#007AFF]" /> : null}
             {title ? <h2 className="truncate">{title}</h2> : null}
@@ -32,7 +44,7 @@ export default function DataTable({
           {actions ? <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div> : null}
         </div>
       )}
-      <div className="overflow-x-auto">
+      <div className={cn("overflow-x-auto", bp && bp.table)}>
         <Table data-testid={testId}>
           <TableHeader>
             <TableRow className="border-0 bg-[#FAFAFB] hover:bg-[#FAFAFB]">
@@ -85,6 +97,15 @@ export default function DataTable({
           </TableBody>
         </Table>
       </div>
+      {bp ? (
+        <div className={cn("divide-y divide-[#F2F2F5]", bp.cards)} data-testid={`${testId}-cards`}>
+          {rows.map((row, idx) => (
+            <div key={getRowKey ? getRowKey(row) : row.id || idx} className="px-3 py-3 sm:px-4" data-testid={`${testId}-cardrow-${idx}`}>
+              {renderCard(row)}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {footer ? <div className="section-foot">{footer}</div> : null}
     </div>
   );

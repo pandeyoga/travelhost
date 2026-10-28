@@ -57,7 +57,13 @@ def _fmt(value):
         return "ya" if value else "tidak"
     if isinstance(value, (int, float)):
         return f"{int(round(value)):,}".replace(",", ".")
+    if isinstance(value, str) and _ISO_DT.match(value):  # dulu ISO UTC mentah tampil di notifikasi/WA
+        from services.geo import fmt_wib
+        return fmt_wib(value)
     return "" if value is None else str(value)
+
+
+_ISO_DT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
 
 
 def render_template(text, variables):

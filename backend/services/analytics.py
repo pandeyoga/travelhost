@@ -76,9 +76,24 @@ def _delta(cur, prev):
 
 
 # ----------------------------------------------------------------------------- KPIs
+async def _maint_cost(db, s, e_excl) -> float:
+    """Biaya perawatan SELESAI pada rentang (SSOT finance_automation, sama dgn Laporan Keuangan).
+    Dulu BI Cockpit mengabaikannya: laba BI Rp 1,23 jt vs Laporan Keuangan Rp -620 rb utk periode sama."""
+    from services.finance_automation import _MAINT_REALIZED, _maint_date
+    from services.geo import parse_iso
+    lo, hi = parse_iso(s), parse_iso(e_excl)
+    total = 0.0
+    async for m in db.maintenance_records.find(_MAINT_REALIZED, {"_id": 0, "cost": 1, "completed_at": 1,
+                                                                 "created_at": 1, "scheduled_date": 1}):
+        d = parse_iso(_maint_date(m))
+        if d and lo <= d < hi:
+            total += float(m.get("cost", 0) or 0)
+    return total
+
+
 async def _kpis_for(db, s, e_excl):
     revenue = await _sum(db, "payments", "amount", _rmatch("paid_at", s, e_excl))
-    expenses = await _sum(db, "expenses", "amount", _rmatch("created_at", s, e_excl))
+    expenses = await _sum(db, "expenses", "amount", _rmatch("created_at", s, e_excl)) + await _maint_cost(db, s, e_excl)
     bookings = await _count(db, "bookings", {**_rmatch("created_at", s, e_excl),
                                              "status": {"$ne": "cancelled"}})
     leads = await _count(db, "leads", _rmatch("created_at", s, e_excl))

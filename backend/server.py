@@ -3,16 +3,19 @@ Semua endpoint berprefiks /api. CORS dari env. Bind 0.0.0.0:8001 (supervisor).
 """
 import asyncio
 import logging
+import math
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI
+from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 
 load_dotenv(Path(__file__).parent / ".env")
 
 from db import close, get_db  # noqa: E402
+from services.trips import TripStateError  # noqa: E402
 from routers import (  # noqa: E402
     addons,
     driver_fees,
@@ -25,6 +28,7 @@ from routers import (  # noqa: E402
     automation,
     bookings,
     booking_admin,
+    booking_lifecycle,
     booking_public,
     pickup_points,
     transfer_routes,
@@ -77,6 +81,37 @@ logger = logging.getLogger("travel_fleet")
 
 app = FastAPI(title="Travel & Fleet Management Ecosystem")
 
+
+@app.exception_handler(TripStateError)
+async def _trip_state_400(request, exc):  # trip/booking sudah ditutup (services.trips)
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+def _json_safe(value):
+    if isinstance(value, float) and not math.isfinite(value):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_422(request, exc):
+    """422 standar FastAPI, tapi aman utk input Infinity/NaN (dulu respons 422-nya sendiri gagal
+    di-serialisasi → 500 "Out of range float values are not JSON compliant")."""
+    from fastapi.encoders import jsonable_encoder
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=422, content={"detail": _json_safe(jsonable_encoder(exc.errors()))})
+
+
+@app.exception_handler(OverflowError)
+async def _overflow_400(request, exc):  # angka di luar int64 BSON / float → 400, bukan 500
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=400, content={"detail": "Angka terlalu besar"})
+
 # Health root (infra) — dikecualikan dari cek orphan endpoint.
 infra_router = APIRouter(prefix="/api", tags=["infra"])
 
@@ -96,6 +131,7 @@ app.include_router(customers.router)
 # PENTING (urutan rute): booking_admin WAJIB didaftarkan SEBELUM bookings, karena bookings
 # punya `/bookings/{booking_id}` yang akan menelan literal `/bookings/payment-proofs`
 # (FastAPI memakai kecocokan PERTAMA) sehingga antrean bukti bayar balas 404 — ditemukan POC.
+app.include_router(booking_lifecycle.router)  # setujui / tolak / selesai + pratinjau harga
 app.include_router(booking_admin.router)    # verifikasi bukti DP + ACC permintaan web (ops)
 app.include_router(bookings.router)
 app.include_router(pickup_points.router)    # master titik jemput (INV-REF-02 batch 2)
@@ -199,6 +235,8 @@ async def _startup():
         await db.maintenance_records.create_index([("vehicle_id", 1), ("status", 1)])
         await db.trip_shares.create_index("token", unique=True)
         await db.trip_shares.create_index("trip_id")
+        await db.schedule_shares.create_index("token", unique=True)  # share-link jadwal (INV-22)
+        await db.schedule_shares.create_index([("created_at", -1)])
         await db.notification_tasks.create_index("dedupe_key", unique=True, sparse=True)
         await db.notification_tasks.create_index([("status", 1), ("created_at", -1)])
         await db.conversations.create_index("chat_token", sparse=True)
@@ -269,6 +307,25 @@ async def _startup():
         await _crd.ensure_indexes(db)
     except Exception as exc:  # index opsional; jangan gagalkan boot
         logger.warning("index init skip: %s", exc)
+    try:  # rule otomasi sistem baru / teks bawaan lama → selaras dgn services.automation.default_rules
+        from services.automation import sync_system_rules
+        res = await sync_system_rules(db)
+        if res["added"] or res["updated"]:
+            logger.info("automation system rules sync: %s", res)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("automation rules sync skip: %s", exc)
+    try:  # fee sopir lama → biaya akrual per trip (idempotent; lihat services/driver_fee_ledger)
+        from services.driver_fee_ledger import backfill as _fee_backfill
+        made = await _fee_backfill(db)
+        if made:
+            logger.info("driver fee accrual backfill: %s expense", made)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("driver fee backfill skip: %s", exc)
+    try:  # fee sopir SEKALI per trip (finalize paralel tak bisa mengkredit dua kali)
+        await db.driver_fee_entries.create_index(
+            "trip_id", unique=True, partialFilterExpression={"trip_id": {"$type": "string"}})
+    except Exception as exc:  # noqa: BLE001 — data lama ganda: catat, jangan gagalkan boot
+        logger.warning("index driver_fee_entries.trip_id skip: %s", exc)
     # Scheduler reminder (Phase 7): scan periodik idempotent di background.
     try:
         app.state.scheduler_task = asyncio.create_task(_scheduler_loop())
@@ -321,6 +378,14 @@ async def _scheduler_loop():
                 logger.info("scheduler: %d konten terbit sesuai jadwal", published)
         except Exception as exc:  # noqa: BLE001
             logger.warning("scheduler publish error: %s", exc)
+        # Coba-ulang WA gagal (sesi OpenWA putus / sidecar restart) — services.whatsapp.retry_failed.
+        try:
+            from services.whatsapp import retry_failed as wa_retry
+            resent = await wa_retry(db)
+            if resent:
+                logger.info("scheduler: %d pesan WA gagal terkirim ulang", resent)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("scheduler wa retry error: %s", exc)
         # CMS-07 — jaring pengaman funnel ulasan: pesanan selesai yang belum diminta ulasan.
         try:
             from services.reviews import scan_due as review_scan

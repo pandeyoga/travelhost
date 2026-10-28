@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Save, Loader2, Upload, X } from "lucide-react";
+import { Save, Loader2, Image as ImageIcon, X } from "lucide-react";
 import apiClient from "@/services/apiClient";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { LoadingState } from "@/components/shared/DataStates";
 import { invalidateSiteFeatures } from "@/hooks/useSiteFeatures";
 import { resolveLogoUrl } from "@/components/public/Logo";
+import MediaPickerDialog from "@/components/media/MediaPickerDialog";
+import { assetUrl } from "@/lib/mediaKind";
 
 // Pengaturan Situs (CMS): identitas & kontak yang tampil di header, footer, dan halaman
 // Kontak publik. Satu sumber dgn settings.company_info (Profil Perusahaan di /app/settings).
@@ -28,31 +30,18 @@ const GROUPS = [
   ]],
 ];
 
+// Logo dipilih dari Media Library bersama (MediaPickerDialog) — bisa unggah baru di dalamnya.
+// Dulu panel ini punya kotak unggah sendiri ke /uploads/cms (INV-MEDIA-03: "pemilih media liar").
 function LogoField({ value, onChange }) {
-  const ref = useRef(null);
-  const [busy, setBusy] = useState(false);
-  const onPick = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setBusy(true);
-    try {
-      const fd = new FormData(); fd.append("image", file);
-      const { data } = await apiClient.post("/uploads/cms", fd, { headers: { "Content-Type": "multipart/form-data" } });
-      onChange(data.url);
-      toast.success("Logo diunggah — klik Simpan agar tampil di website");
-    } catch (err) { toast.error(err?.response?.data?.detail || "Gagal mengunggah logo"); }
-    finally { setBusy(false); }
-  };
+  const [pickerOpen, setPickerOpen] = useState(false);
   const src = resolveLogoUrl(value);
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
-        <Input className="!h-9 text-[13px]" value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder="URL logo atau unggah berkas" data-testid="ss-logo_url" />
-        <button type="button" className="secondary-button !h-9 shrink-0 !px-3" onClick={() => ref.current?.click()} disabled={busy} data-testid="ss-logo_url-upload">
-          {busy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Unggah
+        <Input className="!h-9 text-[13px]" value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder="URL logo atau pilih dari Media Library" data-testid="ss-logo_url" />
+        <button type="button" className="secondary-button !h-9 shrink-0 !px-3" onClick={() => setPickerOpen(true)} data-testid="ss-logo_url-upload">
+          <ImageIcon size={14} /> Pilih / Unggah
         </button>
-        <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={onPick} data-testid="ss-logo_url-file" />
       </div>
       {src ? (
         <div className="flex items-center gap-2">
@@ -60,6 +49,9 @@ function LogoField({ value, onChange }) {
           <button type="button" className="icon-button !h-7 !w-7" title="Hapus logo" onClick={() => onChange("")} data-testid="ss-logo_url-clear"><X size={12} /></button>
         </div>
       ) : null}
+      <MediaPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} pickKind="image"
+        title="Pilih logo" description="Pilih gambar dari Media Library atau unggah baru (PNG transparan disarankan)."
+        onPick={(a) => { onChange(assetUrl(a)); toast.success("Logo dipilih — klik Simpan agar tampil di website"); }} />
     </div>
   );
 }

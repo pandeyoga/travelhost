@@ -40,7 +40,7 @@ def code_only(text: str) -> str:
 
 
 def _class_block(src: str, cls: str) -> str:
-    m = re.search(rf"class {cls}\(BaseModel\):(.*?)(?=\nclass |\Z)", src, flags=re.S)
+    m = re.search(rf"class {cls}\((?:BaseModel|APIModel)\):(.*?)(?=\nclass |\Z)", src, flags=re.S)
     return m.group(1) if m else ""
 
 

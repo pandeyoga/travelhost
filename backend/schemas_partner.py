@@ -1,11 +1,13 @@
 """Skema Pinjam Armada / Sub-charter (E16 Partner Sourcing) — dipisah dari schemas.py
 agar schemas.py tetap di bawah batas 800 baris (validate_compliance CHECK 1)."""
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from schemas import APIModel
 
 
 # === E16: Pinjam Armada / Sub-charter (Partner Sourcing) ===
-class PartnerCreate(BaseModel):
+class PartnerCreate(APIModel):
     name: str = Field(min_length=1, max_length=120)
     pic: Optional[str] = ""
     phone: Optional[str] = Field(default="", max_length=24)
@@ -17,7 +19,7 @@ class PartnerCreate(BaseModel):
     status: Optional[str] = Field(default="active", max_length=32)
 
 
-class PartnerUpdate(BaseModel):
+class PartnerUpdate(APIModel):
     name: Optional[str] = Field(default=None, max_length=120)
     pic: Optional[str] = None
     phone: Optional[str] = Field(default=None, max_length=24)
@@ -29,7 +31,7 @@ class PartnerUpdate(BaseModel):
     status: Optional[str] = Field(default=None, max_length=32)
 
 
-class SubcharterCreate(BaseModel):
+class SubcharterCreate(APIModel):
     booking_id: str = Field(min_length=1)
     partner_id: str = Field(min_length=1)
     vehicle_id: Optional[str] = None
@@ -40,7 +42,7 @@ class SubcharterCreate(BaseModel):
     note: Optional[str] = Field(default="", max_length=1000)
 
 
-class SubcharterUpdate(BaseModel):
+class SubcharterUpdate(APIModel):
     vehicle_id: Optional[str] = None
     vehicle_label: Optional[str] = None
     start_datetime: Optional[str] = None
@@ -49,7 +51,7 @@ class SubcharterUpdate(BaseModel):
     note: Optional[str] = Field(default=None, max_length=1000)
 
 
-class SettlementCreate(BaseModel):
+class SettlementCreate(APIModel):
     amount: float = Field(gt=0)
     subcharter_id: Optional[str] = None
     method: Optional[str] = "transfer"

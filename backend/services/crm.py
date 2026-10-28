@@ -2,6 +2,7 @@
 
 - LEAD_STAGES / LEAD_STAGE_SET / OPEN_STAGES : kontrak tahap pipeline (INV-7).
 - assignable_agents(db) : user yang boleh dipegang lead (ops_admin, fallback owner).
+- inbox_agents(db)      : user yang boleh memegang percakapan Inbox (peran section 'inbox').
 - auto_assign_agent(db) : round-robin LEAST-LOADED (lead 'open' paling sedikit).
 - log_activity(...)     : tulis 1 baris timeline ke koleksi `lead_activities`.
 """
@@ -21,6 +22,22 @@ async def assignable_agents(db):
         {"_id": 0, "id": 1, "name": 1, "role": 1},
     ).to_list(200)
     docs.sort(key=lambda u: 0 if u.get("role") == "ops_admin" else 1)
+    return docs
+
+
+async def inbox_agents(db):
+    """Agen Inbox = user AKTIF yang perannya boleh membuka section 'inbox'.
+
+    Diturunkan dari SSOT `permissions_config.SECTION_ACCESS` (owner, ops_admin, marketing_admin),
+    bukan daftar peran yang ditulis ulang — peran baru yang diberi akses Inbox otomatis bisa
+    di-assign. Driver tidak pernah termasuk.
+    """
+    from permissions_config import SECTION_ACCESS
+    roles = sorted(SECTION_ACCESS.get("inbox", set()))
+    docs = await db.users.find({"role": {"$in": roles}, "status": "active"},
+                               {"_id": 0, "id": 1, "name": 1, "role": 1}).to_list(200)
+    order = {"ops_admin": 0, "marketing_admin": 1, "owner": 2}
+    docs.sort(key=lambda u: (order.get(u.get("role"), 9), u.get("name") or ""))
     return docs
 
 

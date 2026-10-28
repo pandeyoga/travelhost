@@ -10,14 +10,9 @@ import { useSiteFeatures } from "@/hooks/useSiteFeatures";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
+import { vehicleTypeOptions } from "@/lib/vehicleTypes";
 
-const TYPES = [
-  { v: "hiace_premio", l: "Hiace Premio (14)" },
-  { v: "hiace", l: "Hiace Commuter (14)" },
-  { v: "elf", l: "Isuzu Elf (19)" },
-  { v: "bus", l: "Medium Bus (29)" },
-  { v: "avanza", l: "Avanza / MPV (6)" },
-];
+const TYPES = vehicleTypeOptions({ withSeats: true }); // SSOT lib/vehicleTypes
 
 function useCountUp(target, active, reduce) {
   const [val, setVal] = useState(0);

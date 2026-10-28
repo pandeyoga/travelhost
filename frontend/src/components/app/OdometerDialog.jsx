@@ -26,7 +26,7 @@ export default function OdometerDialog({ open, mode, task, onOpenChange, onConfi
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isStart ? <Play size={16} className="text-[#007AFF]" /> : <CheckCircle2 size={16} className="text-[#34C759]" />}
-            {isStart ? "Mulai Perjalanan" : "Selesaikan Trip"}
+            {isStart ? "Berangkat Menjemput" : "Selesaikan Trip"}
           </DialogTitle>
           <DialogDescription>
             {isStart ? "Catat odometer awal (opsional, untuk hitung jarak akurat)." : "Catat odometer akhir untuk menghitung jarak tempuh."}
@@ -48,7 +48,7 @@ export default function OdometerDialog({ open, mode, task, onOpenChange, onConfi
         <DialogFooter className="gap-2">
           <button className="secondary-button" onClick={() => onConfirm(null)} data-testid="odo-skip">Lewati</button>
           <button className="primary-button" disabled={value === ""} onClick={() => onConfirm(Number(value))} data-testid="odo-confirm">
-            {isStart ? "Mulai" : "Selesai"}
+            {isStart ? "Berangkat" : "Selesai"}
           </button>
         </DialogFooter>
       </DialogContent>

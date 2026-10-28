@@ -40,7 +40,7 @@ from services.counters import next_booking_code
 from services.events import emit
 from services.geo import parse_iso
 from services.identity import ensure_customer, normalize_phone
-from services.pricing import get_dp_percent, span_days
+from services.pricing import dp_amount_for, get_dp_percent, get_pricing_rules, span_days
 from services.refs import (
     destination_normalize,
     origin_normalize,
@@ -103,21 +103,11 @@ def transfer_window(route, flow, start_dt):
 async def build_quote(db, *, service, vehicle, route, start_iso, end_iso, add_ons,
                      promo_code="", flow=None):
     """Hitung harga + validasi promo. Return (quote, promo_doc|None)."""
-    add_ons = clean_add_ons(add_ons)
-    base = await bs.quote_for_vehicle(db, vehicle, start_iso=start_iso, end_iso=end_iso,
-                                     service=service, route=route, add_ons=add_ons)
+    base, promo_doc = await bs.quote_with_promo(
+        db, vehicle, promo_code=promo_code, start_iso=start_iso, end_iso=end_iso,
+        service=service, route=route, add_ons=clean_add_ons(add_ons))
     if not base:
         raise BookingPublicError("Unit ini tidak melayani rute yang dipilih")
-    promo_doc, discount, label = None, 0, ""
-    if str(promo_code or "").strip():
-        result = await promo_svc.validate(
-            db, promo_code, subtotal=base["subtotal"],
-            days=base["days"] if service != "airport_transfer" else span_days(start_iso, end_iso),
-            vehicle_type=vehicle.get("type"), service=service, start_dt=parse_iso(start_iso))
-        promo_doc, discount, label = result["promo"], result["discount"], result["label"]
-        base = await bs.quote_for_vehicle(
-            db, vehicle, start_iso=start_iso, end_iso=end_iso, service=service, route=route,
-            add_ons=add_ons, discount=discount, discount_label=label)
     return base, promo_doc
 
 
@@ -163,7 +153,7 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
             raise BookingPublicError(str(exc)) from None
     start_iso, end_iso = start_dt.isoformat(), end_dt.isoformat()
 
-    vehicle, quote, promo_doc = None, None, None
+    vehicle, quote, promo_doc, add_ons = None, None, None, []
     if service != bf.SERVICE_REQUEST_ONLY:
         vid = str(payload.get("vehicle_id") or "").strip()
         if not vid:
@@ -176,9 +166,10 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
         if pax > int(vehicle.get("capacity") or 0) > 0:
             raise BookingPublicError(
                 f"Kapasitas {vehicle.get('name')} hanya {vehicle.get('capacity')} orang")
+        add_ons = clean_add_ons(payload.get("add_ons"))
         quote, promo_doc = await build_quote(
             db, service=service, vehicle=vehicle, route=route, start_iso=start_iso,
-            end_iso=end_iso, add_ons=payload.get("add_ons"), promo_code=payload.get("promo_code"),
+            end_iso=end_iso, add_ons=add_ons, promo_code=payload.get("promo_code"),
             flow=flow)
 
     customer, _created = await ensure_customer(
@@ -188,13 +179,14 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
     total = money((quote or {}).get("total"))
     dp_percent = int((quote or {}).get("dp_percent") or await get_dp_percent(db))
     status, hold_extra = "pending", {}
+    rounding = (await get_pricing_rules(db)).get("rounding")
     if service != bf.SERVICE_REQUEST_ONLY and flow["mode"] == "hold_dp":
         status = "hold"
         hold_extra = bf.hold_fields(total=total, dp_percent=dp_percent,
-                                   hold_hours=flow["hold_hours"])
+                                   hold_hours=flow["hold_hours"], rounding=rounding)
     elif service != bf.SERVICE_REQUEST_ONLY:
         hold_extra = {"dp_percent": float(dp_percent),
-                      "dp_amount": money(total * dp_percent / 100.0)}
+                      "dp_amount": dp_amount_for(total, dp_percent, rounding)}
 
     token = bf.new_public_token()
     doc = {
@@ -204,7 +196,10 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
         "origin": await origin_normalize(db, str(payload.get("origin") or (route or {}).get("from_label") or "")[:160]),
         "destination": await destination_normalize(db, str(payload.get("destination") or (route or {}).get("to_label") or "")[:160]),
         "start_datetime": start_iso, "end_datetime": end_iso,
-        "base_price": total, "add_ons": [], "total_amount": total, "paid_amount": 0,
+        # Add-on DISIMPAN (dulu selalu []): dipakai persetujuan ops untuk harga ulang. INV-1:
+        # total = base + Σ add-on → base = total kutipan (sudah termasuk promo) − Σ add-on.
+        "base_price": total - sum(a["amount"] for a in add_ons), "add_ons": add_ons,
+        "total_amount": total, "paid_amount": 0,
         "payment_status": "belum_bayar", "status": status,
         "customer_name": customer.get("name"),
         "vehicle_name": (vehicle or {}).get("name"), "driver_name": None,
@@ -271,7 +266,7 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
         "booking_id": doc["id"], "code": doc["code"], "customer_id": customer["id"],
         "customer_name": doc["customer_name"], "phone": phone,
         "destination": doc["destination"], "origin": doc["origin"],
-        "start_datetime": start_iso[:16].replace("T", " "), "pax": doc["pax"],
+        "start_datetime": start_iso, "pax": doc["pax"],
         "service": service, "status": status, "total_amount": float(total),
         "dp_amount": float(money(doc.get("dp_amount"))),
         "hold_expires_at": doc.get("hold_expires_at"),
@@ -310,6 +305,9 @@ def created_payload(doc: dict, flow: dict) -> dict:
 def status_message(doc: dict, flow: dict) -> str:
     status = doc.get("status")
     if status == "hold":
+        if doc.get("proof_status") == "pending":
+            return ("Bukti transfer Anda sudah kami terima dan sedang diverifikasi. "
+                    "Kami kabari begitu pesanan terkonfirmasi.")
         return ("Unit Anda sudah kami tahan. Selesaikan pembayaran DP sebelum batas waktu, "
                 "lalu unggah bukti transfer pada halaman ini.")
     if status == "pending":
@@ -318,7 +316,11 @@ def status_message(doc: dict, flow: dict) -> str:
                 f"maksimal {sla} jam kerja — unit belum dikunci sampai disetujui.")
     if status == "confirmed":
         return "Pesanan Anda sudah dikonfirmasi. Terima kasih!"
-    if status == "cancelled":
+    if status == "ongoing":
+        return "Perjalanan Anda sedang berlangsung. Selamat jalan!"
+    if status == "completed":
+        return "Perjalanan selesai. Terima kasih telah memakai layanan kami!"
+    if status == "cancelled":  # alasan dikirim terpisah (`cancellation_reason`) — tidak diulang di sini
         return "Pesanan ini sudah dibatalkan."
     return ""
 
@@ -333,8 +335,13 @@ async def status_payload(db, booking: dict, flow: dict = None) -> dict:
     ).sort("paid_at", 1).to_list(50)
     total = money(booking.get("total_amount"))
     paid = money(booking.get("paid_amount"))
+    status = booking.get("status")
     dp_amount = money(booking.get("dp_amount")) or money(
         total * money(booking.get("dp_percent")) / 100.0)
+    # DP hanya DIMINTA saat unit ditahan (hold). 'pending' = belum disetujui (unit belum dikunci)
+    # dan 'confirmed' langsung = tanpa gerbang DP → halaman tidak boleh menagih "DP 0%/30%".
+    dp_required = status == "hold" and dp_amount > 0
+    proof_waiting = any(p.get("status") == "pending" for p in proofs)
     return {
         "code": booking.get("code"), "status": booking.get("status"),
         "payment_status": booking.get("payment_status"),
@@ -355,15 +362,21 @@ async def status_payload(db, booking: dict, flow: dict = None) -> dict:
         "total_amount": total, "paid_amount": paid,
         "outstanding": max(total - paid, 0),
         "dp_amount": dp_amount, "dp_percent": int(money(booking.get("dp_percent"))),
-        "dp_met": bool(dp_amount and paid >= dp_amount),
+        "dp_met": bool(dp_amount and paid >= dp_amount), "dp_required": dp_required,
         "hold_expires_at": booking.get("hold_expires_at"),
         "message": status_message(booking, flow),
         "payment": flow.get("payment"),
         "cancellation_policy": flow.get("cancellation_policy"),
         "mode": flow.get("mode"),
-        "can_upload_proof": booking.get("status") in ("hold", "pending", "confirmed")
-        and paid < total,
-        "can_cancel": booking.get("status") in ("hold", "pending"),
+        # Bukti sedang diverifikasi → form unggah disembunyikan (cegah bukti ganda utk transfer sama).
+        "can_upload_proof": status in ("hold", "confirmed", "ongoing") and paid < total and not proof_waiting,
+        # Bukti DP sedang diverifikasi → uang mungkin sudah masuk: batal lewat admin (refund).
+        "can_cancel": status in ("hold", "pending") and not proof_waiting,
+        "cancel_blocked_reason": ("Bukti transfer Anda sedang diverifikasi. Untuk membatalkan, "
+                                  "hubungi kami agar dana dapat dikembalikan.") if (
+            status in ("hold", "pending") and proof_waiting) else "",
+        "cancellation_reason": (booking.get("cancellation_reason") or booking.get("cancel_reason") or "")
+        if status == "cancelled" else "",
         "payments": safe_doc(payments),
         "proofs": [{"id": p.get("id"), "status": p.get("status"),
                     "amount_claimed": money(p.get("amount_claimed")),
@@ -441,6 +454,9 @@ async def cancel_public(db, booking: dict, reason: str = "") -> dict:
     if booking.get("status") not in ("hold", "pending"):
         raise BookingPublicError("Pesanan ini tidak bisa dibatalkan sendiri. "
                                 "Hubungi kami via WhatsApp untuk bantuan.")
+    if await bf.pending_proof(db, booking["id"]):
+        raise BookingPublicError("Bukti transfer Anda sedang diverifikasi. Untuk membatalkan, "
+                                "hubungi kami via WhatsApp agar dana dapat dikembalikan.")
     res = await db.bookings.find_one_and_update(
         {"id": booking["id"], "status": {"$in": ["hold", "pending"]}},
         {"$set": {"status": "cancelled", "cancelled_at": now_iso(),
@@ -476,6 +492,16 @@ async def find_by_code_phone(db, code: str, phone: str):
         candidates.add(normalize_phone(customer.get("phone")))
         candidates.add(str(customer.get("phone_normalized") or ""))
     return booking if norm in {c for c in candidates if c} else None
+
+
+async def status_link(db, booking: dict) -> str:
+    """Tautan halaman status pelanggan (untuk WA). Absolut bila PUBLIC_SITE_URL diset."""
+    from urllib.parse import quote
+    from services.reviews import site_url
+    token = await ensure_token(db, booking)
+    base = site_url()
+    path = f"/booking/status?code={quote(str(booking.get('code') or ''))}&token={quote(token)}"
+    return f"{base}{path}" if base else ""
 
 
 async def ensure_token(db, booking: dict) -> str:

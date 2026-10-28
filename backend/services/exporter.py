@@ -25,7 +25,7 @@ MUTED = colors.HexColor("#6B6B73")
 LINE = colors.HexColor("#EFF0F2")
 COMPANY = "RahazaTrans"
 
-STATUS_LABEL = {"draft": "Draft", "sent": "Terkirim", "paid": "Lunas"}
+STATUS_LABEL = {"draft": "Draft", "sent": "Terkirim", "partial": "Dibayar sebagian", "paid": "Lunas", "void": "Dibatalkan"}
 QUO_STATUS_LABEL = {"draft": "Draft", "sent": "Terkirim", "accepted": "Diterima",
                     "rejected": "Ditolak", "expired": "Kedaluwarsa", "converted": "Jadi Booking"}
 
@@ -35,13 +35,9 @@ def _rp(v) -> str:
 
 
 def _fdate(value) -> str:
-    if not value:
-        return "-"
-    try:
-        d = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        return d.strftime("%d %b %Y")
-    except Exception:
-        return str(value)[:10]
+    """Tanggal dokumen SSOT (services.documents.fdate: WIB + bulan Indonesia) — dulu "10 Dec 2031" UTC."""
+    from services.documents import fdate
+    return fdate(value)
 
 
 def _esc(v) -> str:
@@ -126,7 +122,7 @@ def invoice_pdf(inv: dict) -> bytes:
     return buf.getvalue()
 
 
-def quotation_pdf(quo: dict) -> bytes:
+def quotation_pdf(quo: dict, org: str = COMPANY) -> bytes:
     """Penawaran (QUO) PDF — ber-item, gaya konsisten dgn invoice (B2)."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -142,7 +138,7 @@ def quotation_pdf(quo: dict) -> bytes:
 
     story = []
     head = Table(
-        [[Paragraph(COMPANY, h_company), Paragraph("PENAWARAN", h_title)],
+        [[Paragraph(_esc(org), h_company), Paragraph("PENAWARAN", h_title)],
          [Paragraph("Fleet &amp; Travel Management", h_sub),
           Paragraph(f"<b>{quo.get('number','-')}</b>", ParagraphStyle('n', parent=h_sub, alignment=2, fontSize=10))]],
         colWidths=[95 * mm, 75 * mm],
@@ -155,9 +151,10 @@ def quotation_pdf(quo: dict) -> bytes:
     story.append(Spacer(1, 12))
 
     meta = Table(
-        [[Paragraph("UNTUK", h_label), Paragraph("STATUS", h_label)],
+        # Tanggal penawaran, bukan status internal (dulu PDF yang diterima pelanggan bertuliskan "Draft").
+        [[Paragraph("UNTUK", h_label), Paragraph("TANGGAL PENAWARAN", h_label)],
          [Paragraph(f"<b>{_esc(quo.get('customer_name','-'))}</b>", h_val),
-          Paragraph(QUO_STATUS_LABEL.get(quo.get("status"), quo.get("status", "-")), h_val)],
+          Paragraph(_fdate(quo.get("updated_at") or quo.get("created_at")), h_val)],
          [Paragraph("DESTINASI", h_label), Paragraph("TANGGAL TRIP", h_label)],
          [Paragraph(_esc(quo.get("destination", "-") or "-"), h_val), Paragraph(_fdate(quo.get("trip_date")), h_val)],
          [Paragraph("BERLAKU HINGGA", h_label), Paragraph("PAX", h_label)],
@@ -191,7 +188,7 @@ def quotation_pdf(quo: dict) -> bytes:
         story.append(Paragraph(f"<font color='#6B6B73' size='9'>Catatan: {_esc(quo.get('notes'))}</font>", h_sub))
         story.append(Spacer(1, 8))
     story.append(Paragraph(
-        "<font color='#8E8E93' size='8'>Penawaran dibuat otomatis oleh sistem RahazaTrans. "
+        f"<font color='#8E8E93' size='8'>Penawaran dibuat otomatis oleh sistem {_esc(org)}. "
         "Harga dapat berubah sesuai ketersediaan armada.</font>", h_sub))
 
     doc.build(story)
@@ -208,30 +205,50 @@ def _autosize(ws):
         ws.column_dimensions[letter].width = min(width, 40)
 
 
-def invoice_xlsx(inv: dict) -> bytes:
+RP_FMT = '"Rp" #,##0;-"Rp" #,##0'
+
+
+def invoice_xlsx(inv: dict, org: str = COMPANY, items: list = None, kind_label: str = "Tagihan") -> bytes:
+    """Invoice Excel. Dulu judul selalu "INVOICE", tanpa rincian/DP/terbayar/sisa, nominal
+    berupa TEKS "Rp …" (tak bisa dijumlah), tanggal Inggris & status mentah ("void")."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Invoice"
     bold = Font(bold=True)
-    title = Font(bold=True, size=14, color="007AFF")
-    ws["A1"] = COMPANY
-    ws["A1"].font = title
-    ws["A2"] = "INVOICE"
+    ws["A1"] = org
+    ws["A1"].font = Font(bold=True, size=14, color="007AFF")
+    ws["A2"] = f"INVOICE — {kind_label.upper()}"
     ws["A2"].font = bold
     rows = [
         ("Nomor", inv.get("number", "-")),
-        ("Customer", inv.get("customer_name", "-")),
+        ("Pelanggan", inv.get("customer_name", "-")),
         ("Booking", inv.get("booking_code", "-")),
+        ("Jenis tagihan", kind_label),
         ("Status", STATUS_LABEL.get(inv.get("status"), inv.get("status", "-"))),
-        ("Tanggal Terbit", _fdate(inv.get("issued_at"))),
-        ("Jatuh Tempo", _fdate(inv.get("due_at"))),
-        ("Jumlah", _rp(inv.get("amount"))),
+        ("Tanggal terbit", _fdate(inv.get("issued_at"))),
+        ("Jatuh tempo", _fdate(inv.get("due_at"))),
     ]
     r = 4
     for label, val in rows:
         ws.cell(row=r, column=1, value=label).font = bold
         ws.cell(row=r, column=2, value=str(val))
         r += 1
+    r += 1
+    for c, h in enumerate(("Deskripsi", "Qty", "Harga", "Jumlah"), 1):
+        ws.cell(row=r, column=c, value=h).font = bold
+    for it in items or []:
+        r += 1
+        ws.cell(row=r, column=1, value=str(it.get("label") or ""))
+        ws.cell(row=r, column=2, value=int(it.get("qty") or 1))
+        for c, k in ((3, "unit_price"), (4, "amount")):
+            ws.cell(row=r, column=c, value=int(round(float(it.get(k) or 0)))).number_format = RP_FMT
+    r += 1
+    money_rows = [("Total booking", inv.get("subtotal")), ("Sudah dibayar", inv.get("paid_before")),
+                  ("Ditagih (invoice ini)", inv.get("amount")), ("Sisa setelah invoice ini", inv.get("outstanding_after"))]
+    for label, val in money_rows:
+        r += 1
+        ws.cell(row=r, column=3, value=label).font = bold
+        ws.cell(row=r, column=4, value=int(round(float(val or 0)))).number_format = RP_FMT
     _autosize(ws)
     buf = BytesIO()
     wb.save(buf)

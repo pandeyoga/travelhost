@@ -14,15 +14,19 @@ from typing import Optional
 from core_utils import money, new_id, now_iso, safe_doc
 from db import get_db
 from dependencies import require_role, require_section
-from schemas import BookingApprove, BookingCreate, BookingReschedule, BookingUpdate, CancelBooking, GroupBookingCreate
+from schemas import BookingCreate, BookingReschedule, BookingUpdate, CancelBooking, GroupBookingCreate
 from services.availability import find_conflicts, find_driver_conflicts, find_maintenance_conflicts, vehicle_lock, driver_lock
 from services.rbac_scope import can_view_booking, scope_bookings_query
 from services.audit import record
 from services.counters import next_booking_code
 from services.events import emit
 from services.geo import parse_iso
-from services.pricing import compute_quote, get_dp_percent, get_pricing_rules, span_days
+from services.finance import derive_payment_status
+from services.pricing import compute_quote, dp_amount_for, get_dp_percent, get_pricing_rules, span_days
 from services.refs import destination_or_400, origin_or_400
+from services.documents import OPEN_STATUS as OPEN_INVOICE
+from services import booking_flow as bf
+from services import booking_search as bs
 
 router = APIRouter(prefix="/api", tags=["bookings"])
 # RBAC: mutasi booking hanya untuk manajemen (owner/ops_admin). Driver read-only.
@@ -36,23 +40,6 @@ MANAGER = require_role("owner", "ops_admin")
 BOOKINGS = require_section("bookings")
 # RBAC-CAL-01: endpoint kalender keberangkatan (grid + ekspor) = section "calendar" (owner/ops_admin).
 CALENDAR = require_section("calendar")
-
-
-async def _emit_booking_confirmed(db, booking, source="bookings"):
-    """Pancarkan booking.confirmed (idempotent per booking) dgn telepon pelanggan utk WA."""
-    cust = await db.customers.find_one({"id": booking.get("customer_id")}, {"_id": 0, "phone": 1}) or {}
-    # SATU SUMBER DP (services.pricing.get_dp_percent) — dulu router ini membaca
-    # `pricing_defaults.dp_percent` sendiri sehingga DP di WhatsApp bisa berbeda dari DP
-    # yang ditampilkan situs (yang memakai `pricing_rules`). Lihat INV-PRICE-01.
-    dp = await get_dp_percent(db)
-    await emit(db, "booking.confirmed", {
-        "booking_id": booking["id"], "code": booking.get("code"),
-        "customer_name": booking.get("customer_name"), "phone": cust.get("phone"),
-        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": dp,
-        "vehicle_name": booking.get("vehicle_name"),
-        "start_datetime": (booking.get("start_datetime") or "")[:16].replace("T", " "),
-    }, source=source, ref_type="booking", ref_id=booking["id"],
-        dedupe_key=f"booking.confirmed:{booking['id']}")
 
 
 def _slim_conflict(c):
@@ -83,15 +70,38 @@ async def list_bookings(status: str = Query(default=None), vehicle_id: str = Que
         query["customer_id"] = customer_id
     # INV-RBAC-05: driver hanya melihat trip miliknya (SSOT docs/05_NAVIGATION_MAP.md §3).
     query = await scope_bookings_query(get_db(), user, query)
-    docs = await get_db().bookings.find(query, {"_id": 0}).sort("start_datetime", -1).skip(skip).to_list(limit)
-    return safe_doc(docs)
+    db = get_db()
+    docs = await db.bookings.find(query, {"_id": 0}).sort("start_datetime", -1).skip(skip).to_list(limit)
+    # UI: ikon "Kirim invoice WA" hanya utk booking yang punya invoice (dulu → 404 di klik).
+    # Booking batal: hanya bila masih ada tagihan terbuka (denda belum lunas) — selaras
+    # POST /bookings/{id}/send-invoice-wa yang memilih tagihan itu.
+    ids = [d["id"] for d in docs]
+    with_inv = set(await db.invoices.distinct("booking_id", {"booking_id": {"$in": ids}, "status": {"$ne": "void"}}))
+    with_open = set(await db.invoices.distinct("booking_id", {"booking_id": {"$in": ids}, "status": {"$in": list(OPEN_INVOICE)}}))
+    return safe_doc([{**d, "has_invoice": d["id"] in (with_open if d.get("status") == "cancelled" else with_inv)}
+                     for d in docs])
+
+
+def _period_query(month=None, start=None, end=None) -> dict:
+    """Filter bulan/rentang menurut hari WIB (SSOT schedule_share.period_bounds). Dulu regex atas
+    string UTC: berangkat 1 Des 00.00–06.59 WIB (= 30 Nov UTC) masuk kalender November."""
+    from services.schedule_share import period_bounds
+    if start and end:
+        scope = {"type": "range", "start": start[:10], "end": end[:10]}
+    elif month:
+        scope = {"type": "month", "month": month}
+    else:
+        return {}
+    try:
+        lo, hi = period_bounds(scope)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Periode tidak valid (bulan YYYY-MM / tanggal YYYY-MM-DD)")
+    return {"start_datetime": {"$gte": lo.isoformat(), "$lt": hi.isoformat()}}
 
 
 @router.get("/bookings/calendar")
 async def bookings_calendar(month: str = Query(default=None), user=Depends(CALENDAR)):
-    query = {}
-    if month:
-        query["start_datetime"] = {"$regex": f"^{month}"}
+    query = _period_query(month=month)
     docs = await get_db().bookings.find(
         query,
         {"_id": 0, "id": 1, "code": 1, "customer_name": 1, "vehicle_id": 1, "vehicle_name": 1,
@@ -112,23 +122,20 @@ async def bookings_calendar_export(month: str = Query(default=None), start: str 
     `group=vehicle` -> dikelompokkan per armada (bagian/sheet terpisah).
     """
     from services.calendar_export import calendar_pdf, calendar_xlsx, period_label
-    query = {}
-    if start and end:
-        query["start_datetime"] = {"$gte": start, "$lte": f"{end}T23:59:59.999999+00:00"}
-    elif month:
-        query["start_datetime"] = {"$regex": f"^{month}"}
+    from services.documents import org_name
+    query = _period_query(month=month, start=start, end=end)
     rows = await get_db().bookings.find(query, {"_id": 0}).sort("start_datetime", 1).to_list(3000)
     rows = safe_doc(rows)
     label = period_label(month=month, start=start, end=end)
     grouped = (group or "").lower() == "vehicle"
     tag = (start or month or "semua")
     if (format or "").lower() == "pdf":
-        blob = calendar_pdf(label, rows, grouped=grouped)
+        blob = calendar_pdf(label, rows, grouped=grouped, org=await org_name(get_db()))
         return StreamingResponse(
             BytesIO(blob), media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="kalender-keberangkatan-{tag}.pdf"'},
         )
-    blob = calendar_xlsx(label, rows, grouped=grouped)
+    blob = calendar_xlsx(label, rows, grouped=grouped, org=await org_name(get_db()))
     return StreamingResponse(
         BytesIO(blob),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -207,20 +214,13 @@ async def create_booking(body: BookingCreate, user=Depends(MANAGER)):
         base = money(quote["total"])
     total = money(base + sum(float(a.get("amount", 0) or 0) for a in add_ons))
     # E18: DP-gate — bila require_dp, buat sebagai 'hold' (reservasi menunggu DP) + auto-expire.
-    from datetime import datetime as _dt_e18, timedelta as _td_e18, timezone as _tz_e18
-    status = "confirmed"
-    hold_fields = {}
-    if body.require_dp:
-        from services import booking_flow as _bf
-        _flow = await _bf.get_flow(db)
-        dp_percent = float(await get_dp_percent(db))
-        hold_hours = int(body.hold_hours or _flow.get("approval_hold_hours") or 24)
+    status, hold_fields = "confirmed", {}
+    if body.require_dp:  # bentuk & nominal DP = SSOT booking_flow.hold_fields (DP == kutipan)
+        _flow = await bf.get_flow(db)
         status = "hold"
-        hold_fields = {
-            "hold_expires_at": (_dt_e18.now(_tz_e18.utc) + _td_e18(hours=hold_hours)).isoformat(),
-            "dp_percent": dp_percent, "dp_amount": money(total * dp_percent / 100.0),
-            "hold_hours": hold_hours,
-        }
+        hold_fields = bf.hold_fields(total=total, dp_percent=await get_dp_percent(db),
+                                     hold_hours=body.hold_hours or _flow.get("approval_hold_hours") or 24,
+                                     rounding=(await get_pricing_rules(db)).get("rounding"))
     doc = {
         "id": new_id("bk"), "code": await _next_code(db),
         "customer_id": body.customer_id, "vehicle_id": body.vehicle_id, "driver_id": body.driver_id,
@@ -248,7 +248,7 @@ async def create_booking(body: BookingCreate, user=Depends(MANAGER)):
         await db.bookings.insert_one(doc)
     # Hold belum 'confirmed' → jangan emit booking.confirmed (WA konfirmasi menyusul saat DP masuk).
     if status == "confirmed":
-        await _emit_booking_confirmed(db, doc)
+        await bf.emit_booking_confirmed(db, doc)
     return safe_doc(doc)
 
 
@@ -315,7 +315,6 @@ async def create_group_booking(body: GroupBookingCreate, user=Depends(MANAGER)):
             a, b = prepared[i], prepared[j]
             if a["u"].vehicle_id == b["u"].vehicle_id and a["s_dt"] < b["e_dt"] and b["s_dt"] < a["e_dt"]:
                 raise HTTPException(status_code=400, detail=f"Unit #{i + 1} & #{j + 1} memakai armada sama dgn waktu tumpang tindih")
-    from datetime import datetime as _dt_g, timedelta as _td_g, timezone as _tz_g
     group_id = new_id("grp")
     n = len(prepared)
     created, grand_total = [], 0
@@ -333,14 +332,10 @@ async def create_group_booking(body: GroupBookingCreate, user=Depends(MANAGER)):
         for idx, p in enumerate(prepared):
             status, hold_fields = "confirmed", {}
             if body.require_dp:
-                from services import booking_flow as _bfg
-                _flowg = await _bfg.get_flow(db)
-                dp_percent = float(await get_dp_percent(db))
-                hold_hours = int(_flowg.get("approval_hold_hours") or 24)
                 status = "hold"
-                hold_fields = {"hold_expires_at": (_dt_g.now(_tz_g.utc) + _td_g(hours=hold_hours)).isoformat(),
-                               "dp_percent": dp_percent, "dp_amount": money(p["total"] * dp_percent / 100.0),
-                               "hold_hours": hold_hours}
+                hold_fields = bf.hold_fields(total=p["total"], dp_percent=await get_dp_percent(db),
+                                             hold_hours=(await bf.get_flow(db)).get("approval_hold_hours") or 24,
+                                             rounding=(await get_pricing_rules(db)).get("rounding"))
             doc = {
                 "id": new_id("bk"), "code": await _next_code(db),
                 "customer_id": body.customer_id, "vehicle_id": p["u"].vehicle_id, "driver_id": p["u"].driver_id,
@@ -362,13 +357,10 @@ async def create_group_booking(body: GroupBookingCreate, user=Depends(MANAGER)):
     if not body.require_dp and created:
         lead = created[0]
         cust = await db.customers.find_one({"id": body.customer_id}, {"_id": 0, "phone": 1}) or {}
-        dp = await get_dp_percent(db)
-        await emit(db, "booking.confirmed", {
-            "booking_id": lead["id"], "code": lead["code"], "customer_name": customer.get("name"),
-            "phone": cust.get("phone"), "total_amount": float(grand_total), "dp_percent": dp,
-            "vehicle_name": f"{n} unit (rombongan)",
-            "start_datetime": (lead.get("start_datetime") or "")[:16].replace("T", " "),
-        }, source="bookings", ref_type="booking", ref_id=lead["id"], dedupe_key=f"booking.confirmed:group:{group_id}")
+        await bf.emit_booking_confirmed(db, lead, overrides={
+            "customer_name": customer.get("name"), "phone": cust.get("phone"),
+            "total_amount": float(grand_total), "vehicle_name": f"{n} unit (rombongan)"},
+            dedupe_key=f"booking.confirmed:group:{group_id}")
     return {"group_id": group_id, "count": n, "grand_total": grand_total,
             "require_dp": bool(body.require_dp), "bookings": created}
 
@@ -431,6 +423,9 @@ async def update_booking(booking_id: str, body: BookingUpdate, user=Depends(MANA
                         raise HTTPException(
                             status_code=400,
                             detail=f"Driver bentrok dengan booking aktif: {dconf[0].get('code')}")
+                    # Trip yang belum selesai IKUT pindah ke sopir baru (dulu hanya booking).
+                    from services.trips import reassign_trip_driver
+                    await reassign_trip_driver(db, booking, driver, user)
                     updates["driver_id"] = body.driver_id
                     updates["driver_name"] = driver.get("name")
                     await db.bookings.update_one({"id": booking_id}, {"$set": updates})
@@ -447,7 +442,12 @@ async def update_booking(booking_id: str, body: BookingUpdate, user=Depends(MANA
     return safe_doc(doc)
 
 
-async def _set_status(booking_id, new_status, extra=None):
+# Konfirmasi manual hanya dari status "menunggu". Dulu tanpa guard: booking batal/selesai/
+# berjalan bisa di-"confirm" lagi → hidup kembali di kalender & dispatch (status zombie).
+CONFIRMABLE = ("pending", "hold")
+
+
+async def _set_status(booking_id, new_status, extra=None, only_from=None):
     db = get_db()
     booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not booking:
@@ -455,7 +455,12 @@ async def _set_status(booking_id, new_status, extra=None):
     updates = {"status": new_status}
     if extra:
         updates.update(extra)
-    await db.bookings.update_one({"id": booking_id}, {"$set": updates})
+    query = {"id": booking_id}
+    if only_from:  # CAS: status berubah di antara baca & tulis → tolak, jangan timpa
+        query["status"] = {"$in": list(only_from)}
+    res = await db.bookings.update_one(query, {"$set": updates})
+    if not res.matched_count:
+        raise HTTPException(status_code=409, detail="Status booking baru saja berubah — muat ulang")
     doc = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     return safe_doc(doc)
 
@@ -466,6 +471,11 @@ async def confirm_booking(booking_id: str, user=Depends(MANAGER)):
     booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking tidak ditemukan")
+    if booking.get("status") == "confirmed":  # idempotent — tanpa emit/WA ulang
+        return safe_doc(booking)
+    if booking.get("status") not in CONFIRMABLE:
+        raise HTTPException(status_code=400, detail=(
+            f"Booking berstatus '{booking.get('status')}' tidak bisa dikonfirmasi"))
     # RC-16 (anti-TOCTOU): cek-bentrok + set-status harus serial per armada — dua booking
     # BERBEDA utk armada sama bisa dikonfirmasi paralel (status pending tak saling memblok).
     async with vehicle_lock(db, booking.get("vehicle_id")):
@@ -486,10 +496,10 @@ async def confirm_booking(booking_id: str, user=Depends(MANAGER)):
             if dconf:
                 raise HTTPException(status_code=400,
                                     detail=f"Tidak bisa konfirmasi — driver bentrok: {dconf[0].get('code')}")
-        res = await _set_status(booking_id, "confirmed")
+        res = await _set_status(booking_id, "confirmed", only_from=CONFIRMABLE)
     await record(db, actor=user, action="confirm", entity_type="booking", entity_id=booking_id,
                  summary=f"Konfirmasi booking {res.get('code')}")
-    await _emit_booking_confirmed(db, res)
+    await bf.emit_booking_confirmed(db, res)
     return res
 
 
@@ -526,6 +536,15 @@ async def cancel_booking(booking_id: str, body: Optional[CancelBooking] = None, 
     paid = float(booking.get("paid_amount") or 0)
     if refund > paid:
         raise HTTPException(status_code=400, detail=f"Refund melebihi terbayar (paid={paid:.0f})")
+    # Uang yang TETAP ditahan (terbayar − refund) harus punya dasar = denda. Dulu terbayar 500rb,
+    # denda 300rb, refund 100rb → 100rb tertahan tanpa catatan apa pun.
+    if money(paid) - money(refund) > money(cfee):
+        raise HTTPException(status_code=400, detail=(
+            f"Uang tertahan Rp {money(paid) - money(refund):,} melebihi denda Rp {money(cfee):,} — "
+            f"naikkan refund menjadi Rp {max(money(paid) - money(cfee), 0):,} atau naikkan denda").replace(",", "."))
+    if await bf.pending_proof(db, booking_id):
+        raise HTTPException(status_code=400, detail="Ada bukti transfer DP yang menunggu verifikasi — "
+                            "verifikasi (catat pembayarannya) atau tolak buktinya dulu sebelum membatalkan")
     # Set status + simpan snapshot kebijakan pembatalan.
     # (Perbaikan: pakai now_iso() kanonik — tz-aware UTC. Sebelumnya `datetime.utcnow().isoformat()`
     #  menghasilkan timestamp NAIVE (tanpa +00:00) DAN menimpa/shadow fungsi now_iso di scope ini.)
@@ -538,61 +557,18 @@ async def cancel_booking(booking_id: str, body: Optional[CancelBooking] = None, 
         "cancelled_at": ts,
         "cancelled_by": (user or {}).get("id"),
     }
-    await db.bookings.update_one({"id": booking_id}, {"$set": cancel_meta})
-    # E21-Ledger: post REFUND sbg payment negatif (idempotent per booking).
-    # Rekomendasi HANDOFF: refund = payments negatif method="refund"; paid_amount otomatis
-    # berkurang via recompute (Σ payments incl. negatif). Denda diposting sbg invoice terpisah
-    # utk paper trail (revenue sudah terekam via net payments — TIDAK double-count).
-    if refund > 0:
-        from core_utils import new_id, money as _money
-        # Idempotent: cek apakah refund payment utk booking ini sudah ada (mis. retry cancel).
-        existing = await db.payments.find_one(
-            {"booking_id": booking_id, "type": "refund"}, {"_id": 0}
-        )
-        if not existing:
-            pay_doc = {
-                "id": new_id("pay"),
-                "booking_id": booking_id,
-                "amount": -_money(refund),  # negatif → mengurangi paid_amount
-                "type": "refund",
-                "method": "refund",
-                "note": f"Refund pembatalan: {reason}" if reason else "Refund pembatalan",
-                "recorded_by": (user or {}).get("id"),
-                "paid_at": ts,
-            }
-            await db.payments.insert_one(pay_doc)
-            # Recompute paid_amount + payment_status (INV-2 & INV-3 tetap konsisten).
-            from services.finance import recompute_booking_payment
-            await recompute_booking_payment(db, booking_id)
-    # E26: auto-invoice DENDA sbg paper trail revenue (idempotent per booking).
-    # Revenue sudah terekam via Σ payments (denda = paid_amount - refund_amount setelah cancel);
-    # invoice ini murni dokumentasi (status='paid' langsung) — TIDAK double-count di P&L.
-    if cfee > 0:
-        from core_utils import new_id, money as _money
-        existing_inv = await db.invoices.find_one(
-            {"booking_id": booking_id, "type": "cancellation_fee"}, {"_id": 0}
-        )
-        if not existing_inv:
-            from services.finance import next_invoice_number
-            inv_doc = {
-                "id": new_id("inv"),
-                "number": await next_invoice_number(db),
-                "booking_id": booking_id,
-                "customer_id": booking.get("customer_id"),
-                "customer_name": booking.get("customer_name"),
-                "booking_code": booking.get("code"),
-                "amount": _money(cfee),
-                "type": "cancellation_fee",  # E26: bedakan dari invoice booking normal
-                "status": "paid",  # denda otomatis dianggap terbayar (residual dari paid_amount)
-                "issued_at": ts,
-                "due_at": ts,
-                "paid_at": ts,
-                "notes": f"Denda pembatalan: {reason}" if reason else "Denda pembatalan",
-                "created_by": (user or {}).get("id"),
-                "created_at": ts,
-                "reconciled_at": ts,
-            }
-            await db.invoices.insert_one(inv_doc)
+    # CAS: hanya SATU permintaan cancel yang menang transisi → refund/denda diposting sekali
+    # (dulu dua cancel paralel sama-sama lolos cek "sudah cancelled" lalu sama-sama refund).
+    won = await db.bookings.find_one_and_update(
+        {"id": booking_id, "status": {"$nin": ["cancelled", "completed"]}}, {"$set": cancel_meta})
+    if not won:
+        cur = await db.bookings.find_one({"id": booking_id}, {"_id": 0}) or {}
+        if cur.get("status") == "completed":
+            raise HTTPException(status_code=400, detail="Booking sudah selesai — tidak bisa dibatalkan")
+        return safe_doc(cur)
+    # Pembukuan pembatalan (void tagihan terbuka, refund, invoice denda) — SEKALI, oleh pemenang CAS.
+    from services.booking_cancel import post_cancellation
+    await post_cancellation(db, booking, reason=reason, cfee=cfee, refund=refund, paid=paid, ts=ts, user=user)
     res = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     await _release_booking_resources(db, booking)  # RC-04: bebaskan armada + batalkan trip yatim
     await record(db, actor=user, action="cancel", entity_type="booking", entity_id=booking_id,
@@ -608,48 +584,6 @@ async def cancel_booking(booking_id: str, body: Optional[CancelBooking] = None, 
     })
     await emit(db, "booking.cancelled", payload, source="bookings", ref_type="booking",
                ref_id=booking_id, dedupe_key=f"booking.cancelled:{booking_id}")
-    return safe_doc(res)
-
-
-@router.post("/bookings/{booking_id}/complete")
-async def complete_booking(booking_id: str, user=Depends(MANAGER)):
-    db = get_db()
-    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking tidak ditemukan")
-    if booking.get("status") == "cancelled":
-        raise HTTPException(status_code=400, detail="Booking dibatalkan tidak bisa diselesaikan")
-    # RC-03/04: bila ada trip aktif, selesaikan lewat SSOT (bebaskan armada + KM + payment).
-    trip = await db.trips.find_one({"booking_id": booking_id, "status": {"$ne": "cancelled"}}, {"_id": 0})
-    if trip:
-        from services.trips import finalize_trip_completion
-        await finalize_trip_completion(db, trip, user)
-    else:
-        # RC-02: JANGAN paksa payment_status='selesai'; set completed lalu derivasi jujur.
-        await db.bookings.update_one({"id": booking_id}, {"$set": {"status": "completed"}})
-        from services.finance import recompute_booking_payment
-        await recompute_booking_payment(db, booking_id)
-        # RC-04: bebaskan armada bila terkunci & tak ada trip aktif lain.
-        vid = booking.get("vehicle_id")
-        if vid:
-            veh = await db.vehicles.find_one({"id": vid}, {"_id": 0, "status": 1})
-            if veh and veh.get("status") == "on_trip":
-                other_active = await db.trips.find_one(
-                    {"vehicle_id": vid, "status": {"$in": ["standby", "to_pickup", "on_trip"]}},
-                    {"_id": 0, "id": 1})
-                if not other_active:
-                    await db.vehicles.update_one({"id": vid}, {"$set": {"status": "available"}})
-    res = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    await record(db, actor=user, action="complete", entity_type="booking", entity_id=booking_id,
-                 summary=f"Selesaikan booking {res.get('code')}")
-    # CMS-07 — pesanan selesai = momen tepat meminta ulasan (idempotent per pesanan).
-    # Jalur trip sudah menangani ini di `finalize_trip_completion`; blok ini menutup jalur
-    # penyelesaian TANPA trip supaya tak ada pesanan selesai yang terlewat diminta ulasan.
-    try:
-        from services import reviews as _reviews
-        await _reviews.request_and_send(db, res, actor=user, source="booking_completed")
-    except Exception:  # noqa: BLE001 — permintaan ulasan tak boleh menggagalkan penyelesaian
-        pass
     return safe_doc(res)
 
 
@@ -695,7 +629,32 @@ async def reschedule_booking(booking_id: str, body: BookingReschedule, user=Depe
         if vehicle_id != booking.get("vehicle_id"):
             updates["vehicle_id"] = vehicle_id
             updates["vehicle_name"] = vehicle.get("name")
-        await db.bookings.update_one({"id": booking_id}, {"$set": updates})
+        changed = (start_iso, end_iso, vehicle_id) != (old_start, old_end, booking.get("vehicle_id"))
+        price, drop_promo = {}, ""
+        if body.reprice is not False and changed:
+            price, drop_promo = await bs.repriced_fields(db, booking, vehicle,
+                                                         start_iso=start_iso, end_iso=end_iso)
+        if price:
+            paid = money(booking.get("paid_amount"))
+            if price["total_amount"] < paid:
+                raise HTTPException(status_code=400, detail=(
+                    f"Harga baru Rp {price['total_amount']:,} lebih kecil dari yang sudah dibayar "
+                    f"Rp {paid:,} — proses refund dulu atau pertahankan harga lama").replace(",", "."))
+            price["payment_status"] = derive_payment_status(paid, price["total_amount"])
+            if booking.get("status") == "hold":  # DP ikut total baru (SSOT dp_amount_for)
+                pct = booking.get("dp_percent")
+                price["dp_amount"] = dp_amount_for(price["total_amount"],
+                                                   await get_dp_percent(db) if pct is None else pct,
+                                                   (await get_pricing_rules(db)).get("rounding"))
+            updates.update(price)
+        # CAS: booking yg dibatalkan/diselesaikan di antara baca & tulis tidak dihidupkan lagi.
+        done = await db.bookings.update_one(
+            {"id": booking_id, "status": {"$nin": ["cancelled", "completed"]}}, {"$set": updates})
+        if not done.matched_count:
+            raise HTTPException(status_code=409, detail="Status booking berubah — muat ulang")
+    if drop_promo:
+        from services import promos as promo_svc
+        await promo_svc.release(db, drop_promo)
     # Sinkron trip terkait yang belum berjalan (standby/to_pickup): ikutkan armada baru.
     await db.trips.update_many(
         {"booking_id": booking_id, "status": {"$in": ["standby", "to_pickup"]}},
@@ -703,97 +662,18 @@ async def reschedule_booking(booking_id: str, body: BookingReschedule, user=Depe
     from services.trips import recompute_trip_fee
     await recompute_trip_fee(db, booking_id, start_iso, end_iso)  # fee /hari ikut tanggal baru
     res = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    old_total, new_total = money(booking.get("total_amount")), money(res.get("total_amount"))
+    price_note = f"; harga Rp {old_total:,} → Rp {new_total:,}".replace(",", ".") if old_total != new_total else ""
     await record(db, actor=user, action="reschedule", entity_type="booking", entity_id=booking_id,
-                 summary=f"Jadwal ulang booking {res.get('code')}: {(old_start or '')[:16]} → {start_iso[:16]}")
+                 summary=f"Jadwal ulang booking {res.get('code')}: {(old_start or '')[:16]} → {start_iso[:16]}{price_note}")
     from services.wa_payload import build_wa_payload
     payload = await build_wa_payload(db, res)
     payload.update({
-        "old_start": (old_start or "")[:16].replace("T", " "), "old_end": (old_end or "")[:16].replace("T", " "),
-        "new_start": start_iso[:16].replace("T", " "), "new_end": end_iso[:16].replace("T", " "),
+        # ISO → template merender WIB (dulu "2031-06-04 02:00" = jam UTC terbaca sbg jam lokal)
+        "old_start": old_start or "", "old_end": old_end or "",
+        "new_start": start_iso, "new_end": end_iso,
         "reason": body.reason or "",
     })
     await emit(db, "booking.rescheduled", payload, source="bookings", ref_type="booking",
                ref_id=booking_id, dedupe_key=f"booking.rescheduled:{booking_id}:{start_iso}")
-    return safe_doc(res)
-
-
-@router.post("/bookings/{booking_id}/approve")
-async def approve_booking(booking_id: str, body: BookingApprove, user=Depends(MANAGER)):
-    """E19: setujui permintaan booking `pending` (dari publik) → assign armada + tetapkan
-    harga + `confirmed`. Re-cek ketersediaan penuh (INV-4/INV-21/RC-07) sebelum konfirmasi."""
-    db = get_db()
-    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking tidak ditemukan")
-    if booking.get("status") != "pending":
-        raise HTTPException(status_code=400, detail="Hanya booking berstatus 'pending' yang bisa disetujui")
-    vehicle = await db.vehicles.find_one({"id": body.vehicle_id}, {"_id": 0})
-    if not vehicle:
-        raise HTTPException(status_code=400, detail="Armada tidak ditemukan")
-    driver = None
-    if body.driver_id:
-        driver = await db.drivers.find_one({"id": body.driver_id}, {"_id": 0})
-        if not driver:
-            raise HTTPException(status_code=400, detail="Driver tidak ditemukan")
-    start_iso, end_iso = booking.get("start_datetime"), booking.get("end_datetime")
-    # RC-16 (anti-TOCTOU): re-cek + set confirmed harus serial per armada.
-    async with vehicle_lock(db, body.vehicle_id):
-        conflicts = await find_conflicts(db, body.vehicle_id, start_iso, end_iso, exclude_id=booking_id)
-        if conflicts:
-            codes = ", ".join(c.get("code", c.get("id")) for c in conflicts)
-            raise HTTPException(status_code=400, detail=f"Armada bentrok dengan booking aktif: {codes}")
-        maint = await find_maintenance_conflicts(db, body.vehicle_id, start_iso, end_iso)
-        if maint:
-            titles = ", ".join((m.get("title") or m.get("type") or "perawatan") for m in maint)
-            raise HTTPException(status_code=400, detail=f"Armada dalam masa perawatan: {titles}")
-        if body.driver_id:
-            dconf = await find_driver_conflicts(db, body.driver_id, start_iso, end_iso, exclude_booking_id=booking_id)
-            if dconf:
-                raise HTTPException(status_code=400,
-                                    detail=f"Driver bentrok dengan booking aktif: {dconf[0].get('code')}")
-        base = money(body.base_price if body.base_price is not None else booking.get("base_price", 0))
-        if base <= 0:
-            rules = await get_pricing_rules(db)
-            op = await db.settings.find_one({"key": "operational"}, {"_id": 0})
-            holidays = (op.get("value") or {}).get("holidays", []) if op else []
-            quote = compute_quote(rules, vehicle_type=vehicle.get("type"),
-                                  days=span_days(start_iso, end_iso),
-                                  when=start_iso, holidays=holidays, include_travel=True,
-                                  day_rate=vehicle.get("day_rate"))
-            base = money(quote["total"])
-        add_ons = booking.get("add_ons") or []
-        total = money(base + sum(float(a.get("amount", 0) or 0) for a in add_ons))
-        updates = {
-            "vehicle_id": vehicle["id"], "vehicle_name": vehicle.get("name"),
-            "base_price": base, "total_amount": total, "status": "confirmed", "approved_at": now_iso(),
-        }
-        if driver:
-            updates["driver_id"] = driver["id"]
-            updates["driver_name"] = driver.get("name")
-        await db.bookings.update_one({"id": booking_id}, {"$set": updates})
-    res = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    await record(db, actor=user, action="approve", entity_type="booking", entity_id=booking_id,
-                 summary=f"Setujui permintaan booking {res.get('code')} → confirmed (Rp {total:,})".replace(",", "."))
-    await _emit_booking_confirmed(db, res)
-    return safe_doc(res)
-
-
-@router.post("/bookings/{booking_id}/reject")
-async def reject_booking(booking_id: str, user=Depends(MANAGER)):
-    """E19: tolak permintaan booking `pending`/`hold` → cancelled + WA `booking.cancelled`."""
-    db = get_db()
-    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking tidak ditemukan")
-    if booking.get("status") not in ("pending", "hold"):
-        raise HTTPException(status_code=400, detail="Hanya booking 'pending'/'hold' yang bisa ditolak")
-    await db.bookings.update_one({"id": booking_id}, {"$set": {"status": "cancelled"}})
-    await _release_booking_resources(db, booking)
-    res = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    await record(db, actor=user, action="reject", entity_type="booking", entity_id=booking_id,
-                 summary=f"Tolak permintaan booking {res.get('code')}")
-    from services.wa_payload import build_wa_payload
-    payload = await build_wa_payload(db, booking)
-    await emit(db, "booking.cancelled", payload, source="bookings", ref_type="booking",
-               ref_id=booking_id, dedupe_key=f"booking.cancelled:{booking_id}")
     return safe_doc(res)

@@ -41,7 +41,7 @@ def money(value) -> int:
     """
     try:
         return int(round(float(value or 0)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):  # OverflowError: Infinity (dulu → 500)
         return 0
 
 

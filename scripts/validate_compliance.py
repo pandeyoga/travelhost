@@ -26,7 +26,7 @@ def fail(c, m): results.append(("FAIL", c, m))
 def section(t): results.append(("INFO", "", f"{'='*58}")); results.append(("INFO", "", f"  {t}"))
 
 CANONICAL = {"users","sessions","vehicles","drivers","customers","leads","conversations",
-    "messages","bookings","trips","locations","trip_shares","payments","expenses","invoices",
+    "messages","bookings","trips","locations","trip_shares","schedule_shares","payments","expenses","invoices",
     "notification_tasks","broadcasts","maintenance_records","destinations","articles",
     "testimonials","audit_logs","settings","user_onboarding","lead_activities","counters",
     "quotations","packages","promos","events","automation_rules","automation_runs",

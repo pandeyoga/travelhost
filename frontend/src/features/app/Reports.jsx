@@ -15,21 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatCurrency, formatQty } from "@/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { canAccess } from "@/config/navigationConfig";
+import { CAT_LABEL, lastMonths } from "@/lib/financeLabels";
 
 const STATUS_TONE = { confirmed: "info", ongoing: "warning", completed: "success", cancelled: "danger", draft: "neutral" };
-const CAT_LABEL = { bbm: "BBM / Solar", tol: "Tol & Parkir", uang_jalan: "Uang Jalan", gaji_driver: "Gaji/Komisi Driver", other: "Lainnya" };
 const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-
-function lastMonths(n = 6) {
-  const out = [];
-  const d = new Date();
-  for (let i = 0; i < n; i += 1) {
-    const dt = new Date(d.getFullYear(), d.getMonth() - i, 1);
-    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-    out.push([key, dt.toLocaleDateString("id-ID", { month: "long", year: "numeric" })]);
-  }
-  return out;
-}
 
 function monthShort(key) {
   const m = Number(String(key).slice(5, 7));
@@ -310,7 +299,9 @@ export default function Reports() {
                     <th className="px-3 py-2 text-right">Gross</th>
                     <th className="px-3 py-2 text-right">Bonus</th>
                     <th className="px-3 py-2 text-right">Potongan</th>
-                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-right">Total Payroll</th>
+                    <th className="px-3 py-2 text-right" title="Fee per keberangkatan (biaya saat trip selesai)">Fee Trip</th>
+                    <th className="px-3 py-2 text-right" title="Payroll + fee = Biaya SDM">Total SDM</th>
                     <th className="px-3 py-2 text-right">YTD</th>
                     <th className="px-3 py-2 text-left">Status</th>
                   </tr>
@@ -324,7 +315,9 @@ export default function Reports() {
                       <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.gross)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-[#126E2C]">{formatCurrency(r.bonus)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-[#A8221A]">{formatCurrency(r.deduction)}</td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums text-[#1C1C1E]">{formatCurrency(r.total)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.total)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.fee || 0)}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-[#1C1C1E]">{formatCurrency(r.total_sdm ?? r.total)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-[#6B6B73]">{formatCurrency(r.ytd)}</td>
                       <td className="px-3 py-2 text-[11px] text-[#6B6B73]">{(r.statuses || []).join(", ")}</td>
                     </tr>

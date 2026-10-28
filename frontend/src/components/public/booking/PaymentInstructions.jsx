@@ -6,20 +6,31 @@ import { uploadPaymentProof } from "@/services/bookingApi";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
 
-// PaymentInstructions — panel pembayaran DP pada halaman status pesanan.
+// PaymentInstructions — panel pembayaran pada halaman status pesanan.
 //
 // Pembayaran = TRANSFER MANUAL + UNGGAH BUKTI (tanpa payment gateway). Tiga hal yang wajib
 // terlihat tanpa disuruh: (1) nominal yang harus dibayar, (2) ke rekening mana, (3) sisa waktu
 // sebelum unit dilepas.
+//
+// Yang ditagih mengikuti payload server: DP HANYA saat `dp_required` (status hold); pesanan
+// terkonfirmasi langsung menagih "Sisa pembayaran"; `pending` belum menagih apa pun. Dulu
+// pesanan terkonfirmasi tampil "DP 0% yang harus dibayar".
+function paymentMode(status) {
+  if (!status) return "waiting";
+  if (status.status === "pending") return "waiting";
+  if (status.dp_required && !status.dp_met) return "dp";
+  return Math.max(Number(status.outstanding || 0), 0) > 0 ? "balance" : "paid";
+}
 function useCountdown(seconds) {
   const [left, setLeft] = useState(Number(seconds) || 0);
   const ref = useRef(null);
   useEffect(() => { setLeft(Number(seconds) || 0); }, [seconds]);
+  const running = left > 0; // dependensi boolean: satu interval per sesi hitung mundur
   useEffect(() => {
-    if (left <= 0) return undefined;
+    if (!running) return undefined;
     ref.current = setInterval(() => setLeft((v) => (v > 0 ? v - 1 : 0)), 1000);
     return () => clearInterval(ref.current);
-  }, [left > 0]);
+  }, [running]);
   return left;
 }
 
@@ -95,9 +106,18 @@ export default function PaymentInstructions({ status, code, token, onRefresh }) 
   const [busy, setBusy] = useState(false);
   const payment = status?.payment || {};
   const accounts = payment.bank_accounts || [];
-  const dpDue = useMemo(() => (
-    status?.dp_met ? Math.max((status?.outstanding || 0), 0) : (status?.dp_amount || 0)
-  ), [status]);
+  const mode = paymentMode(status);
+  const paid = Number(status?.paid_amount || 0);
+  const dpDue = useMemo(() => {
+    if (mode === "dp") return Math.max(Number(status?.dp_amount || 0) - paid, 0);
+    if (mode === "balance") return Math.max(Number(status?.outstanding || 0), 0);
+    return 0;
+  }, [mode, status, paid]);
+  const dueLabel = mode === "dp"
+    ? (paid > 0
+      ? bi(`Kekurangan DP ${status?.dp_percent || 0}%`, `Remaining ${status?.dp_percent || 0}% deposit`, lang)
+      : bi(`DP ${status?.dp_percent || 0}% yang harus dibayar`, `${status?.dp_percent || 0}% deposit to pay`, lang))
+    : bi("Sisa pembayaran", "Remaining balance", lang);
 
   useEffect(() => { setAmount(String(dpDue || "")); }, [dpDue]);
 
@@ -123,36 +143,53 @@ export default function PaymentInstructions({ status, code, token, onRefresh }) 
         <h3 className="flex items-center gap-2 font-fraunces text-xl text-foreground">
           <Landmark size={18} className="text-primary" /> {bi("Pembayaran", "Payment", lang)}
         </h3>
-        <div className="mt-3 flex items-center justify-between rounded-xl px-4 py-3.5 text-primary-foreground"
-          style={{ background: "var(--gradient-cta)" }}>
-          <span className="text-[13px] font-medium opacity-90">
-            {status?.dp_met ? bi("Sisa pelunasan", "Remaining balance", lang) : bi(`DP ${status?.dp_percent || 0}% yang harus dibayar`, `${status?.dp_percent || 0}% deposit to pay`, lang)}
-          </span>
-          <span className="font-mono text-2xl font-semibold tabular-nums" data-testid="booking-amount-due">
-            {formatCurrency(dpDue)}
-          </span>
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-[12.5px]">
-          <div className="rounded-lg border border-border px-3 py-2">
-            <p className="text-muted-foreground">{bi("Total pesanan", "Order total", lang)}</p>
-            <p className="font-mono font-semibold tabular-nums text-foreground">{formatCurrency(status?.total_amount)}</p>
+        {mode === "dp" || mode === "balance" ? (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-primary-foreground"
+            style={{ background: "var(--gradient-cta)" }} data-testid={`booking-due-${mode}`}>
+            <span className="text-[13px] font-medium opacity-90" data-testid="booking-amount-label">{dueLabel}</span>
+            <span className="font-mono text-2xl font-semibold tabular-nums" data-testid="booking-amount-due">
+              {formatCurrency(dpDue)}
+            </span>
           </div>
-          <div className="rounded-lg border border-border px-3 py-2">
-            <p className="text-muted-foreground">{bi("Sudah dibayar", "Paid", lang)}</p>
-            <p className="font-mono font-semibold tabular-nums text-foreground">{formatCurrency(status?.paid_amount)}</p>
-          </div>
-        </div>
-
-        {accounts.length ? (
-          <div className="mt-4 space-y-2">{accounts.map((a, i) => <BankRow acc={a} key={i} />)}</div>
+        ) : mode === "paid" ? (
+          <p className="mt-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-[13px] font-semibold text-primary"
+            data-testid="booking-paid-full">
+            <Check size={15} /> {bi("Pembayaran sudah lunas. Terima kasih!", "Payment complete. Thank you!", lang)}
+          </p>
         ) : (
-          <p className="mt-4 rounded-lg border border-dashed border-border px-4 py-3 text-[12.5px] text-muted-foreground"
-            data-testid="booking-bank-empty">
-            {bi("Rekening belum dicantumkan. Hubungi kami via WhatsApp untuk instruksi pembayaran.", "No bank account listed yet. Contact us via WhatsApp for payment instructions.", lang)}
+          <p className="mt-3 rounded-xl border border-border bg-secondary px-4 py-3 text-[12.5px] leading-relaxed text-secondary-foreground"
+            data-testid="booking-payment-waiting">
+            {bi("Belum perlu membayar. Tim kami memeriksa ketersediaan lebih dulu — instruksi pembayaran muncul di sini setelah pesanan disetujui.",
+              "No payment needed yet. Our team checks availability first — payment instructions appear here once the booking is approved.", lang)}
           </p>
         )}
-        {payment.instructions ? (
-          <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">{payment.instructions}</p>
+        {Number(status?.total_amount || 0) > 0 ? (
+          <div className="mt-2 grid grid-cols-2 gap-2 text-[12.5px]">
+            <div className="rounded-lg border border-border px-3 py-2">
+              <p className="text-muted-foreground">{bi("Total pesanan", "Order total", lang)}</p>
+              <p className="font-mono font-semibold tabular-nums text-foreground" data-testid="booking-pay-total">{formatCurrency(status?.total_amount)}</p>
+            </div>
+            <div className="rounded-lg border border-border px-3 py-2">
+              <p className="text-muted-foreground">{bi("Sudah dibayar", "Paid", lang)}</p>
+              <p className="font-mono font-semibold tabular-nums text-foreground" data-testid="booking-pay-paid">{formatCurrency(status?.paid_amount)}</p>
+            </div>
+          </div>
+        ) : null}
+
+        {mode === "dp" || mode === "balance" ? (
+          <>
+            {accounts.length ? (
+              <div className="mt-4 space-y-2" data-testid="booking-bank-list">{accounts.map((a, i) => <BankRow acc={a} key={i} />)}</div>
+            ) : (
+              <p className="mt-4 rounded-lg border border-dashed border-border px-4 py-3 text-[12.5px] text-muted-foreground"
+                data-testid="booking-bank-empty">
+                {bi("Rekening belum dicantumkan. Hubungi kami via WhatsApp untuk instruksi pembayaran.", "No bank account listed yet. Contact us via WhatsApp for payment instructions.", lang)}
+              </p>
+            )}
+            {payment.instructions ? (
+              <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">{payment.instructions}</p>
+            ) : null}
+          </>
         ) : null}
       </div>
 

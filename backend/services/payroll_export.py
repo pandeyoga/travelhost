@@ -2,6 +2,7 @@
 
 Menerima dict payout (dari koleksi driver_payouts) + optional company_info. Tidak menyentuh DB.
 """
+from xml.sax.saxutils import escape
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -64,7 +65,7 @@ def slip_pdf(payout: dict, company: dict = None) -> bytes:
     small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9.5, textColor=colors.HexColor("#6B6B73"))
     big = ParagraphStyle("big", parent=styles["Heading2"], fontSize=14, textColor=colors.HexColor("#0058CC"))
     el = []
-    el.append(Paragraph(company.get("name") or "Slip Gaji Driver", h1))
+    el.append(Paragraph(escape(company.get("name") or "Slip Gaji Driver"), h1))
     el.append(Paragraph("Slip Pembayaran / Payroll Driver", small))
     el.append(Spacer(1, 10))
 
@@ -84,7 +85,7 @@ def slip_pdf(payout: dict, company: dict = None) -> bytes:
     el.append(Paragraph(f"TOTAL DITERIMA: {_rp(payout.get('total'))}", big))
     if payout.get("notes"):
         el.append(Spacer(1, 8))
-        el.append(Paragraph(f"Catatan: {payout.get('notes')}", small))
+        el.append(Paragraph(f"Catatan: {escape(str(payout.get('notes')))}", small))
     doc.build(el)
     return buf.getvalue()
 

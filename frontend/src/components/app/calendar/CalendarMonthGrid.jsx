@@ -11,7 +11,7 @@ function Dot({ color }) {
 
 export default function CalendarMonthGrid({
   cells, viewDate, byDay, selectedDay, todayKey, colorMode, colorOf, riskOf,
-  onSelectDay, onOpenEvent, loading, total,
+  onSelectDay, onOpenEvent, loading, total, riskHint = true,
 }) {
   if (loading) {
     return (
@@ -91,9 +91,11 @@ export default function CalendarMonthGrid({
           <p className="text-[12.5px] text-[#8E8E93]">Tidak ada keberangkatan pada periode / saringan ini.</p>
         </div>
       ) : null}
-      <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-[#8E8E93]">
-        <Dot color="#FF9500" /> Titik jingga pada tanggal = ada jadwal yang perlu perhatian.
-      </p>
+      {riskHint ? (
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-[#8E8E93]">
+          <Dot color="#FF9500" /> Titik jingga pada tanggal = ada jadwal yang perlu perhatian.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -60,7 +60,7 @@ async def run():
 
     COLLECTIONS = ["users", "sessions", "vehicles", "drivers", "customers", "leads",
                    "lead_activities", "conversations", "messages", "bookings", "trips", "locations",
-                   "trip_shares", "payments", "expenses", "invoices", "notification_tasks", "broadcasts",
+                   "trip_shares", "schedule_shares", "payments", "expenses", "invoices", "notification_tasks", "broadcasts",
                    "maintenance_records", "destinations", "articles", "testimonials",
                    "workshops", "service_types",
                    "driver_payouts",
@@ -414,6 +414,16 @@ async def run():
         "vehicle_id": veh[0]["id"], "vehicle_name": veh[0]["name"],
         "label": f"Tracking {veh[0]['name']} — PT Maju Jaya",
         "expires_at": iso(_n + timedelta(days=7)), "revoked": False, "revoked_at": None,
+        "last_accessed_at": None, "access_count": 0,
+        "created_by": users[0]["id"], "created_at": now_iso(),
+    })
+    # Share-link jadwal keberangkatan (read-only publik): 30 hari ke depan, semua armada.
+    await db.schedule_shares.insert_one({
+        "id": new_id("ssh"), "token": secrets.token_urlsafe(24), "label": "Jadwal Mitra — 30 hari ke depan",
+        "scope": {"type": "upcoming", "days": 30}, "vehicle_ids": [],
+        "statuses": ["hold", "confirmed", "ongoing", "completed"],
+        "visibility": {"customer": True, "driver": True, "driver_phone": False, "payment": False, "notes": False},
+        "expires_at": iso(_n + timedelta(days=30)), "revoked": False, "revoked_at": None,
         "last_accessed_at": None, "access_count": 0,
         "created_by": users[0]["id"], "created_at": now_iso(),
     })
@@ -1293,7 +1303,7 @@ async def run():
 
     print(f"{G}[SEED OK]{X} users={len(users)} vehicles={len(veh)} drivers={len(drv)} "
           f"customers={len(cus)} bookings=2 payments=2 trips=2 locations={len(locs)} "
-          f"leads={len(leads)} lead_activities=4 broadcasts=1 maintenance={len(maintenance)} workshops={len(workshops)} service_types={len(service_types)} driver_payouts=2 trip_shares=1 "
+          f"leads={len(leads)} lead_activities=4 broadcasts=1 maintenance={len(maintenance)} workshops={len(workshops)} service_types={len(service_types)} driver_payouts=2 trip_shares=1 schedule_shares=1 "
           f"conversations=2 messages=4 notification_tasks=2 "
           f"destinations=4 articles=6 testimonials=3 quotations=1 packages=2 promos=3 "
           f"transfer_routes=3 "

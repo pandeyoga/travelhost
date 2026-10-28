@@ -6,8 +6,10 @@ Alur:
   2) Saat trip SELESAI, fee dikreditkan otomatis ke saldo driver
      (services.trips.finalize_trip_completion → koleksi driver_fee_entries, idempotent per trip).
   3) Driver mengajukan PENCAIRAN (≤ saldo tersedia; saldo langsung DIRESERVASI).
-  4) Finance MEMBAYAR — WAJIB unggah bukti transfer → expense kategori gaji_driver (paid)
-     → saldo berkurang permanen. TOLAK mengembalikan saldo.
+  4) Finance MEMBAYAR — WAJIB unggah bukti transfer → saldo berkurang permanen. Biaya fee
+     sudah diakui SAAT TRIP SELESAI (services.driver_fee_ledger, akrual per trip); pembayaran
+     hanya MELUNASI expense itu (FIFO) — tidak membuat expense baru (anti dobel). TOLAK
+     mengembalikan saldo.
 
 Saldo tersedia = total fee earned − dicairkan (paid) − sedang diajukan (requested).
 Section: permukaan driver 'driver-workspace' (owner/ops_admin boleh atas nama driver),
@@ -22,6 +24,7 @@ from schemas_ops import WithdrawCreate, WithdrawReject
 from services import media_lib as ml
 from services import media_store as ms
 from services.audit import record
+from services.availability import named_lock
 
 router = APIRouter(prefix="/api", tags=["driver-fees"])
 WORKSPACE = require_section("driver-workspace")
@@ -69,6 +72,13 @@ async def request_withdraw(body: WithdrawCreate, user=Depends(WORKSPACE)):
     amount = money(body.amount)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Nominal pencairan harus lebih dari 0")
+    # Cek saldo + reservasi HARUS serial per sopir: dulu dua pengajuan paralel sama-sama melihat
+    # saldo penuh lalu sama-sama tersimpan → total pengajuan melebihi saldo.
+    async with named_lock(db, f"driver-fee:{drv['id']}", "Saldo fee sedang diproses, coba lagi sebentar"):
+        return await _reserve_withdrawal(db, drv, body, amount, user)
+
+
+async def _reserve_withdrawal(db, drv, body, amount, user):
     nums = await _fee_numbers(db, drv["id"])
     if amount > nums["available"]:
         raise HTTPException(status_code=400,
@@ -97,7 +107,7 @@ async def fee_balances(user=Depends(FIN)):
     for did in ids:
         drv = await db.drivers.find_one({"id": did}, {"_id": 0, "name": 1})
         nums = await _fee_numbers(db, did)
-        out.append({"driver_id": did, "driver_name": (drv or {}).get("name") or did, **nums})
+        out.append({"driver_id": did, "driver_name": (drv or {}).get("name") or "(sopir terhapus)", **nums})
     out.sort(key=lambda r: -r["available"])
     return safe_doc(out)
 
@@ -140,17 +150,10 @@ async def pay_withdrawal(withdrawal_id: str, proof: UploadFile = File(...),
         {"id": withdrawal_id, "status": "requested"}, {"$set": patch})
     if not claim.modified_count:
         raise HTTPException(status_code=400, detail="Pengajuan sudah diproses (dibayar/ditolak) oleh pengguna lain")
-    # Integrasi keuangan: expense kategori gaji_driver, langsung realisasi kas (paid).
-    exp = {
-        "id": new_id("exp"), "booking_id": None, "trip_id": None,
-        "category": "gaji_driver", "amount": money(doc["amount"]),
-        "note": f"Pencairan fee driver {doc.get('driver_name')} ({withdrawal_id})",
-        "withdrawal_id": withdrawal_id, "driver_id": doc.get("driver_id"),
-        "paid": True, "paid_at": paid_at, "created_at": paid_at,
-    }
-    await db.expenses.insert_one(dict(exp))
-    await db.driver_withdrawals.update_one({"id": withdrawal_id}, {"$set": {"expense_id": exp["id"]}})
-    patch["expense_id"] = exp["id"]
+    # Integrasi keuangan: biaya fee sudah diakrualkan per trip → di sini cukup DILUNASI (FIFO).
+    # Kas keluar dibaca dari pencairan ini oleh arus kas (finance_automation.cashflow).
+    from services.driver_fee_ledger import settle
+    await settle(db, doc.get("driver_id"), withdrawal_id)
     await record(db, actor=user, action="pay", entity_type="driver_withdrawal", entity_id=withdrawal_id,
                  before=doc, after={**doc, **patch},
                  summary=f"Bayar pencairan fee {doc.get('driver_name')} Rp {int(doc['amount']):,}".replace(",", "."))
@@ -168,7 +171,11 @@ async def reject_withdrawal(withdrawal_id: str, body: WithdrawReject, user=Depen
         raise HTTPException(status_code=400, detail="Hanya pengajuan berstatus 'requested' yang bisa ditolak")
     patch = {"status": "rejected", "reject_reason": body.reason.strip(),
              "rejected_by": user.get("id"), "updated_at": now_iso()}
-    await db.driver_withdrawals.update_one({"id": withdrawal_id}, {"$set": patch})
+    # CAS requested → rejected (pasangan dgn klaim di pay): tolak & bayar paralel tak bisa
+    # dua-duanya menang (dulu: dibayar + expense tercatat, lalu status ditimpa 'rejected').
+    claim = await db.driver_withdrawals.update_one({"id": withdrawal_id, "status": "requested"}, {"$set": patch})
+    if not claim.modified_count:
+        raise HTTPException(status_code=400, detail="Pengajuan sudah diproses (dibayar/ditolak) oleh pengguna lain")
     await record(db, actor=user, action="reject", entity_type="driver_withdrawal", entity_id=withdrawal_id,
                  before=doc, after={**doc, **patch},
                  summary=f"Tolak pencairan fee {doc.get('driver_name')}: {body.reason.strip()[:80]}")

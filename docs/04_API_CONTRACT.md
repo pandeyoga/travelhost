@@ -74,6 +74,8 @@ POST /api/leads/{id}/activities ; POST /api/leads/{id}/convert ; GET /api/leads/
 GET/POST /api/broadcasts ; POST /api/broadcasts/{id}/send        (WA = SIMULASI)
 # TARGET (Inbox — BELUM diimplementasi; lihat plan.md §0.5-C):
 GET  /api/conversations ; GET /api/conversations/{id}/messages ; POST /api/conversations/{id}/messages
+GET  /api/conversations/agents  → [{id,name,role}] agen yang boleh di-assign (peran section 'inbox' dari
+                                  permissions_config.SECTION_ACCESS; PATCH assigned_to divalidasi ke daftar ini)
 GET/POST /api/notification-tasks
 ```
 ### Finance (IMPLEMENTED — Phase 5)
@@ -504,3 +506,142 @@ GET /api/public/redirect?path=/blog/slug-lama → 200 {from_path, to_path, statu
   kunjungan yang sudah dilihat → mustahil berputar.
 - SPA tidak bisa mengirim 301 sungguhan: `status: 301` adalah NIAT semantik dan pengalihan
   dijalankan halaman detail publik lewat `useSlugRedirect` (`navigate(..., {replace:true})`).
+
+---
+
+## 8. SHARE-LINK JADWAL KEBERANGKATAN (2026-10-28)
+Kelola dari Kalender Keberangkatan (tombol **Bagikan**). Siklus hidup token bersama tracking trip:
+`services/share_links.py`; aturan cakupan & allowlist field: `services/schedule_share.py`.
+
+### Admin (section RBAC `calendar` = owner/ops_admin)
+```
+GET    /api/schedule-shares?active=&limit=&skip=   → [share + {expired, is_active, period_label, departure_count}]
+POST   /api/schedule-shares                         ← {label?, scope: upcoming|month|range|all,
+                                                        days? (upcoming; 0 = tanpa batas akhir),
+                                                        month? (YYYY-MM), start?/end? (YYYY-MM-DD, ≤366 hari),
+                                                        vehicle_ids?[], statuses?[],
+                                                        visibility?{customer,driver,driver_phone,payment,notes},
+                                                        hours? (masa berlaku; 0 = tanpa batas waktu, maks 8760)}
+                                                    → share (400: cakupan/armada tak valid · 422: skema)
+POST   /api/schedule-shares/{id}/revoke             → share (revoked=true)
+DELETE /api/schedule-shares/{id}                    → {deleted:true, id}
+```
+### Publik (tanpa auth, rate-limit 120/menit/IP, `Cache-Control: no-store`, `X-Robots-Tag: noindex`)
+```
+GET    /api/public/schedule/{token}  → {label, scope, period_label, period{start,end}, statuses,
+                                        visibility, expires_at, generated_at, total, truncated,
+                                        items:[{ref(kode booking), start_datetime, end_datetime, origin,
+                                        destination, status, pax, vehicle_name, plate_number, capacity,
+                                        vehicle_type_label, customer_name?, driver_name?, driver_phone?,
+                                        payment_status?, notes?}]}
+                                     404 token tak dikenal · 403 dinonaktifkan · 410 kedaluwarsa
+```
+Field bertanda `?` hanya muncul bila diizinkan `visibility`. Nominal uang, kontak pelanggan, dan ID
+internal TIDAK PERNAH dikirim. Halaman FE: `/schedule/:token` (`features/public/PublicSchedule.jsx`).
+
+## 9. PERBAIKAN AUDIT FLOW PEMBELIAN · HARGA · ARMADA · KEUANGAN (2026-10-28)
+```
+# Input angka: SEMUA model request (schemas.APIModel) menolak Infinity/NaN & |angka| > 10 triliun
+#   → 422 (dulu 500 OverflowError). PATCH /settings pricing_* menolak non-finite → 400.
+POST /api/bookings/{id}/reschedule   + body `reprice` (bool, default true): harga dihitung ULANG utk
+                                     tanggal/armada baru (add-on & promo dipertahankan; promo gugur →
+                                     kuota dikembalikan); false = harga lama. Total baru < terbayar → 400.
+POST /api/bookings/{id}/confirm      hanya dari pending|hold (confirmed → 200 idempotent; lainnya 400)
+POST /api/bookings/{id}/cancel       CAS: cancel paralel → refund/denda diposting SEKALI; invoice
+                                     terbuka (draft|sent|partial) booking → void; invoice denda berstatus
+                                     jujur (paid hanya bila terbayar − refund ≥ denda)
+GET  /api/invoices                   + `next_status[]` per invoice = transisi manual sah
+PATCH /api/invoices/{id}             status manual: draft→sent|void · sent→draft|void · partial→void ·
+                                     void→draft (booking tidak batal). paid/partial TIDAK manual (ikut
+                                     pembayaran); invoice lunas terkunci. amount ≤ subtotal − paid_before.
+POST /api/invoices                   amount (override) ≤ sisa tagihan; DP pakai booking.dp_percent (0 sah)
+GET  /api/reports/summary?period=YYYY-MM  KPI pemasukan/pengeluaran/laba, kategori biaya, status booking
+                                     & utilisasi DIFILTER periode; tren 6 bulan berakhir di periode itu.
+GET  /api/finance/reconciliation     pembayaran dialokasikan per invoice ([paid_before, +amount]); void
+                                     dilewati. POST …/sync tidak lagi menghidupkan invoice void.
+POST /api/dispatch/{id}/assign       tolak armada inactive/sold & jadwal perawatan; simpan origin_lat/lng
+POST /api/dispatch/trips/{id}/enroute · /driver/checkin · …/pod · /trips/{id}/status
+                                     trip/booking selesai/batal → 400 (trip completed tak bisa mundur)
+PATCH /api/vehicles/{id}             odometer turun → 400 (koreksi hanya owner)
+POST /api/maintenance/{id}/complete  odometer servis < odometer armada → 400
+POST /api/payroll/payouts/{id}/approve|pay · /payroll/withdrawals/{id}/reject   CAS → 409/400 bila
+                                     sudah diproses; POST /driver/fees/withdraw serial per sopir
+```
+
+## 10. AUDIT RONDE 2 — ALUR SOPIR · FEE → KEUANGAN · ATURAN BOOKING (2026-10-28)
+```
+# Router baru routers/booking_lifecycle.py (path API tetap):
+POST /api/bookings/{id}/approve          pending → confirmed. base_price kosong = harga dihitung ulang dari
+                                         tarif unit terpilih (add-on & promo tetap); isi = harga nego (promo gugur)
+POST /api/bookings/{id}/reject           body {reason?}; pending|hold → cancelled; alasan tampil ke pelanggan;
+                                         kuota promo kembali; 400 bila sudah ada pembayaran / bukti DP pending
+POST /api/bookings/{id}/complete         hanya confirmed|ongoing & jadwal mulai sudah lewat (trip standby
+                                         ditutup sbg override ops)
+GET  /api/bookings/{id}/reprice-preview?start&end&vehicle_id  → {available,old_total,new_total,difference,
+                                         breakdown,promo_dropped,paid_amount} (tanpa menyimpan)
+GET  /api/bookings                       + has_invoice per item
+POST /api/bookings/{id}/cancel           + aturan: (terbayar − refund) ≤ denda; 400 bila bukti DP pending
+PATCH /api/bookings/{id} driver_id       trip yang belum jalan IKUT pindah ke sopir baru (on_trip → 400)
+# Status trip (SSOT services/trips): standby → to_pickup → on_trip → completed; maju saja.
+POST /api/driver/checkout · /trips/{id}/status=completed  trip standby → 400; trip selesai = idempoten
+                                         (km/odometer tidak ditimpa); odometer akhir < awal/armada → 400
+POST …/arrived (dispatch & driver)       hanya on_trip
+POST …/pod (dispatch & driver)           hanya on_trip|completed; POD TIDAK lagi menyelesaikan trip
+POST /api/dispatch/{id}/assign · confirm-departure   hanya booking confirmed|ongoing; assign tidak lagi
+                                         membuat armada on_trip (on_trip saat sopir berangkat)
+GET  /api/dispatch/today                 + driver_ack_at, enroute_at, trip_started_at, arrived_at, can_dispatch
+GET  /api/trips?active=true              trip standby/to_pickup/on_trip + booking_code/origin/destination
+GET  /api/trips · /trips/{id} · /track · /eta   sopir hanya trip miliknya, tanpa revenue/profit
+# Keuangan fee sopir (services/driver_fee_ledger):
+#   trip selesai → expense gaji_driver akrual (source=driver_fee, trip/booking/vehicle, paid=false)
+#   POST /api/payroll/withdrawals/{id}/pay → TIDAK membuat expense; melunasi akrual FIFO
+#   GET /api/finance/cashflow → kas keluar basis kas (akrual belum dibayar tak dihitung; pencairan masuk)
+#   GET /api/finance/summary → expenses/profit = pl-full (incl. perawatan selesai)
+#   PATCH/DELETE /api/expenses/{id} → 400 utk expense otomatis (payroll/fee/pencairan lama/sewa mitra)
+#   POST /api/payroll/payouts/generate → trip ber-fee tidak diberi komisi/trip, %revenue, uang jalan
+#   GET /api/reports/payroll → per_driver.fee & total_sdm, total_fee
+# Publik GET /api/public/booking/{code}?token= → + dp_required, cancel_blocked_reason, cancellation_reason;
+#   can_upload_proof false saat pending; unggah bukti saat pending → 400
+```
+
+## 11. AUDIT RONDE 3 — DOKUMEN · CETAK · OTOMASI WHATSAPP/OpenWA (2026-10-28)
+```
+# WhatsApp (services/whatsapp.py)
+POST /api/wa/webhook                     HANYA provider meta_cloud (selain itu 403); signature X-Hub dicek bila
+                                         app_secret diisi. OpenWA masuk lewat /api/wa/openwa-webhook?key= (ber-key),
+                                         simulasi mock lewat /api/wa/simulate-inbound (login)
+pesan masuk                              didedupe per wa_message_id (retry webhook → {"status":"duplicate"});
+                                         0812…/62812…/+62812… = satu percakapan & satu kontak
+balasan otomatis                         sekali per auto_reply_cooldown_hours (bawaan 12) per percakapan;
+                                         jam kerja dibaca dalam WIB
+pesan otomasi/sistem gagal               dicoba ulang otomatis 5 → 30 → 120 mnt (scheduler, retry_failed)
+POST /api/conversations/{cid}/messages/{mid}/retry   kirim ulang pesan TEKS keluar yang gagal (bukan lampiran);
+                                         400 bila bukan pesan gagal / masih gagal
+# Otomasi (rule sistem baru, dipasang otomatis saat startup — sync_system_rules)
+booking.hold_created → WA nominal DP + batas waktu + tautan status   booking.hold_expired → WA ke pelanggan
+booking.payment_proof_uploaded → notifikasi ops                      booking.payment_proof_rejected → WA alasan
+booking.confirmed WA: jadwal WIB + payment_note (lunas / sudah dibayar Rp X sisa Rp Y / mohon DP N%)
+payment.recorded WA: {type_label} (DP/pelunasan/denda/pengembalian) + {outstanding_note}
+invoice.overdue WA ke pelanggan: hari ke-1, 3, 7, 14 lalu tiap 14 hari (notifikasi internal tetap harian);
+booking.departure_due sekali per jadwal keberangkatan
+quotation.sent: dedupe per isi penawaran (revisi terkirim lagi; klik ganda tidak); valid_until "4 November 2026"
+# Dokumen
+POST /api/invoices                       409 bila booking masih punya invoice terbuka yang belum dibayar (tagihan
+                                         tak boleh tumpang-tindih); mutex per booking (permintaan paralel)
+POST /api/invoices/{id}/send-wa          400 utk invoice void; PDF terkirim berstatus "Terkirim" (bukan Draft);
+                                         caption: sudah dibayar/sisa atau LUNAS; nama tidak lagi dirusak (koma)
+POST /api/bookings/{id}/send-invoice-wa  booking batal: hanya tagihan terbuka (404 "tidak punya tagihan terbuka")
+GET  /api/bookings                       has_invoice booking batal = ada tagihan terbuka
+GET  /api/invoices                       + kind_label (invoice denda: "Denda Pembatalan")
+GET  /api/invoices/{id}/export?format=excel   judul per jenis, rincian item, nominal NUMERIK, terbayar/sisa
+GET  /api/receipts                       tanpa refund; POST …/receipt utk refund/nominal ≤ 0 → 400
+POST /api/payments/{id}/receipt/send-wa  nomor kwitansi baru terbit SETELAH nomor WA pelanggan ada
+PUT  /api/doc-layouts/{code}             table.grid ∈ full|horizontal|none, table.alignment ∈ left|center|right,
+                                         table.grid_color hex, sections[].key harus dikenal → selain itu 422
+GET  /api/bookings/calendar(?month) · /calendar/export   bulan/rentang menurut hari WIB; jam cetak WIB;
+                                         nama perusahaan dari pengaturan; teks pengguna di-escape
+GET  /api/quotations/{id}/pdf            nama perusahaan dari pengaturan, tanggal Indonesia, tanpa status "Draft"
+POST/PATCH /api/quotations               item boleh negatif (diskon) asal total > 0 (400)
+POST /api/quotations/{id}/convert        item penawaran → booking.price_breakdown (invoice per item)
+# Semua tanggal dokumen (invoice/kwitansi/kalender/CSV hold) = WIB; penanda tangan = penerbit dokumen.
+```

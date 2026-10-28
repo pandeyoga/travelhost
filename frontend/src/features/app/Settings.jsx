@@ -14,6 +14,7 @@ import BookingFlowPanel from "@/components/app/BookingFlowPanel";
 import TransferRoutesPanel from "@/components/app/TransferRoutesPanel";
 import WhatsAppSettings from "@/components/app/WhatsAppSettings";
 import UnitRatesPanel from "@/components/app/UnitRatesPanel";
+import { VEHICLE_TYPES } from "@/lib/vehicleTypes";
 
 function Section({ icon: Icon, title, desc, children, onSave, saving, testId }) {
   return (
@@ -44,14 +45,7 @@ function Field({ label, children }) {
   );
 }
 
-// Tipe armada yang punya tarif harian (sinkron dgn services/pricing.VEHICLE_TYPES).
-const VEHICLE_TYPES = [
-  { k: "hiace_premio", l: "Hiace Premio" },
-  { k: "hiace", l: "Hiace Commuter" },
-  { k: "elf", l: "Isuzu Elf" },
-  { k: "bus", l: "Medium Bus" },
-  { k: "avanza", l: "Avanza / MPV" },
-];
+// Tipe armada yang punya tarif harian: SSOT lib/vehicleTypes (sinkron services/pricing).
 
 export default function Settings() {
   const { user } = useAuth();

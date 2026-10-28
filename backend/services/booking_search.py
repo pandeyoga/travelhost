@@ -17,6 +17,7 @@ Ketersediaan memakai mesin yang SUDAH ADA & sudah diuji (services/availability.p
 bentrok booking aktif (hold/confirmed/ongoing) + jendela perawatan. Query dilakukan SEKALI
 untuk semua kandidat (bukan per unit) supaya pencarian tetap cepat.
 """
+from core_utils import money
 from services.availability import ACTIVE_BOOKING_STATUSES, MAINT_BLOCKING_STATUSES, overlaps
 from services.pricing import (compute_quote, get_dp_percent, get_pricing_rules,
                               resolve_day_rate, span_days, type_label)
@@ -141,6 +142,90 @@ async def quote_for_vehicle(db, vehicle, *, start_iso, end_iso, service="daily_r
     return quote
 
 
+async def quote_with_promo(db, vehicle, *, promo_code, start_iso, end_iso, service="daily_rental",
+                           route=None, add_ons=None, rules=None, holidays=None, dp_percent=None):
+    """Kutipan satu unit + promo yang divalidasi UNTUK UNIT ITU → (quote, promo_doc|None).
+
+    SSOT untuk hasil pencarian, kutipan final, dan submit. Dulu pencarian memvalidasi promo
+    hanya terhadap unit termurah lalu menempelkan potongan rupiah yang sama ke SEMUA unit
+    (promo persen salah nominal, promo khusus tipe ikut tampil di tipe lain).
+    Promo tak berlaku → `promos.PromoError` (pemanggil memutuskan: tolak atau tampilkan tanpa promo).
+    """
+    from services import promos as promo_svc
+    from services.geo import parse_iso
+    kw = dict(start_iso=start_iso, end_iso=end_iso, service=service, route=route, add_ons=add_ons,
+              rules=rules, holidays=holidays, dp_percent=dp_percent)
+    base = await quote_for_vehicle(db, vehicle, **kw)
+    if not base or not str(promo_code or "").strip():
+        return base, None
+    days = base["days"] if service != "airport_transfer" else span_days(start_iso, end_iso)
+    checked = await promo_svc.validate(db, promo_code, subtotal=base["subtotal"], days=days,
+                                       vehicle_type=vehicle.get("type"), service=service,
+                                       start_dt=parse_iso(start_iso))
+    quote = await quote_for_vehicle(db, vehicle, discount=checked["discount"],
+                                    discount_label=checked["label"], **kw)
+    quote["promo_label"] = checked["label"]
+    return quote, checked["promo"]
+
+
+async def requote_booking(db, booking, vehicle, *, route=None):
+    """Harga ulang booking untuk `vehicle` (persetujuan ops) → (quote|{}, promo|None).
+
+    MEMPERTAHANKAN add-on & promo yang dijanjikan saat pelanggan memesan. Dulu persetujuan
+    menghitung ulang tanpa keduanya → pelanggan ditagih harga penuh sementara kuota promo tetap
+    terpakai. Promo dinilai per tanggal pesan (`now` = created_at) dan kuota pesanan ini tidak
+    dihitung dua kali; promo yang tak berlaku untuk unit pengganti → harga normal (promo=None).
+    """
+    from services import promos as promo_svc
+    from services.geo import parse_iso
+    service = booking.get("service") or "daily_rental"
+    start_iso, end_iso = booking.get("start_datetime"), booking.get("end_datetime")
+    kw = dict(start_iso=start_iso, end_iso=end_iso, service=service, route=route,
+              add_ons=booking.get("add_ons") or [])
+    base = await quote_for_vehicle(db, vehicle, **kw)
+    promo = await db.promos.find_one({"id": booking["promo_id"]}, {"_id": 0}) if booking.get("promo_id") else None
+    if not base or not promo:
+        return base, None
+    promo = {**promo, "used_count": max(int(promo.get("used_count") or 0) - 1, 0)}
+    days = base["days"] if service != "airport_transfer" else span_days(start_iso, end_iso)
+    try:
+        disc = promo_svc.evaluate(promo, subtotal=base["subtotal"], days=days,
+                                  vehicle_type=vehicle.get("type"), service=service,
+                                  start_dt=parse_iso(start_iso), now=parse_iso(booking.get("created_at")))
+    except promo_svc.PromoError:
+        return base, None
+    quote = await quote_for_vehicle(db, vehicle, discount=disc,
+                                    discount_label=promo_svc.label_for(promo, disc), **kw)
+    return quote, promo
+
+
+async def repriced_fields(db, booking, vehicle, *, start_iso=None, end_iso=None):
+    """Field harga baru booking untuk unit/jadwal ini → (fields, promo_id_gugur).
+
+    SSOT harga ulang untuk persetujuan hold & jadwal ulang. `fields` = {} bila unit tak bisa
+    dihargai (rute transfer tak dilayani) → pemanggil mempertahankan harga lama. INV-1:
+    base_price = total − Σ add-on. Promo yang tak lagi berlaku → dikosongkan & id-nya
+    dikembalikan supaya pemanggil melepas kuotanya SETELAH update berhasil.
+    """
+    route = None
+    if booking.get("route_id"):
+        route = await db.transfer_routes.find_one({"id": booking["route_id"]}, {"_id": 0})
+    target = {**booking, "start_datetime": start_iso or booking.get("start_datetime"),
+              "end_datetime": end_iso or booking.get("end_datetime")}
+    quote, promo = await requote_booking(db, target, vehicle, route=route)
+    if not quote:
+        return {}, ""
+    total = money(quote["total"])
+    addons_sum = sum(money(a.get("amount")) for a in booking.get("add_ons") or [])
+    fields = {"total_amount": total, "base_price": total - addons_sum,
+              "price_breakdown": quote.get("breakdown") or [],
+              "promo_discount": money(quote.get("discount"))}
+    dropped = booking.get("promo_id") if booking.get("promo_id") and not promo else ""
+    if dropped:
+        fields.update({"promo_id": "", "promo_code": ""})
+    return fields, dropped
+
+
 def flat_rate_for(route, vehicle_type):
     """Tarif flat rute bandara untuk satu tipe armada; None = tipe itu TIDAK dilayani.
 
@@ -158,8 +243,13 @@ def flat_rate_for(route, vehicle_type):
 
 async def search(db, *, service="daily_rental", start_iso="", end_iso="", pax=0,
                  vehicle_type=None, route=None, add_ons=None, discount=0,
-                 discount_label="") -> dict:
-    """Daftar unit yang BEBAS + harga masing-masing (urut termurah)."""
+                 discount_label="", promo_code="") -> dict:
+    """Daftar unit yang BEBAS + harga masing-masing (urut termurah).
+
+    `promo_code` divalidasi PER UNIT (quote_with_promo); unit yang tak memenuhi syarat promo
+    tetap tampil dengan harga normal + `promo_error` berisi alasannya.
+    """
+    from services.promos import PromoError
     candidates = await publishable_vehicles(db, pax=pax, vehicle_type=vehicle_type)
     busy = await busy_map(db, start_iso, end_iso)
     rules = await get_pricing_rules(db)
@@ -173,14 +263,23 @@ async def search(db, *, service="daily_rental", start_iso="", end_iso="", pax=0,
         if v["id"] in busy:
             unavailable.append({**card, "reason": busy[v["id"]]})
             continue
-        quote = await quote_for_vehicle(
-            db, v, start_iso=start_iso, end_iso=end_iso, service=service, route=route,
-            add_ons=add_ons, discount=discount, discount_label=discount_label,
-            rules=rules, holidays=holidays, dp_percent=dp_percent)
+        kw = dict(start_iso=start_iso, end_iso=end_iso, service=service, route=route,
+                  add_ons=add_ons, rules=rules, holidays=holidays, dp_percent=dp_percent)
+        promo_error = ""
+        if str(promo_code or "").strip():
+            try:
+                quote, _promo = await quote_with_promo(db, v, promo_code=promo_code, **kw)
+            except PromoError as exc:
+                quote, promo_error = await quote_for_vehicle(db, v, **kw), str(exc)
+        else:
+            quote = await quote_for_vehicle(db, v, discount=discount, discount_label=discount_label, **kw)
         if not quote:
             unavailable.append({**card, "reason": "Tidak melayani rute ini"})
             continue
-        options.append({"vehicle": card, "quote": quote, "available": True})
+        opt = {"vehicle": card, "quote": quote, "available": True}
+        if promo_error:
+            opt["promo_error"] = promo_error
+        options.append(opt)
     options.sort(key=lambda o: (o["quote"]["total"], o["vehicle"]["capacity"]))
     return {"options": options, "unavailable": unavailable,
             "count": len(options), "checked": len(candidates)}

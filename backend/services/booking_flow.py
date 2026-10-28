@@ -156,16 +156,21 @@ def new_public_token() -> str:
     return secrets.token_urlsafe(24)
 
 
-def hold_fields(*, total, dp_percent, hold_hours, now=None) -> dict:
-    """Field reservasi DP (dipakai jalur publik & persetujuan ops) — SSOT bentuknya."""
+def hold_fields(*, total, dp_percent, hold_hours, now=None, rounding=None) -> dict:
+    """Field reservasi DP (jalur publik, persetujuan ops, booking ERP & grup) — SSOT bentuknya.
+
+    `rounding` = `pricing_rules.rounding`; nominal DP lewat services.pricing.dp_amount_for
+    sehingga sama persis dengan DP yang tampil di kutipan harga.
+    """
+    from services.pricing import dp_amount_for
     base = now or datetime.now(timezone.utc)
     hours = int(max(1, min(168, money(hold_hours) or 2)))
-    pct = float(max(0, min(100, money(dp_percent))))
+    pct = float(max(0, min(100, float(dp_percent or 0))))
     return {
         "hold_expires_at": (base + timedelta(hours=hours)).isoformat(),
         "hold_hours": hours,
         "dp_percent": pct,
-        "dp_amount": money(money(total) * pct / 100.0),
+        "dp_amount": dp_amount_for(total, pct, rounding),
     }
 
 
@@ -198,3 +203,51 @@ def service_meta(service) -> dict:
     return SERVICES.get(str(service or "").strip(), {
         "value": SERVICE_REQUEST_ONLY, "label": "Permintaan Khusus",
         "tagline": "Harga & unit ditetapkan tim kami", "price_basis": "penawaran"})
+
+
+def _rp(v) -> str:
+    return f"Rp {money(v):,}".replace(",", ".")
+
+
+def payment_note(booking: dict, dp_percent, total=None) -> str:
+    """Kalimat status bayar utk WA konfirmasi. Dulu pesan SELALU "Mohon DP 30%" — juga kepada
+    pelanggan yang DP-nya baru saja masuk (konfirmasi terpicu oleh pembayaran itu sendiri)."""
+    total = money(booking.get("total_amount") if total is None else total)
+    paid = money(booking.get("paid_amount"))
+    if total > 0 and paid >= total:
+        return "Pembayaran sudah lunas."
+    if paid > 0:
+        return f"Pembayaran {_rp(paid)} sudah kami terima; sisa {_rp(total - paid)}."
+    dp = money(booking.get("dp_amount")) or money(total * float(dp_percent or 0) / 100.0)
+    return f"Mohon DP {int(float(dp_percent or 0))}% ({_rp(dp)}) untuk mengamankan jadwal." if dp else ""
+
+
+async def emit_booking_confirmed(db, booking, source="bookings", *, overrides=None, dedupe_key=None):
+    """SSOT event booking.confirmed (idempotent per booking) — create/confirm/setujui/DP lunas
+    (payments)/konversi penawaran/rombongan. Jadwal dikirim ISO (render template → WIB).
+
+    SATU SUMBER DP (services.pricing.get_dp_percent) — dulu router membaca
+    `pricing_defaults.dp_percent` sendiri sehingga DP di WhatsApp bisa berbeda dari situs.
+    """
+    from services.events import emit
+    from services.pricing import get_dp_percent
+    cust = await db.customers.find_one({"id": booking.get("customer_id")}, {"_id": 0, "phone": 1, "name": 1}) or {}
+    dp_pct = booking.get("dp_percent") if booking.get("dp_percent") is not None else await get_dp_percent(db)
+    payload = {
+        "booking_id": booking["id"], "code": booking.get("code"),
+        "customer_name": booking.get("customer_name") or cust.get("name"),
+        "phone": cust.get("phone") or booking.get("contact_phone"),
+        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": dp_pct,
+        "vehicle_name": booking.get("vehicle_name"), "start_datetime": booking.get("start_datetime"),
+        "paid_amount": float(money(booking.get("paid_amount"))),
+    }
+    payload.update(overrides or {})
+    payload["payment_note"] = payment_note(booking, dp_pct, total=payload["total_amount"])
+    await emit(db, "booking.confirmed", payload, source=source, ref_type="booking", ref_id=booking["id"],
+               dedupe_key=dedupe_key or f"booking.confirmed:{booking['id']}")
+
+
+async def pending_proof(db, booking_id: str):
+    """Bukti transfer pelanggan yang MENUNGGU verifikasi (uang mungkin sudah masuk)."""
+    return await db.payment_proofs.find_one({"booking_id": booking_id, "status": "pending"}, {"_id": 0, "id": 1})
+

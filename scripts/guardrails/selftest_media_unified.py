@@ -248,8 +248,8 @@ MUTATIONS = [
     dict(
         key="M23 header ETag diganti nama, kata 'ETag' cuma tinggal di docstring",
         file=f"{BE}/routers/public.py",
-        old='headers={"Cache-Control": cache, "ETag": etag})',
-        new='headers={"Cache-Control": cache, "X-Media-Tag": etag})',
+        old='base_headers = {"Cache-Control": cache, "ETag": etag, "Accept-Ranges": "bytes"}',
+        new='base_headers = {"Cache-Control": cache, "X-Media-Tag": etag, "Accept-Ranges": "bytes"}',
         expect="tidak mengirim ETag",
         impact="LUBANG NYATA yang ditemukan self-test ini: penjaga dulu puas karena kata 'ETag' "
                "masih ada di DOCSTRING fungsi, padahal header aslinya sudah hilang.",

@@ -138,10 +138,15 @@ async def wa_webhook_receive(request: Request):
     db = get_db()
     cfg = await wa.get_config(db)
     raw = await request.body()
-    if cfg.get("provider") == "meta_cloud":
-        secret = (cfg.get("meta") or {}).get("app_secret")
-        if secret and not wa.verify_signature(secret, raw, request.headers.get("X-Hub-Signature-256")):
-            raise HTTPException(status_code=403, detail="Signature tidak valid")
+    # Endpoint PUBLIK ini hanya untuk Meta Cloud. Dulu, dengan provider mock/openwa, siapa pun bisa
+    # POST {from,text} / event OpenWA palsu TANPA autentikasi → lead palsu + balasan otomatis WA ke
+    # nomor sembarang lewat akun OpenWA (risiko nomor bisnis diblokir WhatsApp). Pesan masuk
+    # OpenWA lewat /wa/openwa-webhook (ber-key); simulasi mock lewat /wa/simulate-inbound (login).
+    if cfg.get("provider") != "meta_cloud":
+        raise HTTPException(status_code=403, detail="Webhook publik hanya untuk provider Meta Cloud")
+    secret = (cfg.get("meta") or {}).get("app_secret")
+    if secret and not wa.verify_signature(secret, raw, request.headers.get("X-Hub-Signature-256")):
+        raise HTTPException(status_code=403, detail="Signature tidak valid")
     try:
         payload = json.loads(raw or b"{}")
     except Exception:

@@ -53,24 +53,10 @@ async def recompute_booking_payment(db, booking_id: str):
     return paid, ps
 
 
-
 # === Phase 5: agregasi keuangan (profit-loss, AR, invoice numbering) ===
 from datetime import datetime as _dt, timezone as _tz
 
 EXPENSE_CATEGORIES = ("bbm", "tol", "uang_jalan", "gaji_driver", "sewa_mitra", "other")
-
-
-async def next_invoice_number(db) -> str:
-    """Nomor invoice unik dgn reset tahunan: INV-<YYYY>-0001 (INV-8).
-
-    A2: ATOMIK via counters ($inc) — gantikan pola `max(...)+1` yang rawan
-    duplikasi saat dua request menerbitkan invoice bersamaan.
-    """
-    from services.counters import next_seq
-
-    year = _dt.now(_tz.utc).year
-    seq = await next_seq(db, f"invoice:{year}")
-    return f"INV-{year}-{seq:04d}"
 
 
 async def sum_expenses(db, query=None) -> float:

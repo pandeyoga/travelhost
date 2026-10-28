@@ -31,6 +31,9 @@ DEFAULT_CONFIG = {
     "price_per_message": 350,       # estimasi biaya per pesan (IDR) utk cost tracking
     "session_hours": 24,
     "auto_reply_enabled": True,
+    # Balasan otomatis paling sering sekali per N jam per percakapan (dulu SETIAP pesan masuk dibalas:
+    # pelanggan yang mengetik 5 pesan menerima 5 balasan otomatis + biaya per pesan).
+    "auto_reply_cooldown_hours": 12,
     "auto_reply_text": "Halo! Terima kasih telah menghubungi {company}. Pesan Anda kami terima dan akan segera dibalas tim kami. 🙏",
     "away_reply_text": "Terima kasih telah menghubungi {company}. Saat ini di luar jam operasional ({open}–{close}). Tim kami akan membalas pada jam kerja.",
     "meta": {"phone_number_id": "", "access_token": "", "verify_token": "rahaza-wa-verify", "app_secret": "", "api_version": "v21.0"},
@@ -186,7 +189,8 @@ class OpenWaProvider(WhatsAppProvider):
     async def _call(self, method, args, timeout=30):
         from services import openwa as ow
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            # connect singkat: sidecar mati → gagal cepat (otomasi berjalan inline di transaksi bisnis).
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=4)) as client:
                 r = await client.post(f"{ow.base_url()}/api/messages/{method}",
                                       json={"args": args}, headers=ow.headers())
         except Exception as exc:  # noqa: BLE001
@@ -335,6 +339,21 @@ async def _company_name(db):
     return "kami"
 
 
+def phone_variants(phone) -> list:
+    """Semua bentuk nomor yang sama (0812…, 62812…, +62812…) — dulu pesan keluar ke 0812… dan
+    balasan masuk dari 62812… (format OpenWA/Meta) menjadi DUA percakapan berbeda di Inbox."""
+    raw = (phone or "").strip()
+    try:
+        from services.identity import normalize_phone
+        norm = normalize_phone(raw)
+    except Exception:  # noqa: BLE001
+        norm = ""
+    out = {raw}
+    if norm:
+        out.update({norm, norm.lstrip("+"), "0" + norm[3:] if norm.startswith("+62") else norm})
+    return [v for v in out if v]
+
+
 def _within_session(conv):
     exp = parse_iso((conv or {}).get("session_expires_at"))
     return bool(exp and exp > datetime.now(timezone.utc))
@@ -342,13 +361,9 @@ def _within_session(conv):
 
 async def ensure_conversation(db, phone, *, name=None, lead_id=None, customer_id=None):
     phone = (phone or "").strip()
-    try:
-        from services.identity import normalize_phone
-        norm = normalize_phone(phone)
-    except Exception:
-        norm = phone
     conv = await db.conversations.find_one(
-        {"channel": "whatsapp", "contact_phone": {"$in": list({phone, norm})}}, {"_id": 0})
+        {"channel": "whatsapp", "contact_phone": {"$in": phone_variants(phone)}}, {"_id": 0},
+        sort=[("last_message_at", -1)])
     if conv:
         patch = {}
         if lead_id and not conv.get("lead_id"):
@@ -414,6 +429,7 @@ async def send_wa(db, to_phone, *, text=None, template_key=None, variables=None,
         ok = res.get("status") in ("sent", "delivered", "read")
         cost = float(res.get("cost") or 0) if ok else 0.0
         now = now_iso()
+        retry_at = _first_retry_at(res, source, media_data)
         msg = {
             "id": new_id("msg"), "conversation_id": conv["id"], "sender": "agent",
             "author_id": author_id, "body": body, "internal": False,
@@ -422,6 +438,7 @@ async def send_wa(db, to_phone, *, text=None, template_key=None, variables=None,
             "provider": provider.name, "source": source, "error": res.get("error"),
             "outside_session": (not within and not used_template), "created_at": now,
             "attachment": ({"filename": media_filename or "lampiran"} if media_data else None),
+            "retry_count": 0, "retry_at": retry_at,
         }
         await db.messages.insert_one(msg)
         preview = (f"📎 {media_filename or 'lampiran'}" + (f" · {body}" if body else "")) if media_data else body
@@ -436,15 +453,81 @@ async def send_wa(db, to_phone, *, text=None, template_key=None, variables=None,
         return {"status": "failed", "error": str(exc)[:160]}
 
 
+# --- Coba-ulang pesan gagal --------------------------------------------------------------
+# Dulu pesan otomatis yang gagal (sesi OpenWA terputus, HP mati, sidecar restart) hilang diam-diam:
+# pelanggan tak pernah menerima konfirmasi/instruksi DP. Kini pesan TEKS dari otomasi/sistem yang
+# gagal karena transport dicoba ulang terjadwal (5 mnt → 30 mnt → 2 jam). Pesan agen tidak diulang
+# otomatis (agen sudah melihat galat & bisa menekan "Kirim ulang"); lampiran tidak disimpan → tidak.
+RETRY_DELAYS_MIN = (5, 30, 120)
+_PERMANENT_ERRORS = ("Nomor tujuan tidak valid", "Nomor tujuan kosong")
+
+
+def _first_retry_at(res, source, media_data):
+    if res.get("status") != "failed" or media_data or (source or "").startswith("agent"):
+        return None
+    if any(p in str(res.get("error") or "") for p in _PERMANENT_ERRORS):
+        return None
+    return (datetime.now(timezone.utc) + timedelta(minutes=RETRY_DELAYS_MIN[0])).isoformat()
+
+
+async def resend_message(db, msg: dict) -> dict:
+    """Kirim ulang satu pesan TEKS keluar yang gagal (dipakai scheduler & tombol "Kirim ulang")."""
+    conv = await db.conversations.find_one({"id": msg.get("conversation_id")}, {"_id": 0}) or {}
+    if conv.get("wa_opt_in") is False:
+        await db.messages.update_one({"id": msg["id"]}, {"$set": {"retry_at": None, "error": "Kontak opt-out"}})
+        return {"status": "skipped"}
+    provider = _provider_for(await get_config(db))
+    try:
+        res = await provider.send_text(conv.get("contact_phone"), msg.get("body") or "")
+    except Exception as exc:  # noqa: BLE001
+        res = {"status": "failed", "error": str(exc)[:160]}
+    count = int(msg.get("retry_count") or 0) + 1
+    if res.get("status") in ("sent", "delivered", "read"):
+        patch = {"status": res["status"], "wa_message_id": res.get("wa_message_id"), "error": None,
+                 "retry_at": None, "retry_count": count, "resent_at": now_iso(), "provider": provider.name}
+    else:
+        nxt = RETRY_DELAYS_MIN[count] if count < len(RETRY_DELAYS_MIN) else None
+        patch = {"status": "failed", "error": res.get("error"), "retry_count": count,
+                 "retry_at": (datetime.now(timezone.utc) + timedelta(minutes=nxt)).isoformat() if nxt else None}
+    await db.messages.update_one({"id": msg["id"]}, {"$set": patch})
+    return {**res, "retry_count": count}
+
+
+async def retry_failed(db, limit: int = 50) -> int:
+    """Scheduler: kirim ulang pesan gagal yang jadwal coba-ulangnya sudah tiba. Return terkirim."""
+    due = await db.messages.find(
+        {"direction": "out", "status": "failed", "retry_at": {"$ne": None, "$lte": now_iso()}},
+        {"_id": 0}).sort("retry_at", 1).to_list(limit)
+    sent = 0
+    for m in due:
+        claim = await db.messages.update_one(  # CAS: dua worker tak mengirim pesan yang sama
+            {"id": m["id"], "retry_at": m["retry_at"]}, {"$set": {"retry_at": "sending"}})
+        if not claim.modified_count:
+            continue
+        res = await resend_message(db, m)
+        sent += res.get("status") in ("sent", "delivered", "read")
+    return sent
+
+
 async def _maybe_auto_reply(db, conv, cfg):
     if not cfg.get("auto_reply_enabled"):
+        return
+    cooldown = timedelta(hours=float(cfg.get("auto_reply_cooldown_hours") or 12))
+    last = parse_iso(conv.get("last_auto_reply_at"))
+    if last and datetime.now(timezone.utc) - last < cooldown:
+        return  # sudah dibalas otomatis dalam jendela ini — biarkan agen yang melanjutkan
+    claimed = await db.conversations.update_one(  # CAS: dua pesan beruntun tak sama-sama membalas
+        {"id": conv["id"], "last_auto_reply_at": conv.get("last_auto_reply_at")},
+        {"$set": {"last_auto_reply_at": now_iso()}})
+    if not claimed.modified_count:
         return
     text = cfg.get("auto_reply_text") or ""
     op = await db.settings.find_one({"key": "operational"}, {"_id": 0})
     wh = ((op or {}).get("value") or {}).get("work_hours") or {}
     open_h, close_h = wh.get("open", "08:00"), wh.get("close", "17:00")
     try:
-        now_hm = datetime.now(timezone.utc).strftime("%H:%M")
+        from services.geo import BUSINESS_TZ
+        now_hm = datetime.now(timezone.utc).astimezone(BUSINESS_TZ).strftime("%H:%M")  # jam kerja = WIB
         if not (open_h <= now_hm <= close_h):
             text = cfg.get("away_reply_text") or text
     except Exception as exc:  # noqa: BLE001
@@ -465,6 +548,11 @@ async def handle_inbound(db, from_phone, text, *, name=None, provider_msg_id=Non
     from_phone = (from_phone or "").strip()
     if not from_phone or not (text or "").strip():
         return {"status": "ignored", "reason": "from/text kosong"}
+    # Webhook bisa mengirim ulang pesan yang sama (retry sidecar/Meta) → jangan dobel pesan,
+    # lead, notifikasi, maupun balasan otomatis.
+    if provider_msg_id and await db.messages.find_one(
+            {"wa_message_id": provider_msg_id, "direction": "in"}, {"_id": 1}):
+        return {"status": "duplicate", "wa_message_id": provider_msg_id}
     ad_ref = {}
     try:
         from services.lead_ads import parse_wa_referral
@@ -476,10 +564,11 @@ async def handle_inbound(db, from_phone, text, *, name=None, provider_msg_id=Non
         norm = normalize_phone(from_phone)
     except Exception:
         norm = from_phone
+    variants = phone_variants(from_phone)
     customer = await db.customers.find_one(
-        {"$or": [{"phone": from_phone}, {"phone_normalized": norm}]}, {"_id": 0})
+        {"$or": [{"phone": {"$in": variants}}, {"phone_normalized": norm}]}, {"_id": 0})
     lead = await db.leads.find_one(
-        {"$or": [{"phone": from_phone}, {"phone_normalized": norm}]}, {"_id": 0})
+        {"$or": [{"phone": {"$in": variants}}, {"phone_normalized": norm}]}, {"_id": 0})
     conv = await ensure_conversation(db, from_phone, name=name,
                                      lead_id=lead["id"] if lead else None,
                                      customer_id=customer["id"] if customer else None)

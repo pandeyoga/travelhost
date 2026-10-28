@@ -58,6 +58,7 @@ CONCEPTS = [
     Concept("lead_activities", "lead_activities", False, []),
     Concept("maintenance_records", "maintenance_records", False, ["maintenance", "servis"]),
     Concept("trip_shares", "trip_shares", False, []),
+    Concept("schedule_shares", "schedule_shares", False, ["jadwal_shares", "calendar_shares"]),
     Concept("conversations", "conversations", False, ["inbox", "percakapan"]),
     Concept("messages", "messages", False, ["pesan"]),
     Concept("notification_tasks", "notification_tasks", False, ["notifikasi", "reminder"]),
@@ -268,7 +269,21 @@ async def layer_invariants(db):
             e = None
         if not s.get("token") or e is None or e <= now_dt:
             v22.append(s.get("id"))
-    _report("INV-22 share token aktif sah", v22, len(shares))
+    # Share-link jadwal: token wajib & unik LINTAS jenis tautan; expires_at boleh kosong
+    # (= tanpa batas waktu, by design) tetapi bila diisi harus ISO yang sah.
+    sched = await db.schedule_shares.find({}, {"_id": 0}).to_list(5000)
+    all_tokens = tokens + [s.get("token") for s in sched if s.get("token")]
+    if len(all_tokens) != len(set(all_tokens)):
+        v22.append("token-duplikat-lintas-jenis")
+    for s in sched:
+        exp = s.get("expires_at")
+        try:
+            ok_exp = exp is None or datetime.fromisoformat(str(exp).replace("Z", "+00:00"))
+        except Exception:
+            ok_exp = False
+        if not s.get("token") or not ok_exp:
+            v22.append(s.get("id"))
+    _report("INV-22 share token aktif sah", v22, len(shares) + len(sched))
 
     # INV-23 message.conversation_id selalu rujuk conversation sah (tak ada pesan yatim)
     convo_ids = set(c.get("id") for c in await db.conversations.find({}, {"_id": 0, "id": 1}).to_list(5000))

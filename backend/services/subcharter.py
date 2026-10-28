@@ -76,8 +76,8 @@ async def build_partner_payload(db, subcharter, partner=None, booking=None):
         "pic": partner.get("pic"),
         "phone": partner.get("phone"),  # WA dikirim ke MITRA
         "vehicle_label": subcharter.get("vehicle_label") or subcharter.get("vehicle_name") or "unit",
-        "start_datetime": (subcharter.get("start_datetime") or "")[:16].replace("T", " "),
-        "end_datetime": (subcharter.get("end_datetime") or "")[:16].replace("T", " "),
+        "start_datetime": subcharter.get("start_datetime") or "",
+        "end_datetime": subcharter.get("end_datetime") or "",
         "cost": float(subcharter.get("cost", 0) or 0),
         "booking_code": booking.get("code"),
         "destination": booking.get("destination"),

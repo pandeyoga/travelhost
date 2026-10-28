@@ -16,8 +16,7 @@ import {
 } from "@/components/ui/select";
 import { formatDateTime, formatQty } from "@/utils/formatters";
 
-const TRIP_TONE = { standby: "neutral", to_pickup: "warning", on_trip: "info", completed: "success" };
-const TRIP_LABEL = { standby: "Standby", to_pickup: "Menuju Penjemputan", on_trip: "Dalam Perjalanan", completed: "Selesai" };
+import { tripStatusLabel, tripStatusTone } from "@/lib/statusLabels";
 const LIVE_DOT = { moving: "#34C759", idle: "#FF9500", offline: "#8E8E93" };
 const LIVE_LABEL = { moving: "Bergerak", idle: "Diam", offline: "Offline" };
 
@@ -106,7 +105,7 @@ function LiveView({ live, trips, error }) {
             <SelectTrigger data-testid="gps-trip-select"><SelectValue placeholder="Pilih trip" /></SelectTrigger>
             <SelectContent>
               {trips.map((t) => (
-                <SelectItem key={t.id} value={t.id}>{(t.dest_name || "Trip")} — {TRIP_LABEL[t.status] || t.status}</SelectItem>
+                <SelectItem key={t.id} value={t.id}>{t.booking_code || "Trip"} · {t.origin || "-"} → {t.destination || t.dest_name || "-"} — {tripStatusLabel(t.status)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -118,7 +117,7 @@ function LiveView({ live, trips, error }) {
           </div>
           {selectedTrip ? (
             <div className="flex items-center gap-1 text-[13px]">
-              <StatusPill value={selectedTrip.status} tone={TRIP_TONE[selectedTrip.status] || "neutral"} />
+              <StatusPill value={selectedTrip.status} tone={tripStatusTone(selectedTrip.status)} />
               <span className="ml-1 text-[#1C1C1E]">{selectedTrip.dest_name || "-"}</span>
             </div>
           ) : null}
@@ -444,10 +443,12 @@ function OpsTracking() {
   }, []);
 
   useEffect(() => {
-    loadLive();
-    apiClient.get("/trips").then((r) => setTrips(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    // Trip AKTIF saja + disegarkan tiap 30 dtk (dulu dimuat sekali: trip baru / perubahan status sopir tak muncul).
+    const loadTrips = () => apiClient.get("/trips?active=true").then((r) => setTrips(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    loadLive(); loadTrips();
     timer.current = setInterval(loadLive, 7000);
-    return () => clearInterval(timer.current);
+    const tripTimer = setInterval(() => { if (!document.hidden) loadTrips(); }, 30000);
+    return () => { clearInterval(timer.current); clearInterval(tripTimer); };
   }, [loadLive]);
 
   const modes = MODES.filter((m) => (["share", "devices"].includes(m.v) ? canManage : true));

@@ -13,6 +13,7 @@ from db import get_db
 from services.refs import must_exist
 from dependencies import require_section
 from schemas import ConversationCreate, ConversationUpdate, MessageCreate
+from services.crm import inbox_agents
 from services.geo import parse_iso
 
 router = APIRouter(prefix="/api", tags=["inbox"])
@@ -83,6 +84,12 @@ async def create_conversation(body: ConversationCreate, user=Depends(CRM)):
     return _enrich(await db.conversations.find_one({"id": doc["id"]}, {"_id": 0}), await _users_map(db))
 
 
+@router.get("/conversations/agents")
+async def conversation_agents(user=Depends(CRM)):
+    """Pilihan 'assign agen' Inbox (services/crm.inbox_agents) — literal sebelum /{id}."""
+    return safe_doc(await inbox_agents(get_db()))
+
+
 @router.get("/conversations/{conversation_id}")
 async def get_conversation(conversation_id: str, user=Depends(CRM)):
     db = get_db()
@@ -111,8 +118,8 @@ async def update_conversation(conversation_id: str, body: ConversationUpdate, us
         updates["status"] = body.status
     if body.assigned_to is not None:
         target = body.assigned_to or None
-        if target and not await db.users.find_one({"id": target}, {"_id": 1}):
-            raise HTTPException(status_code=400, detail="Agen tidak ditemukan")
+        if target and target not in {a["id"] for a in await inbox_agents(db)}:
+            raise HTTPException(status_code=400, detail="Agen tidak ditemukan atau tidak punya akses Inbox")
         updates["assigned_to"] = target
     if body.snooze_until is not None:
         updates["snooze_until"] = body.snooze_until
@@ -167,6 +174,24 @@ async def post_message(conversation_id: str, body: MessageCreate, user=Depends(C
     out = safe_doc(msg)
     out["author_name"] = user.get("name")
     return out
+
+
+@router.post("/conversations/{conversation_id}/messages/{message_id}/retry")
+async def retry_message(conversation_id: str, message_id: str, user=Depends(CRM)):
+    """Tombol "Kirim ulang" untuk pesan WA teks yang gagal (sesi terputus dll.)."""
+    db = get_db()
+    msg = await db.messages.find_one({"id": message_id, "conversation_id": conversation_id}, {"_id": 0})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Pesan tidak ditemukan")
+    if msg.get("status") != "failed" or msg.get("direction") != "out":
+        raise HTTPException(status_code=400, detail="Hanya pesan keluar yang gagal yang bisa dikirim ulang")
+    if msg.get("attachment"):
+        raise HTTPException(status_code=400, detail="Lampiran tidak bisa dikirim ulang dari sini — kirim ulang dari dokumennya")
+    from services.whatsapp import resend_message
+    res = await resend_message(db, msg)
+    if res.get("status") not in ("sent", "delivered", "read"):
+        raise HTTPException(status_code=400, detail=res.get("error") or "Masih gagal mengirim WhatsApp")
+    return safe_doc(await db.messages.find_one({"id": message_id}, {"_id": 0}))
 
 
 ALLOWED_MEDIA = {"image/jpeg", "image/png", "image/webp", "application/pdf"}

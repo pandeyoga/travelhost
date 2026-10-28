@@ -6,9 +6,9 @@ import {
 } from "@/components/ui/dialog";
 import { LoadingState, ErrorState } from "@/components/shared/DataStates";
 import { formatCurrency, formatDateTime } from "@/utils/formatters";
+import { backendHref } from "@/lib/mediaKind";
+import { bookingStatusLabel, bookingStatusTone, tripStatusLabel, tripStatusTone } from "@/lib/statusLabels";
 
-const BK_STATUS = { confirmed: ["Dikonfirmasi", "info"], ongoing: ["Berjalan", "warning"], completed: ["Selesai", "success"], pending: ["Pending", "neutral"], cancelled: ["Batal", "danger"], hold: ["Hold", "warning"] };
-const TRIP_STATUS = { standby: ["Terjadwal", "info"], to_pickup: ["Menjemput", "warning"], on_trip: ["Dalam Perjalanan", "warning"], completed: ["Selesai", "success"], cancelled: ["Batal", "neutral"] };
 const ACTOR_LABEL = { ops: "Ops/ERP", driver: "Driver", system: "Sistem" };
 const ACTOR_TONE = { ops: "bg-[#EAF2FF] text-[#0058CC]", driver: "bg-[#E8F7EC] text-[#126E2C]", system: "bg-[#F1F1F4] text-[#6B6B73]" };
 
@@ -43,8 +43,8 @@ export default function DispatchDetailDialog({ open, onOpenChange, bookingId }) 
 
   const bk = data?.booking || {};
   const trip = data?.trip || null;
-  const bkSt = BK_STATUS[bk.status] || [bk.status, "neutral"];
-  const trSt = trip?.status ? (TRIP_STATUS[trip.status] || [trip.status, "neutral"]) : null;
+  const bkSt = [bookingStatusLabel(bk.status), bookingStatusTone(bk.status)];
+  const trSt = trip?.status ? [tripStatusLabel(trip.status), tripStatusTone(trip.status)] : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,7 +94,7 @@ export default function DispatchDetailDialog({ open, onOpenChange, bookingId }) 
                 <h4 className="mb-1 flex items-center gap-1.5 text-[12px] font-bold text-[#126E2C]"><Camera size={13} /> Bukti Layanan (POD)</h4>
                 <p className="text-[12px] text-[#3C3C43]">Penerima: {trip.pod.recipient_name || "-"} · {formatDateTime(trip.pod.at)}</p>
                 {trip.pod.note ? <p className="text-[12px] text-[#6B6B73]">{trip.pod.note}</p> : null}
-                {trip.pod.photo_url ? <a className="text-[12px] font-semibold text-[#007AFF] hover:underline" href={trip.pod.photo_url} target="_blank" rel="noreferrer" data-testid="dd-pod-photo">Lihat foto POD</a> : null}
+                {trip.pod.photo_url ? <a className="text-[12px] font-semibold text-[#007AFF] hover:underline" href={backendHref(trip.pod.photo_url)} target="_blank" rel="noreferrer" data-testid="dd-pod-photo">Lihat foto POD</a> : null}
               </section>
             ) : null}
 

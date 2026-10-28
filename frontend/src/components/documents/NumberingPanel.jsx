@@ -7,6 +7,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field } from "@/components/documents/BrandForm";
+import { docErr } from "@/components/documents/docErrors";
+
+// Batas sama dengan backend (RuleSave di routers/documents.py: lebar 1–8, nomor awal ≥ 1). Dicek di
+// sini dulu supaya angka di luar batas langsung diberi tahu tanpa bolak-balik 422 ke server.
+const WIDTH_MIN = 1;
+const WIDTH_MAX = 8;
+function localError(f) {
+  if (!Number.isInteger(f.width) || f.width < WIDTH_MIN || f.width > WIDTH_MAX) return `Lebar digit harus ${WIDTH_MIN}–${WIDTH_MAX}.`;
+  if (!Number.isInteger(f.start) || f.start < 1) return "Nomor awal minimal 1.";
+  return "";
+}
 
 function RuleDialog({ rule, meta, onClose, onSaved }) {
   const [form, setForm] = useState({ pattern: rule.pattern, prefix: rule.prefix || "", width: rule.width, reset: rule.reset, start: rule.start || 1 });
@@ -16,9 +27,11 @@ function RuleDialog({ rule, meta, onClose, onSaved }) {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   useEffect(() => {
+    const bad = localError(form);
+    if (bad) { setError(bad); return undefined; }
     const t = setTimeout(async () => {
       try { const r = await apiClient.post(`/numbering/${rule.key}/preview`, form); setPreview(r.data.data.preview); setError(""); }
-      catch (e) { setError(e?.response?.data?.detail || "Pola tidak sah"); }
+      catch (e) { setError(docErr(e, "Pola tidak sah")); }
     }, 350);
     return () => clearTimeout(t);
   }, [form, rule.key]);
@@ -26,7 +39,7 @@ function RuleDialog({ rule, meta, onClose, onSaved }) {
   const save = async () => {
     setSaving(true);
     try { await apiClient.put(`/numbering/${rule.key}`, form); toast.success("Aturan penomoran disimpan"); onSaved(); onClose(); }
-    catch (e) { toast.error(e?.response?.data?.detail || "Gagal menyimpan"); }
+    catch (e) { toast.error(docErr(e, "Gagal menyimpan")); }
     finally { setSaving(false); }
   };
   const tokens = [...(meta.global_tokens || []), ...(meta.context_tokens || [])];
@@ -39,12 +52,12 @@ function RuleDialog({ rule, meta, onClose, onSaved }) {
           <Field label="Pola nomor"><Input value={form.pattern} onChange={(e) => set("pattern", e.target.value)} className="font-mono" data-testid="num-pattern" /></Field>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Field label="Awalan {PREFIX}"><Input value={form.prefix} onChange={(e) => set("prefix", e.target.value)} data-testid="num-prefix" /></Field>
-            <Field label="Lebar digit"><Input type="number" min={1} max={8} value={form.width} onChange={(e) => set("width", Number(e.target.value))} data-testid="num-width" /></Field>
+            <Field label="Lebar digit"><Input type="number" min={WIDTH_MIN} max={WIDTH_MAX} step={1} value={form.width} onChange={(e) => set("width", Number(e.target.value))} data-testid="num-width" /></Field>
             <Field label="Reset urutan">
               <Select value={form.reset} onValueChange={(v) => set("reset", v)}><SelectTrigger data-testid="num-reset"><SelectValue /></SelectTrigger>
                 <SelectContent>{(meta.reset_options || []).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>
             </Field>
-            <Field label="Nomor awal"><Input type="number" min={1} value={form.start} onChange={(e) => set("start", Number(e.target.value))} data-testid="num-start" /></Field>
+            <Field label="Nomor awal"><Input type="number" min={1} step={1} value={form.start} onChange={(e) => set("start", Number(e.target.value))} data-testid="num-start" /></Field>
           </div>
           <div className="rounded-[10px] bg-[#F5F7FB] px-3 py-2.5">
             <p className="text-[10.5px] uppercase tracking-wide text-[#8E8E93]">Contoh nomor berikutnya</p>

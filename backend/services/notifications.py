@@ -56,6 +56,12 @@ async def create_task(db, dedupe_key, base):
     return await _upsert(db, dedupe_key, base)
 
 
+def overdue_reminder_due(overdue_days: int) -> bool:
+    """Penagihan WA ke pelanggan bertahap: hari ke-1, 3, 7, 14 lalu tiap 14 hari lewat tempo
+    (dulu SETIAP hari selama invoice belum lunas). Notifikasi internal tetap harian."""
+    return overdue_days in (1, 3, 7, 14) or (overdue_days > 14 and overdue_days % 14 == 0)
+
+
 def _bucket(days):
     if days < 0:
         return "overdue", "lewat tempo"
@@ -166,7 +172,9 @@ async def scan(db):
                 "phone": cust_phone.get(bk.get("customer_id")), "vehicle_name": bk.get("vehicle_name"),
                 "driver_name": drv_name.get(bk.get("driver_id")), "when": f"dalam {round(hours)} jam",
             }, source="scheduler", ref_type="booking", ref_id=bk["id"],
-                dedupe_key=f"evt-departure:{bk['id']}:{day}")
+                # SEKALI per keberangkatan (dulu per hari kalender: jendela 24 jam yang melewati
+                # tengah malam UTC mengirim WA pengingat dua kali).
+                dedupe_key=f"evt-departure:{bk['id']}:{bk.get('start_datetime')}")
 
     # 4) Invoice lewat tempo (status terkirim & jatuh tempo terlewati)
     now_iso_s = now.isoformat()
@@ -176,6 +184,8 @@ async def scan(db):
         due = parse_iso(inv.get("due_at"))
         if not due or due >= now:
             continue
+        overdue_days = max((now - due).days, 0) + 1
+        remind_customer = overdue_reminder_due(overdue_days)
         created += await _upsert(db, f"invoice:{inv['id']}:{day}", {
             "type": "invoice_overdue",
             "title": f"Invoice {inv.get('number')} lewat tempo",
@@ -183,10 +193,12 @@ async def scan(db):
             "ref_type": "invoice", "ref_id": inv["id"], "booking_id": inv.get("booking_id"),
             "due_at": inv.get("due_at"), "scheduled_at": now_iso(), "target_role": "manager",
         })
+        if not remind_customer:
+            continue
         await emit(db, "invoice.overdue", {
             "invoice_id": inv["id"], "number": inv.get("number"), "customer_name": inv.get("customer_name"),
             "phone": cust_phone.get(inv.get("customer_id")), "amount": float(inv.get("amount", 0) or 0),
-            "booking_id": inv.get("booking_id"),
+            "booking_id": inv.get("booking_id"), "overdue_days": overdue_days,
         }, source="scheduler", ref_type="invoice", ref_id=inv["id"],
             dedupe_key=f"evt-invoice:{inv['id']}:{day}")
 
@@ -233,11 +245,28 @@ async def scan(db):
         paid = float(bk.get("paid_amount", 0) or 0)
         if dp_amount > 0 and paid >= dp_amount:
             continue  # DP sudah cukup (akan/telah dipromosikan ke confirmed) — jangan batalkan
+        if bk.get("proof_status") == "pending":
+            # Pelanggan SUDAH mengunggah bukti transfer: yang terlambat adalah verifikasi ops
+            # (dijanjikan maks. 1×24 jam), bukan pembayarannya. Dulu booking tetap dibatalkan
+            # → unit dilepas & bukti tak bisa diverifikasi (pembayaran ke booking batal ditolak).
+            # Kini hold dipertahankan dan ops diingatkan sekali.
+            created += await _upsert(db, f"hold-proof-overdue:{bk['id']}", {
+                "type": "booking_proof_overdue",
+                "title": f"Verifikasi bukti DP terlambat: {bk.get('code')}",
+                "body": f"{bk.get('customer_name')} sudah mengunggah bukti transfer, batas hold lewat. "
+                        "Verifikasi di Booking → Bukti Bayar agar pesanan tidak menggantung.",
+                "ref_type": "booking", "ref_id": bk["id"], "booking_id": bk["id"],
+                "scheduled_at": now_iso(), "target_role": "manager",
+            })
+            continue
         cancelled = await db.bookings.find_one_and_update(
-            {"id": bk["id"], "status": "hold"},
+            {"id": bk["id"], "status": "hold", "proof_status": {"$ne": "pending"}},
             {"$set": {"status": "cancelled", "hold_expired_at": now_iso()}})
         if not cancelled:
             continue
+        if bk.get("promo_id"):  # kuota promo kembali (sama dgn pembatalan oleh pelanggan)
+            from services import promos as promo_svc
+            await promo_svc.release(db, bk["promo_id"])
         await db.trips.update_many(
             {"booking_id": bk["id"], "status": {"$in": ["standby", "to_pickup"]}},
             {"$set": {"status": "cancelled"}})

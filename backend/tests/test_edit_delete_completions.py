@@ -107,9 +107,13 @@ def _find_booking_for_invoice(owner_session):
     r = owner_session.get(f"{API}/bookings?limit=200")
     assert r.status_code == 200, r.text
     rows = r.json()
+    # Booking dengan invoice terbuka ditolak (409: tagihan tak boleh tumpang-tindih) → lewati.
+    busy = {i.get("booking_id") for i in owner_session.get(f"{API}/invoices?limit=1000").json()
+            if i.get("status") in ("draft", "sent", "partial")}
     for status in ("confirmed", "hold", "partial", "on_trip", "done"):
         for b in rows:
-            if b.get("status") == status and float(b.get("total_amount") or 0) > 0:
+            if (b.get("status") == status and float(b.get("total_amount") or 0) > float(b.get("paid_amount") or 0)
+                    and b["id"] not in busy):
                 return b
     # fallback any
     return rows[0] if rows else None
@@ -137,16 +141,15 @@ class TestInvoices:
         assert upd["due_at"] == "2026-07-01"
         assert "outstanding_after" in upd
 
-        # PATCH status paid
+        # 'paid' tidak bisa dipilih manual — diturunkan dari pembayaran tercatat (kunci nominal
+        # invoice lunas tak bisa lagi dilewati via paid → draft); transisi sah dikirim di next_status.
         r = owner.patch(f"{API}/invoices/{iid}", json={"status": "paid"})
+        assert r.status_code == 400, r.text
+        r = owner.patch(f"{API}/invoices/{iid}", json={"status": "sent"})
         assert r.status_code == 200, r.text
-        assert r.json()["status"] == "paid"
+        assert r.json()["status"] == "sent" and set(r.json()["next_status"]) == {"draft", "void"}
 
-        # after paid: patch amount -> 400
-        r = owner.patch(f"{API}/invoices/{iid}", json={"amount": 5})
-        assert r.status_code == 400
-
-        # delete paid -> 400
+        # delete sent -> 400
         r = owner.delete(f"{API}/invoices/{iid}")
         assert r.status_code == 400
 
@@ -154,9 +157,11 @@ class TestInvoices:
         r = owner.patch(f"{API}/invoices/{iid}", json={"status": "bogus"})
         assert r.status_code == 400
 
-        # void then delete
+        # void: nominal terkunci, lalu boleh dihapus
         r = owner.patch(f"{API}/invoices/{iid}", json={"status": "void"})
         assert r.status_code == 200
+        r = owner.patch(f"{API}/invoices/{iid}", json={"amount": 5})
+        assert r.status_code == 400
         r = owner.delete(f"{API}/invoices/{iid}")
         assert r.status_code == 200
         assert r.json() == {"ok": True}

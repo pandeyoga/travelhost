@@ -82,7 +82,7 @@ export default function DriverWorkspace() {
     finally { setBusyId(null); }
   };
 
-  const onAck = (t) => act(t, () => apiClient.post(`/driver/tasks/${t.trip_id}/ack`), "Tugas dikonfirmasi");
+  const onAck = (t) => act(t, () => apiClient.post(`/driver/tasks/${t.trip_id}/ack`), "Tugas diterima");
   const onDepart = (t) => setOdo({ mode: "start", task: t });
   // RC-D: transisi ke on_trip memakai state machine trip TUNGGAL (/trips/{id}/status) —
   // TIDAK ada jalur status kedua (anti split-brain RC-03).
@@ -111,6 +111,12 @@ export default function DriverWorkspace() {
   const upcomingToday = upcoming.filter((t) => String(t.start_datetime || "").slice(0, 10) <= todayStr);
   const upcomingLater = upcoming.filter((t) => String(t.start_datetime || "").slice(0, 10) > todayStr);
   const history = tasks.filter((t) => t.trip_status === "completed").sort((a, b) => byStart(b, a));
+  // Tugas yang dibatalkan ops tetap terlihat (jadwal kemarin s/d mendatang) — dulu hilang diam-diam.
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const cancelledTasks = tasks
+    .filter((t) => (t.trip_status === "cancelled" || t.booking_status === "cancelled")
+      && String(t.start_datetime || "").slice(0, 10) >= yesterday)
+    .sort(byStart);
 
   const cardProps = { busy: false, onAck, onDepart, onPickup, onArrived, onCheckout };
   const renderCards = (list) => list.map((t) => (
@@ -205,6 +211,13 @@ export default function DriverWorkspace() {
               </div>
             )}
           </section>
+
+          {cancelledTasks.length > 0 ? (
+            <section data-testid="dw-cancelled">
+              <h2 className="mb-2 text-[14px] font-bold text-[#A8221A]" style={{ fontFamily: "Outfit, sans-serif" }}>Dibatalkan</h2>
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{renderCards(cancelledTasks)}</div>
+            </section>
+          ) : null}
 
           {history.length > 0 ? (
             <section data-testid="dw-history">

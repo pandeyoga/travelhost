@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
+
+from schemas import APIModel
 
 from core_utils import new_id, now_iso, safe_doc
 from db import get_db
@@ -14,6 +16,8 @@ from dependencies import require_section
 from services import doc_layout as dl
 from services import doc_script as ds
 from services import documents as docs
+from services import media_lib as ml
+from services import media_store as ms
 from services import numbering as nb
 from services.audit import record
 
@@ -23,7 +27,7 @@ SET = require_section("settings")
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
-class BrandIn(BaseModel):
+class BrandIn(APIModel):
     company_name: Optional[str] = None
     tagline: Optional[str] = None
     address: Optional[str] = None
@@ -71,14 +75,21 @@ class BrandIn(BaseModel):
         return v
 
 
-class SectionIn(BaseModel):
+class SectionIn(APIModel):
     key: str
     label: Optional[str] = None
     visible: bool = True
     order: int = 0
 
+    @field_validator("key")
+    @classmethod
+    def _key(cls, v):
+        if v not in {k for k, _ in dl.SECTIONS}:
+            raise ValueError(f"Bagian dokumen '{v}' tidak dikenal.")
+        return v
 
-class MoneyRowIn(BaseModel):
+
+class MoneyRowIn(APIModel):
     code: str
     label: str = Field(min_length=1)
     visible: bool = True
@@ -88,7 +99,7 @@ class MoneyRowIn(BaseModel):
     amount: Optional[int] = None
 
 
-class SignatureIn(BaseModel):
+class SignatureIn(APIModel):
     title: str = Field(min_length=1)
     name: Optional[str] = None
     position: Optional[str] = None
@@ -98,7 +109,7 @@ class SignatureIn(BaseModel):
     auto_from_issuer: bool = False
 
 
-class TableIn(BaseModel):
+class TableIn(APIModel):
     grid: Optional[str] = None
     show_header: Optional[bool] = None
     header_fill: Optional[bool] = None
@@ -109,8 +120,30 @@ class TableIn(BaseModel):
     width_pct: Optional[float] = Field(default=None, ge=40, le=100)
     alignment: Optional[str] = None
 
+    # Dulu nilai sembarang tersimpan (200) lalu SEMUA PDF jenis itu error 500 (hAlign tak dikenal).
+    @field_validator("grid")
+    @classmethod
+    def _grid(cls, v):
+        if v and v not in ("full", "horizontal", "none"):
+            raise ValueError("Garis tabel hanya: full, horizontal, none.")
+        return v
 
-class OptionsIn(BaseModel):
+    @field_validator("alignment")
+    @classmethod
+    def _align(cls, v):
+        if v and v not in ("left", "center", "right"):
+            raise ValueError("Perataan tabel hanya: left, center, right.")
+        return v
+
+    @field_validator("grid_color")
+    @classmethod
+    def _gcolor(cls, v):
+        if v and not HEX.match(v):
+            raise ValueError("Warna garis harus heksadesimal, mis. #E2E8F0.")
+        return v
+
+
+class OptionsIn(APIModel):
     show_materai: Optional[bool] = None
     materai_note: Optional[str] = None
     show_place_date: Optional[bool] = None
@@ -123,7 +156,7 @@ class OptionsIn(BaseModel):
     show_terbilang: Optional[bool] = None
 
 
-class LayoutSave(BaseModel):
+class LayoutSave(APIModel):
     brand: Optional[BrandIn] = None
     table: Optional[TableIn] = None
     sections: Optional[list[SectionIn]] = None
@@ -136,11 +169,11 @@ class PreviewIn(LayoutSave):
     script: Optional[str] = None
 
 
-class ScriptSave(BaseModel):
+class ScriptSave(APIModel):
     content: str = Field(max_length=20000)
 
 
-class RuleSave(BaseModel):
+class RuleSave(APIModel):
     pattern: Optional[str] = None
     prefix: Optional[str] = None
     width: Optional[int] = Field(None, ge=1, le=8)
@@ -152,14 +185,14 @@ class PreviewRuleIn(RuleSave):
     sample: dict = {}
 
 
-class BankAccount(BaseModel):
+class BankAccount(APIModel):
     id: Optional[str] = None
     bank: str = Field(min_length=1, max_length=60)
     account_no: str = Field(min_length=3, max_length=40)
     account_name: str = Field(min_length=1, max_length=120)
 
 
-class InvoiceConfigIn(BaseModel):
+class InvoiceConfigIn(APIModel):
     dp_percent_default: Optional[float] = Field(None, ge=0, le=100)
     dp_due_days: Optional[int] = Field(None, ge=0, le=90)
     settlement_due_days: Optional[int] = Field(None, ge=0, le=180)
@@ -247,26 +280,38 @@ async def preview_layout(code: str, body: PreviewIn, user=Depends(FIN)):
 # ------------------------------------------------------------------ aset gambar (logo/kop/ttd)
 @router.post("/doc-assets")
 async def upload_asset(file: UploadFile = File(...), user=Depends(SET)):
+    """Gambar dokumen ditulis lewat services/media_store (validasi MIME, batas ukuran, anti
+    path-traversal — INV-MEDIA-03) dan tercatat di Media Library (`source="documents"`).
+    Aset lama (`filename` di uploads/docs) tetap terbaca oleh services/doc_layout.images."""
     ext = (Path(file.filename or "").suffix or "").lower()
     if ext not in (".png", ".jpg", ".jpeg", ".webp"):
         raise HTTPException(status_code=400, detail="Hanya gambar PNG/JPG/WEBP.")
     data = await file.read()
     if len(data) > 3 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Ukuran gambar maksimal 3 MB.")
-    fid = new_id("dimg")
-    folder = dl.UPLOAD_DIR / "docs"
-    folder.mkdir(parents=True, exist_ok=True)
-    fname = f"{fid}{ext}"
-    (folder / fname).write_bytes(data)
-    rec = {"id": fid, "filename": fname, "original": file.filename, "size": len(data),
-           "url": f"/api/uploads/docs/{fname}", "uploaded_by": user.get("email"), "created_at": now_iso()}
-    await get_db().doc_assets.insert_one(dict(rec))
+    db = get_db()
+    try:
+        meta = ms.upload_bytes(data, ms.resolve_content_type(file.content_type, file.filename or ""),
+                               filename=file.filename or "dokumen", folder="documents")
+    except ms.MediaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    if meta["kind"] != "image":
+        ms.remove(meta.get("storage_path") or "")
+        ms.remove(meta.get("thumb_path") or "")
+        raise HTTPException(status_code=400, detail="Hanya gambar PNG/JPG/WEBP.")
+    asset = await ml.register_asset(db, meta, user, source="documents")
+    rec = {"id": new_id("dimg"), "media_id": asset["id"], "storage_path": meta["storage_path"],
+           "storage_backend": meta["storage_backend"], "original": file.filename, "size": meta["size"],
+           "url": ml.public_doc(asset)["url"], "uploaded_by": user.get("email"), "created_at": now_iso()}
+    await db.doc_assets.insert_one(dict(rec))
+    rec.pop("storage_path")
     return safe_doc(rec)
 
 
 @router.get("/doc-assets")
 async def list_assets(user=Depends(FIN)):
-    return safe_doc(await get_db().doc_assets.find({}, {"_id": 0}).sort("created_at", -1).to_list(200))
+    return safe_doc(await get_db().doc_assets.find({}, {"_id": 0, "storage_path": 0})
+                    .sort("created_at", -1).to_list(200))
 
 
 # ------------------------------------------------------------------ penomoran

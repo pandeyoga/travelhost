@@ -27,7 +27,7 @@ membuka laporan tidak punya efek samping.
 from datetime import datetime, timedelta, timezone
 
 from core_utils import money, safe_doc
-from services.geo import parse_iso
+from services.geo import BUSINESS_TZ, parse_iso
 
 MAX_ROWS = 300
 MAX_DAYS = 365
@@ -262,6 +262,12 @@ async def build(db, days: int = 30) -> dict:
     }
 
 
+def _wib(value) -> str:
+    """Waktu WIB "dd/mm/yyyy HH:MM" untuk sel CSV (dulu ISO UTC mentah)."""
+    dt = parse_iso(value)
+    return dt.astimezone(BUSINESS_TZ).strftime("%d/%m/%Y %H:%M") if dt else ""
+
+
 def to_csv(data: dict) -> str:
     """CSV untuk tindak lanjut ops (dibuka di Excel/Sheets). Titik-koma = pemisah id-ID."""
     head = ["Kode", "Pelanggan", "WhatsApp", "Unit", "Layanan", "Jadwal jalan", "Dibuat",
@@ -271,8 +277,8 @@ def to_csv(data: dict) -> str:
     for r in data.get("rows") or []:
         cells = [r.get("code", ""), r.get("customer_name", ""), r.get("phone", ""),
                  r.get("vehicle_name", ""), r.get("service_label", ""),
-                 str(r.get("start_datetime") or ""), str(r.get("created_at") or ""),
-                 str(r.get("hold_expires_at") or ""), str(r.get("hold_expired_at") or ""),
+                 _wib(r.get("start_datetime")), _wib(r.get("created_at")),
+                 _wib(r.get("hold_expires_at")), _wib(r.get("hold_expired_at")),
                  str(int(money(r.get("total_amount")))), str(int(money(r.get("dp_amount")))),
                  r.get("source_label", ""), str(r.get("proofs") or 0),
                  r.get("last_proof_status", ""), r.get("rebooked_code", "")]

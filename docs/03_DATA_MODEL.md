@@ -12,7 +12,7 @@
 users, sessions,
 vehicles, drivers, customers,
 leads, lead_activities, conversations, messages,
-bookings, trips, locations, trip_shares,
+bookings, trips, locations, trip_shares, schedule_shares,
 payments, expenses, invoices,
 notification_tasks, broadcasts, maintenance_records,
 destinations, articles, testimonials,
@@ -45,8 +45,10 @@ audit_logs, settings, user_onboarding
 `id(lac_)`, `lead_id`(led_), `user_id`(usr_, nullable), `type`(created|note|call|stage_change|assignment|converted), `text`, `from_stage`, `to_stage`, `created_at`
 ### conversations
 `id(cnv_)`, `lead_id`|`customer_id`(nullable), `channel`(web|whatsapp|internal), `contact_name`, `contact_phone`, `subject`, `status`(open|snoozed|closed), `assigned_to`(usr_, nullable), `labels[]`, `unread`(int), `chat_token`(untuk widget publik), `last_message_at`, `last_message_preview`, `snooze_until`, `created_at`
+  · **2026-10-28 ronde 3 (WA)**: `last_auto_reply_at` — balasan otomatis paling sering sekali per `wa_config.auto_reply_cooldown_hours` (bawaan 12). Satu nomor = satu percakapan WA: pencarian lewat `services.whatsapp.phone_variants` (0812… ≡ 62812… ≡ +62812…).
 ### messages
-`id(msg_)`, `conversation_id`(cnv_), `sender`(agent|customer|system), `author_id`(usr_, nullable), `body`, `internal`(bool, catatan internal), `status`(sent|delivered|read), `created_at`
+`id(msg_)`, `conversation_id`(cnv_), `sender`(agent|customer|system), `author_id`(usr_, nullable), `body`, `internal`(bool, catatan internal), `status`(sent|delivered|read|failed), `created_at`
+  · **2026-10-28 ronde 3 (WA)**: `direction`(in|out), `wa_message_id` (pesan masuk didedupe per id ini), `source`(automation|agent|invoice|receipt|auto_reply|…), `error`, `retry_count`, `retry_at` (ISO; pesan TEKS otomasi/sistem yang gagal dicoba ulang 5→30→120 mnt oleh scheduler; `null` = tidak dicoba ulang — pesan agen, lampiran, nomor tidak valid), `resent_at`.
 ### bookings
 `id(bk_)`, `code`(BK-0001), `customer_id`, `vehicle_id`(nullable saat status=pending), `driver_id`, `origin`, `destination`, `start_datetime`(ISO), `end_datetime`(ISO), `base_price`(int-rupiah), `add_ons[]`({label,amount}), `total_amount`(int-rupiah), `paid_amount`(int-rupiah), `payment_status`(belum_bayar|dp|lunas|selesai), `status`(draft|pending|hold|confirmed|ongoing|completed|cancelled), `customer_name`(snapshot), `vehicle_name`(snapshot), `driver_name`(snapshot), `notes`, `created_at`, `departure_confirmed_at`(ISO, E3 — konfirmasi keberangkatan/WA); **E17:** `rescheduled_at`(ISO); **E18 DP-gate:** `require_dp`(bool, input), `hold_expires_at`(ISO), `hold_hours`(int), `dp_percent`(num), `dp_amount`(int-rupiah), `dp_met_at`(ISO), `hold_expired_at`(ISO); **E19 self-service:** `source`(website|null), `requested_vehicle_type`(str), `pax`(int), `approved_at`(ISO); **E20 rombongan:** `group_id`(prefix `grp_`), `group_size`(int), `group_index`(int, 1-based); **E21 pembatalan:** `cancellation_reason`(str), `cancellation_fee`(int-rupiah, denda ditahan sbg pendapatan), `refund_amount`(int-rupiah, dana dikembalikan), `cancelled_at`(ISO), `cancelled_by`(user_id). **E21 Ledger** (UPDATE 2026-07-03): refund otomatis diposting sbg `payments` negatif (`type="refund"`, `method="refund"`, `amount<0`) — IDEMPOTENT per booking; paid_amount berkurang via recompute. Denda (`cancellation_fee`) tetap MEMO (tidak diposting jurnal terpisah). Detail: `memory/HANDOFF_E21_REFUND.md`.
 ### trips
@@ -61,6 +63,10 @@ audit_logs, settings, user_onboarding
 `id(inv_)`, `number`(INV-YYYY-0001), `booking_id`, `customer_id`, `customer_name`, `booking_code`, `amount`(num), `type`(booking|cancellation_fee), `status`(draft|sent|partial|paid), `issued_at`, `due_at`, `paid_at`(ISO, saat status=paid), `notes`, `reconciled_at`(ISO, diisi saat sync E5)
   · **E26 (Cancellation Invoice)**: saat `POST /api/bookings/{id}/cancel` dgn `cancellation_fee>0`, invoice `type="cancellation_fee"` `status="paid"` otomatis dibuat (idempotent per booking). Sebagai paper trail — TIDAK menaikkan P&L revenue lagi (revenue dihitung dari Σ payments; denda sudah tercakup di residual `paid_amount − refund_amount`).
   · **E5 (Finance Automation)**: status `partial` ditambahkan; `sync_invoice_statuses` menyetel status mengikuti Σ pembayaran (paid/partial/sent) + `reconciled_at`. TIDAK ada koleksi baru — P&L (incl. maintenance), rekonsiliasi, arus kas & proyeksi dihitung on-the-fly dari `payments`/`expenses`/`maintenance_records`/`invoices`/`bookings`/`trips`/`vehicles`. Reminder AR memakai Event Bus E1 (`invoice.overdue`).
+  · **2026-10-28 (audit keuangan)**: status `void` + `voided_at`/`void_reason` (otomatis saat booking batal). Invoice denda kini berstatus jujur (`paid` hanya bila uang ditahan ≥ denda) + `subtotal`/`paid_before=0`. Alokasi pembayaran per invoice = rentang `[paid_before, paid_before+amount]` (SSOT `services.documents.invoice_paid_portion`). Transisi manual: `routers.invoices.MANUAL_TRANSITIONS`.
+  · **2026-10-28 ronde 2 (fee sopir)**: `expenses` + `source`("driver_fee"), `driver_fee_entry_id`, `vehicle_id`, `settled_by_withdrawal` — akrual fee dibuat saat trip selesai (paid=false) & dilunasi FIFO oleh pencairan; `driver_fee_entries` + `expense_id`, `expensed_by`(accrual|legacy_withdrawal). Pencairan baru tidak punya `expense_id`. `driver_payouts` + `fee_trips_count`, `fee_total` (info). `trips.enroute_at` = berangkat menjemput, `trips.start_at` = penumpang naik. `bookings` + `rejected_at`, `cancellation_reason` (tolak).
+  · **2026-10-28 ronde 3 (dokumen)**: invoice denda kini bernomor dari aturan penomoran `invoice` (`services.numbering.generate`, melewati nomor yang sudah dipakai) + `kind_label`="Denda Pembatalan"; label jenis SSOT `services.documents.kind_label`. Tagihan terbuka (`draft|sent|partial`, `documents.OPEN_STATUS`) per booking tak boleh tumpang-tindih → invoice baru 409 selama masih ada yang belum dibayar. Kwitansi (`payments.receipt_no`) tidak terbit utk refund/nominal ≤ 0; angka "total terbayar/sisa" kwitansi = kumulatif s.d. pembayaran itu (`documents.paid_upto`). Penanda tangan PDF = penerbit (`created_by` / `receipt_issued_by`).
+  · **2026-10-28 (armada/booking)**: `trips.origin_lat/origin_lng` kini diisi saat assign (geofence pickup); `driver_fee_entries.trip_id` UNIK (parsial, string) → fee sekali per trip; booking publik menyimpan `add_ons[]` & `base_price = total − Σadd_ons` (INV-1); `vehicles.odometer` naik-saja (`$max`). Biaya perawatan masuk P&L/arus kas hanya bila `status=done`. Tanggal bisnis (surcharge, promo weekend/berlaku) = kalender WIB (`services.geo.business_date`).
 ### notification_tasks
 `id(ntf_)`, `dedupe_key`(unik per skenario+hari), `type`(document_reminder|lead_followup|booking_reminder|reminder_h7|reminder_h3|reminder_h1|payment|departure), `title`, `body`, `ref_type`(vehicle|lead|booking), `ref_id`, `booking_id`|`lead_id`(opsional), `due_at`(ISO), `scheduled_at`(ISO), `status`(pending|read|dismissed|sent|cancelled), `target_role`(manager|owner|ops_admin|driver|all|null), `target_user_id`(usr_, nullable), `channel`(in_app|internal|whatsapp), `created_at`, `read_at`
 ### broadcasts
@@ -78,6 +84,9 @@ audit_logs, settings, user_onboarding
   · **E11 (Driver Payroll/HR Lite)**: akses section `finance` (owner/ops_admin). Generator akrual dari trip SELESAI dalam periode + gaji pokok & komponen kompensasi (`drivers.comp`). Alur draft→approved→paid; approve buat expense `gaji_driver` (akrual P&L), pay tandai expense lunas (kas). Hanya draft yang bisa diubah/hapus. Slip PDF+Excel.
 ### trip_shares
 `id(shr_)`, `token`(rahasia, untuk URL publik), `trip_id`(trp_), `vehicle_id`(veh_, nullable snapshot), `label`, `expires_at`(ISO), `revoked`(bool), `revoked_at`, `created_by`(usr_), `last_accessed_at`, `access_count`(int), `created_at`
+### schedule_shares (share-link jadwal keberangkatan, read-only publik — 2026-10-28)
+`id(ssh_)`, `token`(rahasia 24 byte, URL `/schedule/:token`), `label`, `scope`({`type`: upcoming|month|range|all, `days`(int|null, upcoming), `month`(YYYY-MM), `start`/`end`(YYYY-MM-DD, range)}), `vehicle_ids[]`(veh_, kosong = semua armada), `statuses[]`(subset pending|hold|confirmed|ongoing|completed|cancelled; default hold/confirmed/ongoing/completed), `visibility`({customer, driver, driver_phone, payment, notes}: bool), `expires_at`(ISO | **null = tanpa batas waktu**), `revoked`(bool), `revoked_at`, `created_by`(usr_), `last_accessed_at`, `access_count`(int), `created_at`
+  · Menyimpan KRITERIA, bukan salinan → penerima selalu melihat data terbaru. Batas hari memakai WIB (UTC+7). Payload publik = allowlist `services/schedule_share.public_departure` (tanpa nominal uang, kontak pelanggan, ID internal). Kelola: section `calendar` (owner/ops_admin). Siklus hidup token bersama `trip_shares`: `services/share_links.py`.
 ### pickup_points (master titik jemput — INV-REF-02 batch 2)
 `id(pkp_)`, `name` (unik case-insensitive), `created_at`
 Relasi: `bookings.origin` menyimpan NAMA KANONIK dari master ini (validator `refs.origin_or_400`;
@@ -109,6 +118,7 @@ quick-add via `POST /api/pickup-points`).
 (E1 — Event Bus) `id`(evt_), `type`(lead.created|quotation.sent|booking.confirmed|payment.recorded|booking.departure_due|trip.started|trip.completed|invoice.overdue|doc.expiring|wa.inbound|trip.assigned|booking.departure_confirmed|trip.enroute|trip.arrived), `payload`{...}, `source`, `ref_type`, `ref_id`, `dedupe_key`(idempotent, opsional), `processed`(bool), `runs_created`, `created_at`
 ### automation_rules
 (E1 — Automation Engine) `id`(aur_), `name`, `description`, `event_type`(→events.type), `enabled`(bool), `system`(bool), `conditions[]`{field,op(eq|ne|in|contains|exists|gt|lt),value}, `actions[]`{type(send_wa|create_notification|create_task|assign_agent|schedule_followup),params}, `run_count`, `last_run_at`, `created_at`, `updated_at`
+  · **2026-10-28 ronde 3**: startup `services.automation.sync_system_rules` memasang rule sistem baru ke DB lama (`SYNC_ADDED_RULES`) & memperbarui teks WA bawaan lama yang keliru (`LEGACY_WA_TEXTS`); rule yang pernah terpasang lalu dihapus admin tidak dipasang lagi (penanda `settings.key="automation_system_rules"`).
 ### automation_runs
 (E1 — log eksekusi) `id`(arn_), `rule_id`(FK→automation_rules), `rule_name`, `event_id`(FK→events), `event_type`, `status`(success|failed|skipped), `actions[]`{type,status,detail}, `dedupe_key`(unik per rule:event), `message`, `created_at`
 
@@ -155,7 +165,7 @@ quick-add via `POST /api/pickup-points`).
 | INV-9 | **Intent KPI**: `dashboard.active_bookings == len(bookings status∈{confirmed,ongoing})`; `dashboard.vehicles == len(vehicles)` | RC-7 |
 | INV-10 | Snapshot: `booking.customer_name/vehicle_name/driver_name` tidak null saat status≥confirmed | RC-6 |
 | INV-21 | **Maintenance window memblok booking (DUA ARAH, E27)**: untuk `vehicle_id` sama, tidak ada booking aktif ∈{hold,confirmed,ongoing} yang `[start,end]` overlap dengan maintenance window ∈{scheduled,in_progress} yang punya `start_date`+`end_date`. Ditegakkan **dua arah**: jalur booking menolak armada yang sedang dirawat, DAN `POST`/`PATCH /api/maintenance` menolak (400) window yang menabrak keberangkatan aktif (`routers/maintenance.py::_assert_no_departure_clash`, dibungkus `vehicle_lock`). | RC-16 |
-| INV-22 | **Share token sah**: `trip_shares` aktif (dipakai publik) wajib `revoked==false` dan `expires_at` > now; token unik | RC-5 |
+| INV-22 | **Share token sah**: `trip_shares` & `schedule_shares` aktif (dipakai publik) wajib `revoked==false` dan belum kedaluwarsa (`schedule_shares.expires_at` boleh null = tanpa batas); token unik lintas jenis; publik: 404 tak dikenal · 403 dinonaktifkan · 410 kedaluwarsa (`services/share_links.py`) | RC-5 |
 | INV-23 | **Message FK**: setiap `messages.conversation_id` merujuk `conversations` yang ada (tak ada pesan yatim) | RC-6 |
 
 ---
@@ -169,7 +179,7 @@ C-18 |
 | INV-9 | **Intent KPI**: `dashboard.active_bookings == len(bookings status∈{confirmed,ongoing})`; `dashboard.vehicles == len(vehicles)` | RC-7 |
 | INV-10 | Snapshot: `booking.customer_name/vehicle_name/driver_name` tidak null saat status≥confirmed | RC-6 |
 | INV-21 | **Maintenance window memblok booking (DUA ARAH, E27)**: untuk `vehicle_id` sama, tidak ada booking aktif ∈{hold,confirmed,ongoing} yang `[start,end]` overlap dengan maintenance window ∈{scheduled,in_progress} yang punya `start_date`+`end_date`. Ditegakkan **dua arah**: jalur booking menolak armada yang sedang dirawat, DAN `POST`/`PATCH /api/maintenance` menolak (400) window yang menabrak keberangkatan aktif (`routers/maintenance.py::_assert_no_departure_clash`, dibungkus `vehicle_lock`). | RC-16 |
-| INV-22 | **Share token sah**: `trip_shares` aktif (dipakai publik) wajib `revoked==false` dan `expires_at` > now; token unik | RC-5 |
+| INV-22 | **Share token sah**: `trip_shares` & `schedule_shares` aktif (dipakai publik) wajib `revoked==false` dan belum kedaluwarsa (`schedule_shares.expires_at` boleh null = tanpa batas); token unik lintas jenis; publik: 404 tak dikenal · 403 dinonaktifkan · 410 kedaluwarsa (`services/share_links.py`) | RC-5 |
 | INV-23 | **Message FK**: setiap `messages.conversation_id` merujuk `conversations` yang ada (tak ada pesan yatim) | RC-6 |
 
 ---

@@ -24,6 +24,9 @@ from db import get_db
 from dependencies import require_section
 from schemas import AssignTripRequest
 from services import availability
+from services.booking_search import BLOCKED_VEHICLE_STATUS
+from services.trips import (apply_trip_status, assert_trip_state, mark_trip_arrived,
+                            release_vehicle, save_pod)
 from services.audit import record
 from services.events import emit
 from services.geocode import geocode
@@ -63,7 +66,12 @@ async def _wa_payload(db, booking, trip=None):
 
 
 async def _trip_for(db, booking_id):
-    return await db.trips.find_one({"booking_id": booking_id}, {"_id": 0})
+    """Trip AKTIF booking (trip lama yg dibatalkan tidak menutupi trip pengganti)."""
+    return await db.trips.find_one({"booking_id": booking_id, "status": {"$ne": "cancelled"}}, {"_id": 0}) \
+        or await db.trips.find_one({"booking_id": booking_id}, {"_id": 0})
+
+
+DISPATCHABLE = ("confirmed", "ongoing")  # hanya booking pasti yang dijadwalkan sopir/WA keberangkatan
 
 
 def _fee_days(bk):
@@ -96,6 +104,12 @@ async def _enrich(db, bk):
         "trip_id": (trip or {}).get("id"), "trip_status": (trip or {}).get("status"),
         "dest_geocoded": (trip or {}).get("dest_lat") is not None,
         "pod": bool((trip or {}).get("pod")),
+        # Update sopir yang harus terlihat di papan ops (dulu hanya di timeline detail).
+        "driver_ack_at": (trip or {}).get("driver_ack_at"),
+        "enroute_at": (trip or {}).get("enroute_at"),
+        "trip_started_at": (trip or {}).get("start_at"),
+        "arrived_at": (trip or {}).get("arrived_at"),
+        "can_dispatch": bk.get("status") in DISPATCHABLE,
     }
 
 
@@ -135,8 +149,9 @@ async def dispatch_detail(booking_id: str, user=Depends(DISPATCH)):
         ("Booking dibuat", bk.get("created_at"), "system"),
         ("Driver & unit di-assign", trip.get("assigned_at"), "ops"),
         ("Keberangkatan dikonfirmasi (WA ke pelanggan)", bk.get("departure_confirmed_at"), "ops"),
-        ("Driver mengonfirmasi tugas", trip.get("driver_ack_at"), "driver"),
-        ("Berangkat menjemput", trip.get("enroute_at") or trip.get("start_at"), "driver"),
+        ("Sopir menerima tugas", trip.get("driver_ack_at"), "driver"),
+        ("Berangkat menjemput", trip.get("enroute_at"), "driver"),
+        ("Penumpang naik — perjalanan dimulai", trip.get("start_at"), "driver"),
         ("Tiba di tujuan", trip.get("arrived_at"), "driver"),
         ("Trip selesai", trip.get("end_at"), "driver"),
         ("Bukti layanan (POD) diunggah", (trip.get("pod") or {}).get("at"), "driver"),
@@ -155,17 +170,21 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
         raise HTTPException(status_code=404, detail="Booking tidak ditemukan")
     if bk.get("status") in ("cancelled", "completed"):
         raise HTTPException(status_code=400, detail="Booking sudah selesai/dibatalkan, tidak bisa di-assign")
+    if bk.get("status") not in DISPATCHABLE:
+        raise HTTPException(status_code=400, detail="Booking masih menunggu persetujuan/DP — konfirmasi dulu sebelum assign sopir")
     drv = await db.drivers.find_one({"id": body.driver_id}, {"_id": 0})
     if not drv:
         raise HTTPException(status_code=404, detail="Driver tidak ditemukan")
     veh = await db.vehicles.find_one({"id": body.vehicle_id}, {"_id": 0})
     if not veh:
         raise HTTPException(status_code=404, detail="Armada tidak ditemukan")
+    if veh.get("status") in BLOCKED_VEHICLE_STATUS:
+        raise HTTPException(status_code=400, detail=f"Armada {veh.get('name')} berstatus '{veh.get('status')}' — tidak bisa di-assign")
     prev_vehicle_id = bk.get("vehicle_id")  # utk bebaskan unit lama bila re-assign ganti armada
     # Geocode tujuan (perbaiki G1) — best effort, di LUAR lock (I/O jaringan; jangan tahan mutex)
     geo = await geocode(db, bk.get("destination"))
     # E9: estimasi jarak rute (OSRM) origin->dest sebagai fallback distance_km — best effort
-    est_km = None
+    est_km, origin_geo = None, None
     try:
         origin_geo = await geocode(db, bk.get("origin"))
         if origin_geo and geo:
@@ -183,6 +202,12 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
             db, body.vehicle_id, bk.get("start_datetime"), bk.get("end_datetime"), exclude_id=booking_id)
         if conflicts:
             raise HTTPException(status_code=400, detail=f"Armada bentrok dengan booking {conflicts[0].get('code')}")
+        # INV-21: konsisten dgn create/confirm/reschedule — unit dalam jadwal perawatan ditolak.
+        maint = await availability.find_maintenance_conflicts(
+            db, body.vehicle_id, bk.get("start_datetime"), bk.get("end_datetime"))
+        if maint:
+            titles = ", ".join((m.get("title") or m.get("type") or "perawatan") for m in maint)
+            raise HTTPException(status_code=400, detail=f"Armada dalam masa perawatan: {titles}")
         # RC-07: cek bentrok DRIVER (1 sopir tak boleh di 2 trip tumpang-tindih waktu).
         dconf = await availability.find_driver_conflicts(
             db, body.driver_id, bk.get("start_datetime"), bk.get("end_datetime"), exclude_booking_id=booking_id)
@@ -201,6 +226,8 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
             "dest_name": bk.get("destination"),
             "dest_lat": (geo or {}).get("lat"), "dest_lng": (geo or {}).get("lng"),
             "dest_display": (geo or {}).get("display_name"),
+            # Titik jemput utk geofence pickup (dulu dihitung tapi tak disimpan → tak pernah aktif).
+            "origin_lat": (origin_geo or {}).get("lat"), "origin_lng": (origin_geo or {}).get("lng"),
             "est_distance_km": est_km,
             "assigned_at": now_iso(),
         }
@@ -230,20 +257,15 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
             }
             await db.trips.insert_one(trip_doc)
             trip_id = trip_doc["id"]
-        # Status armada/driver ringan
-        await db.vehicles.update_one({"id": veh["id"]}, {"$set": {"status": "on_trip"}})
+        # Armada BARU dianggap 'on_trip' saat sopir berangkat (services.trips._on_trip_started),
+        # bukan saat di-assign — dulu unit utk trip bulan depan tampak sibuk sejak sekarang.
         # Re-assign ganti armada: bebaskan unit LAMA bila tak dipakai TRIP aktif lain
         # (celah lama: unit lama tetap 'on_trip' selamanya → tampak sibuk padahal bebas).
         # Selaras dgn _release_booking_resources: status 'on_trip' hanya ditimbulkan oleh dispatch/trip
         # aktif — booking 'confirmed' yg BELUM di-dispatch tidak membuat armada on_trip, jadi TIDAK
         # dijadikan alasan menahan (dulu cek other_bk terlalu ketat → unit lama tak pernah dibebaskan).
         if prev_vehicle_id and prev_vehicle_id != veh["id"]:
-            other_trip = await db.trips.find_one(
-                {"vehicle_id": prev_vehicle_id, "id": {"$ne": trip_id},
-                 "status": {"$in": ["standby", "to_pickup", "on_trip"]}}, {"_id": 0, "id": 1})
-            prev_veh = await db.vehicles.find_one({"id": prev_vehicle_id}, {"_id": 0, "status": 1})
-            if not other_trip and prev_veh and prev_veh.get("status") == "on_trip":
-                await db.vehicles.update_one({"id": prev_vehicle_id}, {"$set": {"status": "available"}})
+            await release_vehicle(db, prev_vehicle_id, exclude_trip_id=trip_id)
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     payload = await _wa_payload(db, bk)
     await emit(db, "trip.assigned", payload, source="dispatch", ref_type="booking",
@@ -260,6 +282,8 @@ async def confirm_departure(booking_id: str, user=Depends(DISPATCH)):
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not bk:
         raise HTTPException(status_code=404, detail="Booking tidak ditemukan")
+    if bk.get("status") not in DISPATCHABLE:
+        raise HTTPException(status_code=400, detail="Booking belum terkonfirmasi — WA keberangkatan belum bisa dikirim")
     if not (bk.get("driver_id") and bk.get("vehicle_id")):
         raise HTTPException(status_code=400, detail="Assign driver & unit dulu sebelum konfirmasi keberangkatan")
     await db.bookings.update_one({"id": booking_id}, {"$set": {"departure_confirmed_at": now_iso()}})
@@ -279,21 +303,14 @@ async def _trip_or_404(db, trip_id):
     return trip
 
 
-async def _emit_trip_event(db, trip, event_type, extra=None):
-    bk = await db.bookings.find_one({"id": trip.get("booking_id")}, {"_id": 0}) or {}
-    payload = await _wa_payload(db, bk) if bk else {}
-    if extra:
-        payload.update(extra)
-    await emit(db, event_type, payload, source="dispatch", ref_type="booking",
-              ref_id=trip.get("booking_id"), dedupe_key=f"{event_type}:{trip['id']}")
-
-
 @router.post("/dispatch/trips/{trip_id}/enroute")
 async def trip_enroute(trip_id: str, user=Depends(DISPATCH)):
     db = get_db()
     trip = await _trip_or_404(db, trip_id)
-    await db.trips.update_one({"id": trip_id}, {"$set": {"status": "to_pickup", "enroute_at": now_iso()}})
-    await _emit_trip_event(db, trip, "trip.enroute")
+    if trip.get("status") not in ("standby", "to_pickup"):
+        raise HTTPException(status_code=400, detail=f"Trip berstatus '{trip.get('status')}' — tidak bisa berangkat menjemput")
+    # SSOT transisi: guard + armada dipakai + driver online + booking ongoing + WA trip.enroute.
+    await apply_trip_status(db, trip, "to_pickup", user)
     await record(db, actor=user, action="trip_enroute", entity_type="trip", entity_id=trip_id,
                  summary="Driver dalam perjalanan menjemput (WA ke pelanggan)")
     return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
@@ -303,11 +320,10 @@ async def trip_enroute(trip_id: str, user=Depends(DISPATCH)):
 async def trip_arrived(trip_id: str, user=Depends(DISPATCH)):
     db = get_db()
     trip = await _trip_or_404(db, trip_id)
-    await db.trips.update_one({"id": trip_id}, {"$set": {"arrived_at": now_iso()}})
-    await _emit_trip_event(db, trip, "trip.arrived")
+    doc = await mark_trip_arrived(db, trip, user, source="dispatch")  # SSOT services/trips
     await record(db, actor=user, action="trip_arrived", entity_type="trip", entity_id=trip_id,
                  summary="Tiba di tujuan (WA ke pelanggan)")
-    return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
+    return doc
 
 
 @router.post("/dispatch/trips/{trip_id}/pod")
@@ -316,6 +332,7 @@ async def upload_pod(trip_id: str, photo: UploadFile = File(default=None),
                      user=Depends(DISPATCH)):
     db = get_db()
     trip = await _trip_or_404(db, trip_id)
+    await assert_trip_state(trip, ("on_trip", "completed"), "menerima POD (penumpang belum naik)")
     photo_url = None
     if photo is not None:
         ext = ALLOWED_IMG.get((photo.content_type or "").lower())
@@ -331,15 +348,10 @@ async def upload_pod(trip_id: str, photo: UploadFile = File(default=None),
         raise HTTPException(status_code=400, detail="Sertakan foto, nama penerima, atau catatan POD")
     pod = {"photo_url": photo_url, "recipient_name": recipient_name or None,
            "note": note or None, "at": now_iso(), "by": user.get("id")}
-    await db.trips.update_one({"id": trip_id}, {"$set": {"pod": pod}})
+    # POD = bukti layanan saja (keputusan 2026-10-28). Dulu POD dari Dispatch menyelesaikan trip
+    # diam-diam (dari standby pun) → fee terkredit & WA ulasan terkirim padahal ops hanya melihat
+    # "POD tersimpan". Penyelesaian kini eksplisit: tombol "Selesaikan" (POST /trips/{id}/status).
+    doc = await save_pod(db, trip, pod, user)
     await record(db, actor=user, action="pod_upload", entity_type="trip", entity_id=trip_id,
                  summary=f"Bukti layanan (POD) diunggah—penerima {recipient_name or '-'}")
-    # G2: POD via dispatch = TITIK PENYELESAIAN trip di alur ops (tak ada checkout terpisah di sini).
-    # Delegasi ke SSOT finalize_trip_completion (RC-03) agar efek IDENTIK dengan driver/checkout:
-    # bebaskan armada + hitung KM + selesaikan booking + emit `trip.completed` (idempotent) →
-    # WA "terima kasih + ulasan" terkirim (menutup celah G2: sebelumnya POD dispatch senyap).
-    from services.trips import finalize_trip_completion
-    fresh = await db.trips.find_one({"id": trip_id}, {"_id": 0})
-    if fresh:
-        await finalize_trip_completion(db, fresh, user)
-    return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
+    return doc

@@ -12,6 +12,7 @@ from db import get_db
 from dependencies import require_section
 from schemas import ExpenseCreate, ExpenseUpdate
 from services.audit import record
+from services.driver_fee_ledger import is_system_expense
 from services.finance import EXPENSE_CATEGORIES, recompute_trip_profit
 
 router = APIRouter(prefix="/api", tags=["expenses"])
@@ -70,6 +71,10 @@ async def update_expense(expense_id: str, body: ExpenseUpdate, user=Depends(FIN)
     before = await db.expenses.find_one({"id": expense_id}, {"_id": 0})
     if not before:
         raise HTTPException(status_code=404, detail="Pengeluaran tidak ditemukan")
+    data_in = body.model_dump(exclude_unset=True)
+    if is_system_expense(before) and any(k in data_in for k in ("amount", "category", "booking_id")):
+        raise HTTPException(status_code=400, detail="Pengeluaran otomatis (payroll/fee sopir/sewa mitra) "
+                            "tidak bisa diubah nominal/kategorinya di sini — ubah lewat modul asalnya")
     updates = {}
     data = body.model_dump(exclude_unset=True)
     if "booking_id" in data:
@@ -102,6 +107,9 @@ async def delete_expense(expense_id: str, user=Depends(FIN)):
     before = await db.expenses.find_one({"id": expense_id}, {"_id": 0})
     if not before:
         raise HTTPException(status_code=404, detail="Pengeluaran tidak ditemukan")
+    if is_system_expense(before):
+        raise HTTPException(status_code=400, detail="Pengeluaran otomatis (payroll/fee sopir/sewa mitra) "
+                            "tidak bisa dihapus — batalkan lewat modul asalnya")
     await db.expenses.delete_one({"id": expense_id})
     if before.get("trip_id"):
         await recompute_trip_profit(db, before["trip_id"])

@@ -13,11 +13,9 @@ import GalleryManager from "@/components/cms/GalleryManager";
 import TourSceneBuilder from "@/components/cms/TourSceneBuilder";
 import ExteriorFramesEditor from "@/components/cms/ExteriorFramesEditor";
 import SpecsEditor from "@/components/cms/SpecsEditor";
+import { vehicleTypeOptions } from "@/lib/vehicleTypes";
 
-const TYPES = [
-  { v: "hiace_premio", l: "Hiace Premio" }, { v: "hiace", l: "Hiace Commuter" },
-  { v: "elf", l: "Isuzu Elf" }, { v: "bus", l: "Medium Bus" }, { v: "avanza", l: "Avanza/MPV" },
-];
+const TYPES = vehicleTypeOptions(); // SSOT lib/vehicleTypes
 // Status OPERASIONAL (available / on_trip / maintenance) diatur otomatis oleh trip & modul
 // Maintenance — bukan diisi manual. Master data hanya memutuskan LIFECYCLE: aktif vs nonaktif.
 const OPS_STATUS_LABEL = { on_trip: "Dalam Perjalanan (trip aktif)", maintenance: "Perawatan (jadwal servis aktif)" };

@@ -29,7 +29,7 @@ function Kpi({ icon: Icon, label, value, color }) {
   );
 }
 
-export default function PayrollManager() {
+export default function PayrollManager({ onChanged }) {
   const { user } = useAuth();
   const canManage = user && (user.role === "owner" || user.role === "ops_admin");
   const [rows, setRows] = useState([]);
@@ -117,7 +117,7 @@ export default function PayrollManager() {
 
       <PayoutFormDialog open={formOpen} onOpenChange={setFormOpen} onSaved={(id) => { load(); if (id) setDetailId(id); }} />
       <PayoutBulkDialog open={bulkOpen} onOpenChange={setBulkOpen} onSaved={load} />
-      <PayoutDetailDialog payoutId={detailId} onOpenChange={(v) => { if (!v) setDetailId(null); }} onChanged={load} canManage={canManage} />
+      <PayoutDetailDialog payoutId={detailId} onOpenChange={(v) => { if (!v) setDetailId(null); }} onChanged={() => { load(); onChanged && onChanged(); }} canManage={canManage} />
     </div>
   );
 }

@@ -19,7 +19,8 @@ export default function ConsentBanner() {
   // Ikut notifikasi dari lib/tracking (konfigurasi datang dari server, waktunya tak bisa ditebak).
   useEffect(() => onTrackingReady(setStatus), []);
 
-  const relevant = status.loaded && status.bannerEnabled && status.requireConsent && (status.meta || status.google);
+  const relevant = status.loaded && status.bannerEnabled && status.requireConsent
+    && (status.meta || status.google || status.gtm || status.posthog);
   if (!relevant || choice) return null;
 
   const accept = () => { grantConsent(); setChoice("granted"); };

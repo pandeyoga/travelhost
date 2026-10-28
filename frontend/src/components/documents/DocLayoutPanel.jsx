@@ -10,22 +10,19 @@ import RowsForm from "@/components/documents/RowsForm";
 import TableForm from "@/components/documents/TableForm";
 import SignaturesForm from "@/components/documents/SignaturesForm";
 import OptionsForm from "@/components/documents/OptionsForm";
+import { docBlobErr, docErr } from "@/components/documents/docErrors";
+import { DEFAULT_CODE, inheritedBase, layoutPayload, pick } from "@/components/documents/layoutDiff";
 
 const SUB = [
   ["script", "Naskah", FileText], ["brand", "Kop & Identitas", Palette], ["rows", "Baris Biaya", Rows3],
   ["table", "Gaya Tabel", Table2], ["sign", "Tanda Tangan", PenLine], ["options", "Opsi", SlidersHorizontal],
 ];
 
-function pick(layout) {
-  if (!layout) return {};
-  const { brand, table, sections, money_rows, signatures, options } = layout;
-  return { brand, table, sections, money_rows, signatures, options };
-}
-
 export default function DocLayoutPanel() {
   const [targets, setTargets] = useState([]);
   const [code, setCode] = useState("INVOICE_DP");
   const [layout, setLayout] = useState(null);
+  const [base, setBase] = useState(null); // nilai warisan kode ini (lihat layoutDiff.inheritedBase)
   const [script, setScript] = useState(null);
   const [naskah, setNaskah] = useState("");
   const [sub, setSub] = useState("script");
@@ -38,11 +35,15 @@ export default function DocLayoutPanel() {
   const load = useCallback(async () => {
     setState({ loading: true, error: "" });
     try {
-      const [t, l, s] = await Promise.all([
-        apiClient.get("/doc-layouts"), apiClient.get(`/doc-layouts/${code}`), apiClient.get(`/doc-layouts/${code}/script`)]);
-      setTargets(t.data.data || []); setLayout(l.data.data); setScript(s.data.data); setNaskah(s.data.data?.content || "");
+      const [t, l, s, d] = await Promise.all([
+        apiClient.get("/doc-layouts"), apiClient.get(`/doc-layouts/${code}`), apiClient.get(`/doc-layouts/${code}/script`),
+        code === DEFAULT_CODE ? null : apiClient.get(`/doc-layouts/${DEFAULT_CODE}`)]);
+      const list = t.data.data || [];
+      const customized = Boolean(list.find((x) => x.code === code)?.customized);
+      setTargets(list); setLayout(l.data.data); setScript(s.data.data); setNaskah(s.data.data?.content || "");
+      setBase(inheritedBase({ code, own: l.data.data, def: d?.data?.data, customized }));
       setDirty(false); setState({ loading: false, error: "" });
-    } catch (e) { setState({ loading: false, error: e?.response?.data?.detail || "Gagal memuat konfigurasi dokumen." }); }
+    } catch (e) { setState({ loading: false, error: docErr(e, "Gagal memuat konfigurasi dokumen.") }); }
   }, [code]);
   useEffect(() => { load(); }, [load]);
 
@@ -51,7 +52,11 @@ export default function DocLayoutPanel() {
     try {
       const r = await apiClient.post(`/doc-layouts/${code}/preview`, { ...pick(lay), script: text }, { responseType: "blob" });
       setPreview((p) => { if (p.url) window.URL.revokeObjectURL(p.url); return { url: window.URL.createObjectURL(r.data), busy: false }; });
-    } catch (e) { setPreview((p) => ({ ...p, busy: false })); toast.error("Pratinjau gagal — periksa placeholder naskah."); }
+    } catch (e) {
+      setPreview((p) => ({ ...p, busy: false }));
+      const why = await docBlobErr(e, "");
+      toast.error(why ? `Pratinjau gagal — ${why}` : "Pratinjau gagal — periksa placeholder naskah.");
+    }
   }, [code]);
 
   useEffect(() => {
@@ -65,14 +70,15 @@ export default function DocLayoutPanel() {
 
   const saveLayout = async () => {
     setSaving("layout");
-    try { const r = await apiClient.put(`/doc-layouts/${code}`, pick(layout)); setLayout(r.data.data); setDirty(false); toast.success("Tampilan dokumen disimpan"); }
-    catch (e) { toast.error(e?.response?.data?.detail?.[0]?.msg || e?.response?.data?.detail || "Gagal menyimpan"); }
+    // `__default__` dikirim utuh; kode lain hanya yang berbeda dari warisan → sisanya tetap mewarisi.
+    try { const r = await apiClient.put(`/doc-layouts/${code}`, layoutPayload(code, layout, base)); setLayout(r.data.data); setDirty(false); toast.success("Tampilan dokumen disimpan"); }
+    catch (e) { toast.error(docErr(e, "Gagal menyimpan")); }
     finally { setSaving(""); }
   };
   const saveScript = async () => {
     setSaving("script");
     try { const r = await apiClient.put(`/doc-layouts/${code}/script`, { content: naskah }); setScript(r.data.data); toast.success("Naskah dokumen disimpan"); }
-    catch (e) { toast.error(e?.response?.data?.detail || "Gagal menyimpan naskah"); }
+    catch (e) { toast.error(docErr(e, "Gagal menyimpan naskah")); }
     finally { setSaving(""); }
   };
   const resetLayout = async () => {
@@ -100,7 +106,7 @@ export default function DocLayoutPanel() {
                 <SelectContent>{targets.map((t) => <SelectItem key={t.code} value={t.code}>{t.label}{t.customized ? " •" : ""}</SelectItem>)}</SelectContent>
               </Select>
               <p className="text-[11.5px] text-[#6B6B73]">
-                {code === "__default__" ? "Identitas & gaya di sini dipakai SEMUA dokumen; jenis lain hanya menyimpan yang berbeda." : cur?.customized ? `Tampilan disesuaikan (v${cur.version}) oleh ${cur.updated_by || "-"}` : "Memakai bawaan + identitas perusahaan."}
+                {code === DEFAULT_CODE ? "Identitas & gaya di sini dipakai SEMUA dokumen; jenis lain hanya menyimpan yang berbeda." : cur?.customized ? `Tampilan disesuaikan (v${cur.version}) oleh ${cur.updated_by || "-"}` : "Memakai bawaan + identitas perusahaan."}
               </p>
             </div>
             <div className="flex items-center gap-2">

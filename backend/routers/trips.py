@@ -11,7 +11,7 @@ Urutan rute: literal/spesifik sebelum /{id} agar tidak tertelan path param.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from core_utils import now_iso, safe_doc
+from core_utils import safe_doc
 from db import get_db
 from dependencies import get_current_user
 from schemas import TripStatusUpdate
@@ -22,6 +22,31 @@ router = APIRouter(prefix="/api", tags=["trips"])
 TRIP_STATUSES = {"standby", "to_pickup", "on_trip", "completed"}
 
 
+_DRIVER_HIDDEN = ("revenue", "profit")  # nilai bisnis tidak untuk sopir
+
+
+async def _driver_scope(db, user):
+    """Sopir hanya boleh melihat trip MILIKNYA (dulu GET /trips mengembalikan semua trip +
+    pendapatannya). None = bukan sopir (tanpa batasan)."""
+    if user.get("role") != "driver":
+        return None
+    from services.rbac_scope import resolve_driver
+    me = await resolve_driver(db, user)
+    return (me or {}).get("id") or "__tanpa_driver__"
+
+
+async def _visible_trip_or_404(db, trip_id, user):
+    trip = await db.trips.find_one({"id": trip_id}, {"_id": 0})
+    scope = await _driver_scope(db, user)
+    if not trip or (scope and trip.get("driver_id") != scope):
+        raise HTTPException(status_code=404, detail="Trip tidak ditemukan")
+    return trip, scope
+
+
+def _for_viewer(doc, scope):
+    return {k: v for k, v in doc.items() if k not in _DRIVER_HIDDEN} if scope else doc
+
+
 async def _latest_location(db, trip_id):
     pts = await db.locations.find({"trip_id": trip_id}, {"_id": 0}).sort("timestamp", -1).limit(1).to_list(1)
     return pts[0] if pts else None
@@ -29,21 +54,41 @@ async def _latest_location(db, trip_id):
 
 @router.get("/trips")
 async def list_trips(status: str = Query(default=None), driver_id: str = Query(default=None),
+                     active: bool = Query(default=False),
                      limit: int = Query(default=500, le=1000), skip: int = Query(default=0, ge=0),
                      user=Depends(get_current_user)):
+    db = get_db()
     query = {}
     if status:
         query["status"] = status
+    if active:  # GPS/live: hanya trip yang relevan dipantau (terjadwal/menjemput/dalam perjalanan)
+        query["status"] = {"$in": ["standby", "to_pickup", "on_trip"]}
     if driver_id:
         query["driver_id"] = driver_id
-    docs = await get_db().trips.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).to_list(limit)
-    return safe_doc(docs)
+    scope = await _driver_scope(db, user)
+    if scope:
+        query["driver_id"] = scope
+    docs = await db.trips.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).to_list(limit)
+    # Konteks booking (kode, rute, pelanggan) — dulu daftar GPS hanya "Jakarta — Standby" berulang.
+    bks = {b["id"]: b for b in await db.bookings.find(
+        {"id": {"$in": [d.get("booking_id") for d in docs if d.get("booking_id")]}},
+        {"_id": 0, "id": 1, "code": 1, "origin": 1, "destination": 1, "customer_name": 1,
+         "start_datetime": 1}).to_list(len(docs) or 1)}
+    out = []
+    for d in docs:
+        b = bks.get(d.get("booking_id")) or {}
+        out.append({**_for_viewer(d, scope), "booking_code": b.get("code"), "origin": b.get("origin"),
+                    "destination": b.get("destination") or d.get("dest_name"),
+                    "customer_name": b.get("customer_name"), "start_datetime": b.get("start_datetime")})
+    return safe_doc(out)
 
 
 @router.get("/trips/{trip_id}/track")
 async def trip_track(trip_id: str, limit: int = Query(default=5000, le=5000),
                      user=Depends(get_current_user)):
-    pts = await get_db().locations.find({"trip_id": trip_id}, {"_id": 0}).sort("timestamp", 1).to_list(limit)
+    db = get_db()
+    await _visible_trip_or_404(db, trip_id, user)
+    pts = await db.locations.find({"trip_id": trip_id}, {"_id": 0}).sort("timestamp", 1).to_list(limit)
     return safe_doc(pts)
 
 
@@ -51,9 +96,7 @@ async def trip_track(trip_id: str, limit: int = Query(default=5000, le=5000),
 async def trip_eta(trip_id: str, dest_lat: float = Query(default=None), dest_lng: float = Query(default=None),
                    user=Depends(get_current_user)):
     db = get_db()
-    trip = await db.trips.find_one({"id": trip_id}, {"_id": 0})
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip tidak ditemukan")
+    trip, _ = await _visible_trip_or_404(db, trip_id, user)
     cur = await _latest_location(db, trip_id)
     if not cur:
         return {"available": False, "eta_minutes": None, "distance_km": None,
@@ -79,10 +122,8 @@ async def trip_eta(trip_id: str, dest_lat: float = Query(default=None), dest_lng
 
 @router.get("/trips/{trip_id}")
 async def get_trip(trip_id: str, user=Depends(get_current_user)):
-    doc = await get_db().trips.find_one({"id": trip_id}, {"_id": 0})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Trip tidak ditemukan")
-    return safe_doc(doc)
+    doc, scope = await _visible_trip_or_404(get_db(), trip_id, user)
+    return safe_doc(_for_viewer(doc, scope))
 
 
 @router.post("/trips/{trip_id}/status")
@@ -93,27 +134,11 @@ async def update_trip_status(trip_id: str, body: TripStatusUpdate, user=Depends(
     trip = await db.trips.find_one({"id": trip_id}, {"_id": 0})
     if not trip:
         raise HTTPException(status_code=404, detail="Trip tidak ditemukan")
-    # RBAC: driver hanya boleh mengubah trip miliknya (manager/owner bebas).
-    if user.get("role") == "driver":
-        me = await db.drivers.find_one(
-            {"$or": [{"user_id": user.get("id")}, {"phone": user.get("phone")},
-                     {"name": user.get("name")}]}, {"_id": 0, "id": 1})
-        if not me or trip.get("driver_id") != me.get("id"):
-            raise HTTPException(status_code=403, detail="Hanya boleh mengubah trip milik Anda")
+    # RBAC: driver hanya boleh mengubah trip miliknya (manager/owner bebas) — SSOT resolve_driver.
+    scope = await _driver_scope(db, user)
+    if scope and trip.get("driver_id") != scope:
+        raise HTTPException(status_code=403, detail="Hanya boleh mengubah trip milik Anda")
     # RC-03: 'completed' via jalur generik ini HARUS memicu efek samping identik dgn
     # driver/checkout (bebaskan armada, selesaikan booking, hitung KM) — anti split-brain.
-    if body.status == "completed":
-        from services.trips import finalize_trip_completion
-        return await finalize_trip_completion(db, trip, user)
-    updates = {"status": body.status}
-    if body.status in ("to_pickup", "on_trip"):
-        if body.status == "on_trip" and not trip.get("start_at"):
-            updates["start_at"] = now_iso()
-        # Sinkron sumber daya: armada dipakai, driver online.
-        if trip.get("vehicle_id"):
-            await db.vehicles.update_one({"id": trip["vehicle_id"]}, {"$set": {"status": "on_trip"}})
-        if trip.get("driver_id"):
-            await db.drivers.update_one({"id": trip["driver_id"]}, {"$set": {"status": "online"}})
-    await db.trips.update_one({"id": trip_id}, {"$set": updates})
-    doc = await db.trips.find_one({"id": trip_id}, {"_id": 0})
-    return safe_doc(doc)
+    from services.trips import apply_trip_status
+    return await apply_trip_status(db, trip, body.status, user)

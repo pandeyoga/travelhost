@@ -6,6 +6,7 @@ Agregasi read-only dari koleksi driver_payouts + expenses (gaji_driver) + paymen
   - Biaya SDM vs revenue (rasio payroll_cost / revenue periode)
 Export PDF (reportlab) + Excel (openpyxl).
 """
+from xml.sax.saxutils import escape
 from datetime import datetime, timezone
 from io import BytesIO
 
@@ -61,7 +62,25 @@ async def build(db, period=None) -> dict:
             if row is not None:
                 row["ytd"] += float(p.get("total") or 0)
 
-    driver_rows = sorted(per_driver.values(), key=lambda r: r["total"], reverse=True)
+    # Fee keberangkatan (akrual per trip, services.driver_fee_ledger) per sopir → kolom "fee" &
+    # "total_sdm" supaya rekap per sopir = "Biaya SDM" (dulu fee/pencairan tak muncul per sopir).
+    fee_rows = await db.expenses.aggregate([
+        {"$match": {"category": "gaji_driver", "payout_id": {"$in": [None, ""]},
+                    "created_at": {"$regex": f"^{period}"}}},
+        {"$group": {"_id": "$driver_id", "t": {"$sum": {"$ifNull": ["$amount", 0]}}}}]).to_list(1000)
+    for r in fee_rows:
+        row = per_driver.get(r["_id"])
+        if row is None:
+            drv = await db.drivers.find_one({"id": r["_id"]}, {"_id": 0, "name": 1}) or {}
+            row = per_driver.setdefault(r["_id"], {
+                "driver_id": r["_id"], "driver_name": drv.get("name") or "(sopir terhapus)",
+                "trips": 0, "km": 0.0, "gross": 0.0, "bonus": 0.0, "deduction": 0.0,
+                "total": 0.0, "statuses": [], "ytd": 0.0})
+        row["fee"] = round(float(r["t"]), 2)
+    for row in per_driver.values():
+        row.setdefault("fee", 0.0)
+        row["total_sdm"] = round(row["total"] + row["fee"], 2)
+    driver_rows = sorted(per_driver.values(), key=lambda r: r["total_sdm"], reverse=True)
     for r in driver_rows:
         r["km"] = round(r["km"], 1)
         for k in ("gross", "bonus", "deduction", "total", "ytd"):
@@ -89,6 +108,7 @@ async def build(db, period=None) -> dict:
         "total_bonus": round(tot_bonus, 2),
         "total_deduction": round(tot_ded, 2),
         "total_net": round(tot_net, 2),
+        "total_fee": round(sum(r["fee"] for r in driver_rows), 2),
         "per_driver": driver_rows,
         "sdm_vs_revenue": {"payroll_cost": payroll_cost, "revenue": revenue, "ratio_pct": ratio},
     }
@@ -110,7 +130,7 @@ def report_pdf(data: dict, company: dict = None) -> bytes:
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=17, spaceAfter=2)
     small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9.5, textColor=colors.HexColor("#6B6B73"))
-    el = [Paragraph(f"{company.get('name') or 'Rekap Payroll Driver'}", h1),
+    el = [Paragraph(escape(company.get('name') or 'Rekap Payroll Driver'), h1),
           Paragraph(f"Periode {data.get('period')} · SDM vs Revenue: {_rp(data['sdm_vs_revenue']['payroll_cost'])} / {_rp(data['sdm_vs_revenue']['revenue'])} = {data['sdm_vs_revenue']['ratio_pct']}%", small),
           Spacer(1, 8)]
 

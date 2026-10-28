@@ -110,10 +110,16 @@ export default function DriverFeeCard({ driverId = "", isManager = false }) {
             ) : wds.slice(0, 6).map((w) => {
               const st = WD_STATUS[w.status] || [w.status, "neutral"];
               return (
-                <div key={w.id} className="flex items-center justify-between gap-2 rounded-[10px] bg-white/70 px-2.5 py-1.5 text-[12px]" data-testid={`fee-wd-${w.id}`}>
-                  <span className="tabular-nums font-semibold text-[#1C1C1E]">{formatCurrency(w.amount)}</span>
-                  <span className="text-[11px] text-[#8E8E93]">{formatDateTime(w.created_at)}</span>
-                  <span className={`status-pill tone-${st[1]} !text-[10.5px]`}>{st[0]}</span>
+                <div key={w.id} className="rounded-[10px] bg-white/70 px-2.5 py-1.5 text-[12px]" data-testid={`fee-wd-${w.id}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="tabular-nums font-semibold text-[#1C1C1E]">{formatCurrency(w.amount)}</span>
+                    <span className="text-[11px] text-[#8E8E93]">{formatDateTime(w.created_at)}</span>
+                    <span className={`status-pill tone-${st[1]} !text-[10.5px]`}>{st[0]}</span>
+                  </div>
+                  {/* Alasan penolakan dijanjikan dialog Finance → kini benar-benar tampil ke sopir. */}
+                  {w.status === "rejected" && w.reject_reason ? (
+                    <p className="mt-0.5 text-[11px] text-[#A8221A]" data-testid={`fee-wd-reason-${w.id}`}>Alasan: {w.reject_reason}</p>
+                  ) : null}
                 </div>
               );
             })}

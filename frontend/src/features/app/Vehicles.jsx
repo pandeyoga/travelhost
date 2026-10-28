@@ -11,6 +11,7 @@ import VehicleFormDialog from "@/components/app/VehicleFormDialog";
 import VehicleDetailDrawer from "@/components/app/VehicleDetailDrawer";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { formatCurrency, formatDate, formatQty } from "@/utils/formatters";
+import { VEHICLE_TYPE_LABEL } from "@/lib/vehicleTypes";
 
 const VEHICLE_TONE = { available: "success", maintenance: "warning", on_trip: "info" };
 const DAY = 86400000;
@@ -27,10 +28,7 @@ function dueItems(v) {
   return out;
 }
 
-const TYPE_LABEL = {
-  hiace_premio: "Hiace Premio", hiace: "Hiace Commuter", elf: "Elf / Microbus",
-  bus: "Bus Besar", avanza: "Avanza / MPV",
-};
+const TYPE_LABEL = VEHICLE_TYPE_LABEL; // SSOT lib/vehicleTypes
 
 export default function Vehicles() {
   const { user } = useAuth();

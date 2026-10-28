@@ -6,6 +6,7 @@ import { LoadingState } from "@/components/shared/DataStates";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/documents/BrandForm";
+import { docErr } from "@/components/documents/docErrors";
 
 export default function InvoiceConfigPanel() {
   const [cfg, setCfg] = useState(null);
@@ -20,7 +21,7 @@ export default function InvoiceConfigPanel() {
     try {
       const r = await apiClient.put("/invoice-config", { ...cfg, bank_accounts: banks.filter((b) => b.bank && b.account_no && b.account_name) });
       setCfg(r.data); toast.success("Pengaturan invoice disimpan");
-    } catch (e) { toast.error(e?.response?.data?.detail?.[0]?.msg || e?.response?.data?.detail || "Gagal menyimpan"); }
+    } catch (e) { toast.error(docErr(e, "Gagal menyimpan")); }
     finally { setSaving(false); }
   };
   return (

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { docErr } from "@/components/documents/docErrors";
 
 export function Field({ label, children, hint }) {
   return (
@@ -29,7 +30,7 @@ export function ImagePicker({ label, fileId, onChange, testId }) {
       const fd = new FormData(); fd.append("file", file);
       const r = await apiClient.post("/doc-assets", fd, { headers: { "Content-Type": "multipart/form-data" } });
       onChange(r.data.id); setUrl(`${process.env.REACT_APP_BACKEND_URL}${r.data.url}`); toast.success("Gambar diunggah");
-    } catch (e) { toast.error(e?.response?.data?.detail || "Gagal mengunggah gambar"); }
+    } catch (e) { toast.error(docErr(e, "Gagal mengunggah gambar")); }
     finally { setBusy(false); }
   };
   return (

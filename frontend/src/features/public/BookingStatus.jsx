@@ -12,18 +12,19 @@ import {
 } from "@/services/bookingApi";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
+import { bookingStatusLabel, bookingStatusTone } from "@/lib/statusLabels";
 
 // BookingStatus — halaman "pesanan saya" TANPA akun pelanggan.
 //
 // Dua jalan masuk: (1) tautan ber-token yang dibuka otomatis setelah memesan, dan (2) formulir
 // kode booking + nomor WhatsApp untuk yang datang kembali di lain hari/peramban.
-const TONE = {
-  hold: { id: "Unit ditahan — menunggu DP", en: "Unit on hold — awaiting deposit", cls: "bg-[hsl(var(--warning,38_92%_50%))]/15 text-foreground" },
-  pending: { id: "Menunggu konfirmasi tim", en: "Awaiting team confirmation", cls: "bg-secondary text-secondary-foreground" },
-  confirmed: { id: "Terkonfirmasi", en: "Confirmed", cls: "bg-primary/10 text-primary" },
-  ongoing: { id: "Sedang berjalan", en: "In progress", cls: "bg-primary/10 text-primary" },
-  completed: { id: "Selesai", en: "Completed", cls: "bg-primary/10 text-primary" },
-  cancelled: { id: "Dibatalkan", en: "Cancelled", cls: "bg-[hsl(var(--destructive))]/10 text-[hsl(var(--destructive))]" },
+// Label status = SSOT lib/statusLabels (sama dengan ERP); di sini hanya warna tema situs publik.
+const TONE_CLS = {
+  warning: "bg-[hsl(var(--warning,38_92%_50%))]/15 text-foreground",
+  info: "bg-primary/10 text-primary",
+  success: "bg-primary/10 text-primary",
+  danger: "bg-[hsl(var(--destructive))]/10 text-[hsl(var(--destructive))]",
+  neutral: "bg-secondary text-secondary-foreground",
 };
 
 export default function BookingStatus() {
@@ -83,9 +84,12 @@ export default function BookingStatus() {
     } finally { setCancelling(false); }
   };
 
-  const toneRaw = TONE[status?.status] || TONE.pending;
-  const tone = { label: bi(toneRaw.id, toneRaw.en, lang), cls: toneRaw.cls };
+  const tone = {
+    label: bookingStatusLabel(status?.status, { lang }),
+    cls: TONE_CLS[bookingStatusTone(status?.status)] || TONE_CLS.neutral,
+  };
   const showPayment = status && ["hold", "pending", "confirmed", "ongoing"].includes(status.status);
+  const cancelReason = status?.status === "cancelled" ? (status.cancellation_reason || "") : "";
 
   return (
     <div>
@@ -176,6 +180,12 @@ export default function BookingStatus() {
                 <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground" data-testid="booking-status-message">
                   {status.message}
                 </p>
+                {cancelReason ? (
+                  <p className="mt-2 rounded-lg bg-[hsl(var(--destructive))]/10 px-3 py-2 text-[12.5px] text-[hsl(var(--destructive))]"
+                    data-testid="booking-cancel-reason">
+                    {bi("Alasan pembatalan", "Cancellation reason", lang)}: {cancelReason}
+                  </p>
+                ) : null}
                 {status.status === "hold" ? (
                   <div className="mt-4">
                     <HoldCountdown seconds={status.countdown_seconds} expiresAt={status.hold_expires_at} />
@@ -221,6 +231,14 @@ export default function BookingStatus() {
                 )}
               </div>
 
+              {/* Bukti DP sedang diverifikasi → uang mungkin sudah masuk: pembatalan lewat tim
+                  (refund), jadi tampilkan alasannya alih-alih tombol batal. */}
+              {!status.can_cancel && status.cancel_blocked_reason ? (
+                <p className="rounded-xl border border-border bg-secondary px-4 py-3 text-[12.5px] leading-relaxed text-secondary-foreground"
+                  data-testid="booking-cancel-blocked">
+                  {status.cancel_blocked_reason}
+                </p>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 {status.can_cancel ? (
                   <button onClick={doCancel} disabled={cancelling} data-testid="booking-cancel"

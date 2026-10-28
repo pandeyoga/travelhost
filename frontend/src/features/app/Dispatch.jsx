@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   CalendarCheck, UserPlus, BellRing, Navigation, Flag, Truck, MapPin, ClipboardCheck,
-  CheckCircle2, Clock, AlertCircle, ChevronLeft, ChevronRight,
+  CheckCircle2, Clock, AlertCircle, ChevronLeft, ChevronRight, UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import apiClient from "@/services/apiClient";
@@ -10,10 +10,9 @@ import { LoadingState, EmptyState, ErrorState } from "@/components/shared/DataSt
 import AssignTripDialog from "@/components/app/AssignTripDialog";
 import PodDialog from "@/components/app/PodDialog";
 import DispatchDetailDialog from "@/components/app/DispatchDetailDialog";
+import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { formatQty } from "@/utils/formatters";
-
-const BK_STATUS = { confirmed: ["Dikonfirmasi", "info"], ongoing: ["Berjalan", "warning"], completed: ["Selesai", "success"], pending: ["Pending", "neutral"], cancelled: ["Batal", "neutral"] };
-const TRIP_STATUS = { standby: ["Terjadwal", "info"], to_pickup: ["Menjemput", "warning"], on_trip: ["Dalam Perjalanan", "warning"], completed: ["Selesai", "success"] };
+import { bookingStatusLabel, bookingStatusTone, tripStatusLabel, tripStatusTone } from "@/lib/statusLabels";
 
 function Pill({ label, tone }) {
   return <span className={`status-pill tone-${tone || "neutral"}`}>{label}</span>;
@@ -42,6 +41,7 @@ export default function Dispatch() {
   const [assignTarget, setAssignTarget] = useState(null);
   const [podTarget, setPodTarget] = useState(null);
   const [detailId, setDetailId] = useState(null);
+  const [finishTarget, setFinishTarget] = useState(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) { setLoading(true); setError(null); }
@@ -72,6 +72,12 @@ export default function Dispatch() {
   const confirmDeparture = (row) => act(`confirm-${row.id}`, () => apiClient.post(`/dispatch/${row.id}/confirm-departure`), "Keberangkatan dikonfirmasi — WA terkirim ke pelanggan");
   const enroute = (row) => act(`enroute-${row.id}`, () => apiClient.post(`/dispatch/trips/${row.trip_id}/enroute`), "Driver ditandai dalam perjalanan — WA terkirim");
   const arrived = (row) => act(`arrived-${row.id}`, () => apiClient.post(`/dispatch/trips/${row.trip_id}/arrived`), "Tiba di tujuan — WA terkirim ke pelanggan");
+  // POD hanya bukti; trip ditutup EKSPLISIT di sini (dulu POD diam-diam menyelesaikan trip).
+  const finish = async () => {
+    const row = finishTarget;
+    await act(`finish-${row.id}`, () => apiClient.post(`/trips/${row.trip_id}/status`, { status: "completed" }), "Trip diselesaikan — armada dibebaskan, fee sopir tercatat");
+    setFinishTarget(null);
+  };
 
   if (loading) return <LoadingState testId="dispatch-loading" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -116,8 +122,7 @@ export default function Dispatch() {
                 <th className="px-3 py-2.5 text-right">Aksi</th></tr></thead>
               <tbody data-testid="dispatch-list">
                 {rows.map((r) => {
-                  const bk = BK_STATUS[r.status] || [r.status, "neutral"];
-                  const tr = r.trip_status ? (TRIP_STATUS[r.trip_status] || [r.trip_status, "neutral"]) : null;
+                  const ts = r.trip_status;
                   return (
                     <tr key={r.id} className="cursor-pointer border-b border-[#F6F6F8] align-top hover:bg-[#FAFAFB]"
                       onClick={() => setDetailId(r.id)} title="Klik untuk lihat detail & timeline"
@@ -140,27 +145,38 @@ export default function Dispatch() {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex flex-wrap items-center gap-1">
-                          <Pill label={bk[0]} tone={bk[1]} />
-                          {tr ? <Pill label={tr[0]} tone={tr[1]} /> : null}
-                          {r.departure_confirmed ? <span className="status-pill tone-success" data-testid={`dispatch-confirmed-${r.id}`}><CheckCircle2 size={11} /> Konfirmasi</span> : null}
+                          <Pill label={bookingStatusLabel(r.status)} tone={bookingStatusTone(r.status)} />
+                          {ts ? <Pill label={tripStatusLabel(ts)} tone={tripStatusTone(ts)} /> : null}
+                          {r.departure_confirmed ? <span className="status-pill tone-success" data-testid={`dispatch-confirmed-${r.id}`}><CheckCircle2 size={11} /> WA keberangkatan</span> : null}
+                          {/* Update sopir terlihat langsung di papan (dulu hanya di timeline detail). */}
+                          {r.driver_ack_at ? <span className="status-pill tone-success" title={`Diterima ${timeOf(r.driver_ack_at)}`} data-testid={`dispatch-ack-${r.id}`}><UserCheck size={11} /> Diterima sopir</span> : r.trip_id && ts === "standby" ? <span className="status-pill tone-neutral" data-testid={`dispatch-noack-${r.id}`}>Belum diterima sopir</span> : null}
+                          {r.arrived_at ? <span className="status-pill tone-info" data-testid={`dispatch-arrived-badge-${r.id}`}><Flag size={11} /> Tiba {timeOf(r.arrived_at)}</span> : null}
                           {r.pod ? <span className="status-pill tone-info"><ClipboardCheck size={11} /> POD</span> : null}
                         </div>
                       </td>
                       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                         {canManage ? (
                           <div className="flex flex-wrap justify-end gap-1.5">
-                            <button className="secondary-button !h-8 !px-2.5" onClick={() => setAssignTarget(r)} data-testid={`dispatch-assign-${r.id}`}><UserPlus size={13} /> {r.assigned ? "Ubah" : "Assign"}</button>
-                            {r.assigned && !r.departure_confirmed ? (
+                            {!r.can_dispatch && ["pending", "hold"].includes(r.status) ? (
+                              <span className="text-[11px] text-[#8E8E93]" data-testid={`dispatch-wait-${r.id}`}>Konfirmasi booking dulu</span>
+                            ) : null}
+                            {r.can_dispatch && ts !== "on_trip" && ts !== "completed" ? (
+                              <button className="secondary-button !h-8 !px-2.5" onClick={() => setAssignTarget(r)} data-testid={`dispatch-assign-${r.id}`}><UserPlus size={13} /> {r.assigned ? "Ubah" : "Assign"}</button>
+                            ) : null}
+                            {r.can_dispatch && r.assigned && !r.departure_confirmed ? (
                               <button className="secondary-button !h-8 !px-2.5" disabled={busy === `confirm-${r.id}`} onClick={() => confirmDeparture(r)} data-testid={`dispatch-confirm-${r.id}`}><BellRing size={13} /> Konfirmasi</button>
                             ) : null}
-                            {r.trip_id && r.trip_status === "standby" ? (
+                            {r.trip_id && ts === "standby" ? (
                               <button className="secondary-button !h-8 !px-2.5" disabled={busy === `enroute-${r.id}`} onClick={() => enroute(r)} data-testid={`dispatch-enroute-${r.id}`}><Navigation size={13} /> Berangkat</button>
                             ) : null}
-                            {r.trip_id && (r.trip_status === "to_pickup" || r.trip_status === "on_trip") ? (
+                            {r.trip_id && ts === "on_trip" && !r.arrived_at ? (
                               <button className="secondary-button !h-8 !px-2.5" disabled={busy === `arrived-${r.id}`} onClick={() => arrived(r)} data-testid={`dispatch-arrived-${r.id}`}><Flag size={13} /> Tiba</button>
                             ) : null}
-                            {r.trip_id ? (
+                            {r.trip_id && (ts === "on_trip" || ts === "completed") ? (
                               <button className="secondary-button !h-8 !px-2.5" onClick={() => setPodTarget(r)} data-testid={`dispatch-pod-${r.id}`}><ClipboardCheck size={13} /> POD</button>
+                            ) : null}
+                            {r.trip_id && (ts === "to_pickup" || ts === "on_trip") ? (
+                              <button className="secondary-button !h-8 !px-2.5" disabled={busy === `finish-${r.id}`} onClick={() => setFinishTarget(r)} data-testid={`dispatch-finish-${r.id}`}><CheckCircle2 size={13} /> Selesaikan</button>
                             ) : null}
                           </div>
                         ) : <span className="text-[11px] text-[#8E8E93]">—</span>}
@@ -178,6 +194,10 @@ export default function Dispatch() {
       <AssignTripDialog open={Boolean(assignTarget)} onOpenChange={(v) => !v && setAssignTarget(null)} booking={assignTarget} onSaved={load} />
       <PodDialog open={Boolean(podTarget)} onOpenChange={(v) => !v && setPodTarget(null)} trip={podTarget ? { id: podTarget.trip_id, pod: podTarget.pod ? {} : null } : null} onSaved={load} />
       <DispatchDetailDialog open={Boolean(detailId)} onOpenChange={(v) => !v && setDetailId(null)} bookingId={detailId} />
+      <ConfirmDialog open={Boolean(finishTarget)} onOpenChange={(v) => !v && setFinishTarget(null)}
+        title={`Selesaikan trip ${finishTarget?.code || ""}?`}
+        description="Booking ditandai selesai, armada dibebaskan, fee sopir dikreditkan, dan pelanggan menerima WA terima kasih + permintaan ulasan. Gunakan bila sopir tidak menutup trip dari aplikasinya."
+        confirmLabel="Ya, selesaikan" busy={Boolean(finishTarget) && busy === `finish-${finishTarget.id}`} onConfirm={finish} testId="dispatch-finish-dialog" />
     </div>
   );
 }

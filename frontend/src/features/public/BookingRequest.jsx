@@ -6,7 +6,7 @@ import apiClient from "@/services/apiClient";
 import PageHero from "@/components/public/PageHero";
 import SelectField from "@/components/shared/SelectField";
 import { getAttribution } from "@/utils/attribution";
-import { getBookingConfig } from "@/services/bookingApi";
+import { getBookingConfig, rememberBooking } from "@/services/bookingApi";
 import { trackBeginCheckout, trackLead } from "@/lib/tracking";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
@@ -68,7 +68,10 @@ export default function BookingRequest() {
       });
       // event_id memakai ID bisnis yang SAMA dengan konversi server-side (Meta men-dedup 48 jam).
       trackLead({ eventKey: `lead_${res.data.id || res.data.code}`, source: "booking_request" });
-      navigate("/thank-you", { state: { name: form.name.trim(), code: res.data.code, kind: "booking" } });
+      // Token status ikut disimpan: halaman terima kasih menautkan "Lihat status pesanan" dan
+      // pesanan muncul di "Pesanan tersimpan" (tamu tanpa akun). Dulu token dibuang.
+      rememberBooking({ code: res.data.code, token: res.data.token });
+      navigate("/thank-you", { state: { name: form.name.trim(), code: res.data.code, token: res.data.token || "", kind: "booking" } });
     } catch (err) {
       toast.error(err?.response?.data?.detail || bi("Gagal mengirim permintaan. Coba lagi.", "Failed to send your request. Please try again.", lang));
     } finally { setSaving(false); }

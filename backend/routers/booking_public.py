@@ -120,24 +120,17 @@ async def booking_search(body: BookingSearchRequest, request: Request):
                           service=body.service)
     except bf.FlowError as exc:
         raise _400(exc) from None
-    discount, label, promo_error = 0, "", ""
+    code = (body.promo_code or "").strip()
     result = await bs.search(db, service=body.service, start_iso=start_iso, end_iso=end_iso,
                             pax=body.pax or 0, vehicle_type=(body.vehicle_type or "").strip() or None,
-                            route=route)
-    if (body.promo_code or "").strip() and result["options"]:
-        first = result["options"][0]
-        try:
-            checked = await promo_svc.validate(
-                db, body.promo_code, subtotal=first["quote"]["subtotal"],
-                days=first["quote"]["days"], vehicle_type=first["vehicle"]["type"],
-                service=body.service, start_dt=parse_iso(start_iso))
-            discount, label = checked["discount"], checked["label"]
-            result = await bs.search(db, service=body.service, start_iso=start_iso,
-                                    end_iso=end_iso, pax=body.pax or 0,
-                                    vehicle_type=(body.vehicle_type or "").strip() or None,
-                                    route=route, discount=discount, discount_label=label)
-        except promo_svc.PromoError as exc:
-            promo_error = str(exc)
+                            route=route, promo_code=code)
+    # Ringkasan promo: potongan terbesar di antara unit yang memenuhi syarat (per unit, SSOT
+    # booking_search.quote_with_promo); error hanya bila TIDAK ADA unit yang memenuhi syarat.
+    eligible = [o for o in result["options"] if code and not o.get("promo_error")]
+    best = max(eligible, key=lambda o: o["quote"].get("discount", 0), default=None)
+    discount = (best or {}).get("quote", {}).get("discount", 0) if best else 0
+    label = (best or {}).get("quote", {}).get("promo_label", "") if best else ""
+    promo_error = "" if (best or not code or not result["options"]) else result["options"][0].get("promo_error", "")
     return {
         **result,
         "search": {"service": body.service, "start_datetime": start_iso,
@@ -272,6 +265,8 @@ async def booking_proof(code: str, request: Request, token: str = Form(default="
         raise HTTPException(status_code=404, detail="Tautan status pesanan tidak valid")
     if booking.get("status") == "cancelled":
         raise _400("Pesanan sudah dibatalkan — bukti pembayaran tidak bisa diunggah")
+    if booking.get("status") == "pending":  # unit belum dikunci → belum ada yang perlu dibayar
+        raise _400("Pesanan masih menunggu persetujuan tim kami — transfer DP setelah pesanan disetujui")
     data = await image.read()
     try:
         proof = await bp.attach_proof(

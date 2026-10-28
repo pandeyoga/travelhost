@@ -1,17 +1,9 @@
 import { MapPin, Navigation2, Play, Flag, CheckCircle2, Camera, Phone, CalendarClock, Bus, LogIn } from "lucide-react";
 import { formatDateTime } from "@/utils/formatters";
+import { tripStatusLabel, tripStatusTone } from "@/lib/statusLabels";
 
-const STATUS = {
-  standby: { label: "Standby", tone: "neutral" },
-  assigned: { label: "Ditugaskan", tone: "info" },
-  to_pickup: { label: "Berangkat Jemput", tone: "warning" },
-  on_trip: { label: "Dalam Perjalanan", tone: "info" },
-  completed: { label: "Selesai", tone: "success" },
-  cancelled: { label: "Dibatalkan", tone: "danger" },
-};
-
-// Stepper RC-D: standby → berangkat jemput → dalam perjalanan → tiba → check-out odometer.
-const STEPS = ["Standby", "Jemput", "Jalan", "Tiba", "Selesai"];
+// Stepper RC-D: terjadwal → menjemput → dalam perjalanan → tiba → check-out odometer.
+const STEPS = ["Terjadwal", "Jemput", "Jalan", "Tiba", "Selesai"];
 function stepIndex(task) {
   if (task.trip_status === "completed") return 4;
   if (task.trip_status === "on_trip") return task.arrived ? 3 : 2;
@@ -34,13 +26,16 @@ function Stepper({ task }) {
 }
 
 export default function DriverTaskCard({ task, busy, onAck, onDepart, onPickup, onArrived, onCheckout, onPod, onNav }) {
-  const st = task.trip_status === "on_trip" && task.arrived
-    ? { label: "Tiba di Tujuan", tone: "success" }
-    : STATUS[task.trip_status] || { label: task.trip_status || "-", tone: "neutral" };
+  const cancelled = task.trip_status === "cancelled" || task.booking_status === "cancelled";
+  const st = cancelled ? { label: tripStatusLabel("cancelled"), tone: "danger" }
+    : task.trip_status === "on_trip" && task.arrived
+      ? { label: "Tiba di Tujuan", tone: "success" }
+      : { label: tripStatusLabel(task.trip_status), tone: tripStatusTone(task.trip_status) };
   const tid = task.trip_id;
   const done = task.trip_status === "completed";
   const hasCoords = task.dest_lat != null && task.dest_lng != null;
-  const started = ["to_pickup", "on_trip"].includes(task.trip_status);
+  // Aksi mengikuti urutan fase (backend menolak aksi di luar urutan: POD/tiba sebelum jalan).
+  const canPod = task.trip_status === "on_trip" || done;
 
   return (
     <div className="rounded-[16px] border border-[#EFF0F2] bg-white p-4 shadow-sm" data-testid={`dw-task-${tid}`}>
@@ -53,7 +48,7 @@ export default function DriverTaskCard({ task, busy, onAck, onDepart, onPickup, 
           <div className="mt-0.5 text-[13px] font-semibold text-[#1C1C1E]">{task.customer_name || "-"}</div>
         </div>
         <div className="flex flex-wrap justify-end gap-1">
-          {task.acknowledged ? <span className="status-pill tone-success" data-testid={`dw-badge-ack-${tid}`}>Dikonfirmasi</span> : null}
+          {task.acknowledged && !cancelled ? <span className="status-pill tone-success" data-testid={`dw-badge-ack-${tid}`}>Tugas diterima</span> : null}
           {task.arrived ? <span className="status-pill tone-info">Tiba</span> : null}
           {task.has_pod ? <span className="status-pill tone-success" data-testid={`dw-badge-pod-${tid}`}>POD ✓</span> : null}
         </div>
@@ -66,12 +61,18 @@ export default function DriverTaskCard({ task, busy, onAck, onDepart, onPickup, 
         {task.customer_phone ? <div className="flex items-center gap-2"><Phone size={14} className="text-[#8E8E93]" /><span className="tabular-nums">{task.customer_phone}</span></div> : null}
       </div>
 
-      {!done && task.trip_status !== "cancelled" ? <Stepper task={task} /> : null}
+      {cancelled ? (
+        <p className="mt-3 rounded-[10px] bg-[#FFF1F0] px-3 py-2 text-[12px] text-[#A8221A]" data-testid={`dw-cancelled-${tid}`}>
+          Tugas ini dibatalkan oleh tim operasional — tidak perlu berangkat. Hubungi dispatch bila ada pertanyaan.
+        </p>
+      ) : null}
+      {!done && !cancelled ? <Stepper task={task} /> : null}
 
+      {cancelled ? null : (
       <div className="mt-3 flex flex-wrap gap-2">
         {!task.acknowledged && !done ? (
           <button className="secondary-button !h-9" disabled={busy} onClick={() => onAck(task)} data-testid={`dw-ack-${tid}`}>
-            <CheckCircle2 size={14} /> Konfirmasi Tugas
+            <CheckCircle2 size={14} /> Terima Tugas
           </button>
         ) : null}
         <button className="secondary-button !h-9" disabled={!hasCoords} onClick={() => onNav(task)} data-testid={`dw-nav-${tid}`}>
@@ -103,12 +104,13 @@ export default function DriverTaskCard({ task, busy, onAck, onDepart, onPickup, 
           </button>
         ) : null}
 
-        {started || done ? (
+        {canPod ? (
           <button className="secondary-button !h-9" disabled={busy} onClick={() => onPod(task)} data-testid={`dw-pod-${tid}`}>
             <Camera size={14} /> {task.has_pod ? "Lihat / Ubah POD" : "Unggah POD"}
           </button>
         ) : null}
       </div>
+      )}
     </div>
   );
 }

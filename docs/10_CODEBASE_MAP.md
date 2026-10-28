@@ -33,7 +33,7 @@
 | `routers/reports.py` | laporan agregat (tren/kategori/status/top-customer/utilisasi) + export Excel | ✅ (Phase 5) |
 | `routers/locations.py` `routers/trips.py` `routers/driver.py` | GPS ingest/live, trips+ETA+track, driver checkin | ✅ (Phase 1) |
 | `services/crm.py` | auto-assign round-robin, log_activity, pipeline stats | ✅ (Phase 4) |
-| `services/finance.py` | INV-2/INV-3 + profit_loss/accounts_receivable/next_invoice_number (INV-8) | ✅ (Phase 2/5) |
+| `services/finance.py` | INV-2/INV-3 + profit_loss/accounts_receivable (nomor invoice → `services/numbering.generate`, INV-8) | ✅ (Phase 2/5) |
 | `services/reports.py` | agregasi laporan (read-only) | ✅ (Phase 5) |
 | `services/exporter.py` | invoice PDF (reportlab) + invoice/laporan Excel (openpyxl) | ✅ (Phase 5) |
 | `services/availability.py` | `overlaps()`, `find_conflicts()` (INV-4) | ✅ |
@@ -206,4 +206,167 @@ scripts/verify_contract.py · validate_compliance.py · verify_schema.py (prefix
 scripts/seed_data.py            reset 3 koleksi + riwayat versi awal untuk konten demo
 scripts/test_core_cms_cw3.py    POC 100/100
 scripts/gate.sh                 + guard:content_lifecycle & selftest:content_lifecycle
+```
+
+---
+
+## 🧩 SHARE-LINK JADWAL KEBERANGKATAN + perbaikan SSOT — berkas yang lahir/berubah (2026-10-28)
+
+**Backend**
+```
+services/share_links.py      BARU — SSOT siklus hidup tautan publik bertoken (token, expiry, revoke,
+                             delete, resolve publik 404/403/410 + catat akses). Dipakai trip_shares
+                             (/track) DAN schedule_shares (/schedule) — dulu logika ini ada di 2 router.
+services/schedule_share.py   BARU — cakupan (upcoming|month|range|all, batas hari WIB), query bookings,
+                             allowlist field publik `public_departure`, `build_public_schedule`.
+routers/shares.py            + /schedule-shares (GET/POST, /{id}/revoke, DELETE; section 'calendar')
+                             + GET /public/schedule/{token} (publik, rate-limit, no-store, noindex)
+routers/shares.py (lanjutan)  GET /public/track/{token} DIPINDAH dari routers/public.py (path API sama)
+                             & memakai share_links.resolve_public_share — dua endpoint publik
+                             share-link kini satu router; public.py turun 855 → 795 baris.
+routers/public.py            lead quotation & landing kini menyimpan `phone_normalized` (Customer 360)
+schemas_ops.py               + ScheduleShareCreate / ScheduleShareVisibility
+services/trips.py            + apply_trip_status() — SSOT transisi status trip (POST /trips/{id}/status
+                             & geofence pickup). + mark_trip_arrived() — SSOT "tiba di tujuan"
+                             (arrived_at sekali + WA trip.arrived, dedupe per booking) dipakai tombol
+                             Dispatch, tombol Ruang Kerja Driver & geofence. + apply_geofence() —
+                             satu evaluasi geofence utk HP driver (locations.py) & device (gps.py).
+                             Keputusan: geofence tujuan = DITANDAI TIBA, bukan selesai (KM nyata
+                             tetap dari check-out odometer / POD).
+routers/documents.py         POST /doc-assets lewat media_store + terdaftar di Media Library
+                             (INV-MEDIA-03); services/doc_layout.images membaca via media_store
+                             (aset lama di uploads/docs tetap terbaca).
+routers/quotations.py        WA booking.confirmed dari konversi penawaran memakai get_dp_percent()
+server.py                    + index schedule_shares.token (unik) & created_at
+tests/test_schedule_share.py BARU — 11 test (RBAC, privasi allowlist, cakupan/WIB, filter, siklus hidup,
+                             regresi /public/track)
+```
+
+**Frontend**
+```
+components/app/calendar/ScheduleShareDialog.jsx  BARU — dialog "Bagikan Jadwal" (daftar tautan: salin,
+                                                 buka, nonaktifkan, hapus + ConfirmDialog)
+components/app/calendar/ScheduleShareForm.jsx    BARU — form cakupan/armada/status/visibilitas/masa berlaku
+components/app/calendar/DetailField.jsx          BARU — baris detail bersama (dulu lokal di DepartureDetailPanel)
+components/app/calendar/calendarCore.js          + STATUS_SHORT_EN, statusLabel(), SHARE_STATUSES/DEFAULT
+components/app/calendar/CalendarMonthGrid.jsx    + prop riskHint (dipakai ulang di halaman publik)
+features/app/DepartureCalendar.jsx               + tombol `dc-share-open` (owner/ops)
+features/public/PublicSchedule.jsx               BARU — halaman /schedule/:token (Daftar | Kalender)
+components/public/schedule/ScheduleTable.jsx     BARU — tabel keberangkatan (kolom ikut visibility) +
+                                                 kartu untuk layar < 640px; di bawah kalender
+components/public/schedule/ScheduleDetailDialog.jsx BARU — detail read-only (tanpa aksi)
+components/cms/SiteSettingsPanel.jsx             logo dipilih via MediaPickerDialog (INV-MEDIA-03)
+App.js                                           + route publik /schedule/:token
+```
+
+**Guardrail/skrip**
+```
+memory/INVARIANTS.md         DIPULIHKAN (hilang saat sinkron) — diturunkan dari Guard(...) tiap penjaga
+scripts/verify_state_machine.py  + SM5 geofence tiba tujuan = ditandai tiba 1× (bukan selesai)
+scripts/guardrails/verify_auth_coverage.py  + allowlist GET /public/schedule/{token} (beralasan)
+scripts/guardrails/verify_rbac_runtime.py   + SECTION_PROBES 'documents' (None + alasan)
+scripts/guardrails/_common.py · verify_contract.py · validate_compliance.py · verify_schema.py ·
+verify_data_integrity.py (INV-22 lintas jenis) · seed_data.py — registrasi koleksi schedule_shares
+```
+
+**Ronde 2 (2026-10-28) — keputusan sesuai rekomendasi**
+```
+routers/inbox.py · services/crm.inbox_agents   GET /conversations/agents (peran section 'inbox' dari
+                                               SECTION_ACCESS: owner, ops_admin, marketing_admin) —
+                                               Inbox.jsx memakainya; PATCH assigned_to divalidasi.
+frontend/src/lib/tracking.js                   GTM + PostHog dipindah dari public/index.html: dimuat
+                                               HANYA dari situs publik, HANYA setelah consent, tidak
+                                               pernah di /app, /track/, /schedule/, /review/ atau URL
+                                               ber-?token=. dataLayer: page_view (SPA), view_item,
+                                               begin_checkout, generate_lead, cta_click (quotation/
+                                               booking/whatsapp/phone). Fix: page_view halaman pertama
+                                               utk pengunjung yg sudah setuju dulu tidak terkirim.
+                                               ID override: REACT_APP_GTM_ID / REACT_APP_POSTHOG_KEY.
+frontend/public/index.html                     snippet GTM/PostHog dihapus; lang="id".
+components/public/ConsentBanner.jsx            banner juga muncul bila hanya GTM/PostHog yang aktif.
+components/public/PublicLayout.jsx             tidak inisialisasi pelacakan di rute privat/bertoken.
+```
+
+**Ronde 3 (2026-10-28) — perbaikan audit flow pembelian · harga · armada · keuangan**
+```
+services/geo.py              + BUSINESS_TZ / business_date() — SSOT tanggal WIB (surcharge, promo,
+                             jadwal share); schedule_share.py kini mengimpornya.
+services/pricing.py          + dp_amount_for() — SSOT nominal DP (pembulatan = harga); surcharge WIB.
+services/promos.py           tanggal berlaku & weekend_only dinilai di kalender WIB.
+services/booking_search.py   + quote_with_promo() (promo divalidasi PER UNIT di pencarian),
+                             + requote_booking() / repriced_fields() — harga ulang (approve hold &
+                             reschedule) mempertahankan add-on & promo; INV-1 tetap.
+services/booking_cancel.py   BARU — pembukuan pembatalan (void tagihan terbuka, refund, invoice denda
+                             jujur), dipanggil sekali oleh pemenang CAS di routers/bookings.cancel.
+services/trips.py            + TripStateError, assert_trip_open(), mark_vehicle_in_use(),
+                             release_vehicle() — SSOT status armada/trip: unit perawatan/nonaktif/
+                             terjual tak ditimpa; trip selesai/batal tak bisa dihidupkan; fee unik.
+services/availability.py     + named_lock() generik (vehicle_lock/driver_lock memakainya).
+services/documents.py        + invoice_paid_portion() — alokasi pembayaran per invoice.
+services/finance_automation  rekonsiliasi & sync per alokasi, lewati void; maintenance hanya `done`.
+services/reports.py          summary() memfilter periode.
+services/notifications.py    hold dgn bukti DP pending tidak dihanguskan (notif "verifikasi terlambat");
+                             hold hangus melepas kuota promo.
+schemas.py                   + APIModel (allow_inf_nan=False, |angka| ≤ MAX_NUMBER) — basis semua model.
+server.py                    + handler TripStateError→400, OverflowError→400, 422 aman-JSON; index
+                             unik driver_fee_entries.trip_id.
+routers/*                    invoices (transisi + batas nominal), settings (PATCH merge pricing_*,
+                             tolak Infinity), bookings (confirm guard, reschedule reprice, cancel CAS),
+                             dispatch/driver (guard status, origin geo), vehicles/maintenance (odometer),
+                             payroll/driver_fees (CAS & lock).
+frontend BookingRescheduleDialog  + opsi "Hitung ulang harga"; Finance.jsx status invoice dari next_status.
+tests/test_flow_fixes.py     BARU — 22 test regresi (fungsi murni + API/race paralel).
+scripts/guardrails/verify_price_master.py  mengenali basis model APIModel.
+```
+
+**Ronde 4 (2026-10-28) — audit sopir, fee → keuangan, UI booking**
+```
+routers/booking_lifecycle.py BARU — setujui/tolak/selesai + reprice-preview (dipindah dari bookings.py)
+services/booking_flow.py     + emit_booking_confirmed() (SSOT WA confirmed), pending_proof()
+services/trips.py            + _FORWARD/TRIP_LABEL, assert_trip_state, notify_ops (notifikasi in-app tiap
+                             update sopir), _on_trip_started (booking ongoing + WA enroute di SEMUA jalur),
+                             save_pod (POD = bukti saja), reassign_trip_driver; finalize idempoten & menolak
+                             trip standby (kecuali force) / odometer mundur
+services/driver_fee_ledger.py BARU — akrual fee per trip, pelunasan FIFO, backfill data lama, proteksi
+                             expense otomatis
+services/payroll*.py         payroll tak membayar ulang trip ber-fee; rekap per sopir memuat fee
+services/finance_automation  arus kas basis kas; laba per unit dari trip selesai
+services/pricing.py          surcharge akhir pekan/libur PER HARI sewa
+services/documents.py        item invoice = price_breakdown
+services/events.py · geo.py  tanggal ISO di template notifikasi/WA → "28 Okt 2026 16.00 WIB" (fmt_wib)
+routers/trips.py             scope sopir (trip sendiri), ?active=true + konteks booking
+schemas_*.py                 semua model memakai APIModel (tolak Infinity/NaN)
+frontend lib/statusLabels.js BARU — SSOT label/warna status booking, trip, pembayaran (paymentState)
+frontend Dispatch.jsx        badge diterima sopir/tiba, tombol per fase + "Selesaikan" eksplisit
+frontend DriverTaskCard/DriverWorkspace/DriverCheckin  aksi mengikuti fase, tugas batal tetap terlihat
+frontend GpsTracking.jsx     trip aktif + segar 30 dtk; lib/mediaKind.backendHref utk tautan POD/bukti
+tests/test_flow_fixes_r2.py  BARU — 12 test regresi ronde ini
+```
+
+**Ronde 5 (2026-10-28) — audit pengiriman dokumen, cetak & otomasi WhatsApp/OpenWA**
+```
+services/whatsapp.py         phone_variants (1 nomor = 1 percakapan), dedupe pesan masuk, cooldown balasan
+                             otomatis (WIB), coba-ulang pesan gagal (retry_failed/resend_message), timeout
+                             connect OpenWA 4 dtk
+routers/whatsapp.py          /wa/webhook publik hanya Meta Cloud
+routers/inbox.py             POST …/messages/{mid}/retry (tombol "Kirim ulang")
+services/automation.py       rule baru (instruksi DP, hold hangus, bukti DP masuk/ditolak) + sync_system_rules
+services/booking_flow.py     payment_note + emit_booking_confirmed dipakai payments/quotations/rombongan
+services/notifications.py    overdue_reminder_due (WA tagihan bertahap), keberangkatan sekali per jadwal
+services/documents.py        fdate WIB, kind_label/invoice_items (denda), issuer_of (penanda tangan),
+                             paid_upto (kwitansi), OPEN_STATUS, naskah LUNAS/catatan
+services/doc_script.py       CANCEL_FEE_SCRIPT (naskah invoice denda)
+services/numbering.py        generate() melewati nomor yang sudah terpakai (_TAKEN_IN)
+services/calendar_export.py  WIB, escape, nama perusahaan; routers/bookings._period_query (bulan WIB)
+services/exporter.py         invoice_xlsx rinci & numerik; quotation_pdf nama perusahaan + tanggal ID
+services/analytics.py        KPI BI memasukkan biaya perawatan selesai (= Laporan Keuangan)
+services/pdf_layout.py · payroll_*.py · driver_report.py   escape teks pengguna di PDF
+routers/documents.py         validasi tabel/section layout (422, bukan PDF 500)
+routers/invoices.py          mutex + tolak tagihan tumpang-tindih, caption WA, void/refund ditolak
+frontend lib/vehicleTypes.js BARU — SSOT label tipe armada (= backend VEHICLE_TYPE_LABELS)
+frontend lib/apiError.js     BARU — detail galat API (string/array Pydantic) → teks Indonesia
+frontend components/documents/layoutDiff.js · docErrors.js  BARU — simpan layout hanya selisih (pewarisan
+                             __default__ tetap jalan); NumberingPanel tak lagi crash
+frontend Inbox.jsx           status "Gagal" + tombol "Kirim ulang"
+tests/test_wa_docs_fixes_r3.py BARU — 21 test regresi ronde ini
 ```

@@ -3,21 +3,23 @@ agar tetap di bawah batas baris). Konten teks disimpan sebagai OVERRIDE: kosong 
 teks bawaan dua-bahasa di frontend, terisi = tampil utk semua bahasa."""
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from schemas import APIModel
 
 
-class SectionIn(BaseModel):
+class SectionIn(APIModel):
     id: Optional[str] = Field(default=None, max_length=60)
     type: str = Field(min_length=2, max_length=40)
     enabled: bool = True
     data: Optional[dict] = None
 
 
-class SitePageUpdate(BaseModel):
+class SitePageUpdate(APIModel):
     sections: List[SectionIn] = Field(max_length=20)
 
 
-class SiteSettingsIn(BaseModel):
+class SiteSettingsIn(APIModel):
     """Merge (tambal) ke settings.company_info — satu sumber dgn header/footer/kontak publik."""
     name: Optional[str] = Field(default=None, max_length=120)
     tagline: Optional[str] = Field(default=None, max_length=300)

@@ -5,7 +5,8 @@ lembar jadwal keberangkatan yang siap cetak / dibagikan. Mendukung pengelompokan
 per armada (satu bagian / sheet per kendaraan). Tidak menyentuh DB.
 """
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+from xml.sax.saxutils import escape
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -15,6 +16,8 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
+
+from services.geo import BUSINESS_TZ, parse_iso
 
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 _MONTHS_FULL = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
@@ -32,13 +35,19 @@ def _rp(v):
 
 
 def _fmt_dt(iso):
+    """Jam WIB (dulu UTC: berangkat 06.00 WIB tercetak "23:00" hari sebelumnya)."""
     if not iso:
         return "-"
     try:
-        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        dt = parse_iso(iso).astimezone(BUSINESS_TZ)
         return f"{dt.day:02d} {_MONTHS[dt.month - 1]} {dt.year} {dt.hour:02d}:{dt.minute:02d}"
     except Exception:
         return str(iso)[:16]
+
+
+def _made():
+    """Waktu cetak (WIB, bulan Indonesia) — dulu jam server UTC & bulan Inggris."""
+    return _fmt_dt(datetime.now(timezone.utc)) + " WIB"
 
 
 def _fmt_date(d):
@@ -117,7 +126,8 @@ def _pdf_table(rows, st, include_vehicle=True):
     cols = COLS if include_vehicle else COLS_GROUPED
     data = [[Paragraph(c, st["head"]) for c in cols]]
     for b in rows:
-        data.append([Paragraph(str(v), st["cell"]) for v in _values(b, include_vehicle)])
+        # escape: nama "Budi <VIP" dulu membuat ekspor 500 (markup Paragraph), "<Ltd>" hilang diam-diam.
+        data.append([Paragraph(escape(str(v)), st["cell"]) for v in _values(b, include_vehicle)])
     if len(data) == 1:
         data.append([Paragraph("Tidak ada keberangkatan.", st["cell"])] + [Paragraph("", st["cell"]) for _ in range(len(cols) - 1)])
     widths = [16, 30, 30, 34, 28, 26, 40, 26, 20, 27] if include_vehicle else [18, 32, 32, 40, 30, 46, 28, 22, 29]
@@ -135,7 +145,7 @@ def _pdf_table(rows, st, include_vehicle=True):
     return tbl
 
 
-def calendar_pdf(period: str, rows: list, grouped: bool = False) -> bytes:
+def calendar_pdf(period: str, rows: list, grouped: bool = False, org: str = "RahazaTrans") -> bytes:
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=landscape(A4), topMargin=12 * mm, bottomMargin=12 * mm,
@@ -143,15 +153,15 @@ def calendar_pdf(period: str, rows: list, grouped: bool = False) -> bytes:
     )
     st = _pdf_styles()
     grp_note = " \u00b7 dikelompokkan per armada" if grouped else ""
-    made = datetime.now().strftime('%d %b %Y %H:%M')
+    made = _made()
     story = [
         Paragraph("Kalender Keberangkatan", st["h1"]),
-        Paragraph(f"RahazaTrans \u00b7 {period} \u00b7 {len(rows)} keberangkatan{grp_note} \u00b7 dibuat {made}", st["sub"]),
+        Paragraph(f"{escape(org)} \u00b7 {period} \u00b7 {len(rows)} keberangkatan{grp_note} \u00b7 dibuat {made}", st["sub"]),
         Spacer(1, 5 * mm),
     ]
     if grouped:
         for name, grp in _group_rows(rows):
-            story.append(Paragraph(f"\U0001F68C {name} \u2014 {len(grp)} keberangkatan", st["grp"]))
+            story.append(Paragraph(f"\U0001F68C {escape(str(name))} \u2014 {len(grp)} keberangkatan", st["grp"]))
             story.append(_pdf_table(grp, st, include_vehicle=False))
             story.append(Spacer(1, 4 * mm))
         if not rows:
@@ -209,9 +219,9 @@ def _safe_sheet_name(name, used):
     return s
 
 
-def calendar_xlsx(period: str, rows: list, grouped: bool = False) -> bytes:
+def calendar_xlsx(period: str, rows: list, grouped: bool = False, org: str = "RahazaTrans") -> bytes:
     wb = Workbook()
-    made = datetime.now().strftime('%d %b %Y %H:%M')
+    made = _made()
     if grouped:
         groups = _group_rows(rows)
         # Sheet ringkasan
@@ -219,7 +229,7 @@ def calendar_xlsx(period: str, rows: list, grouped: bool = False) -> bytes:
         ws0.title = "Ringkasan"
         ws0["A1"] = "Kalender Keberangkatan \u2014 Ringkasan per Armada"
         ws0["A1"].font = Font(bold=True, size=14, color="1C1C1E")
-        ws0["A2"] = f"RahazaTrans \u00b7 {period} \u00b7 {len(rows)} keberangkatan \u00b7 dibuat {made}"
+        ws0["A2"] = f"{org} \u00b7 {period} \u00b7 {len(rows)} keberangkatan \u00b7 dibuat {made}"
         ws0["A2"].font = Font(size=10, color="6B6B73")
         for ci, col in enumerate(["Armada", "Jumlah Keberangkatan"], start=1):
             c = ws0.cell(row=4, column=ci, value=col)
@@ -243,7 +253,7 @@ def calendar_xlsx(period: str, rows: list, grouped: bool = False) -> bytes:
     else:
         ws = wb.active
         ws.title = "Keberangkatan"
-        _xlsx_sheet(ws, "Kalender Keberangkatan", f"RahazaTrans \u00b7 {period} \u00b7 {len(rows)} keberangkatan \u00b7 dibuat {made}", rows, include_vehicle=True)
+        _xlsx_sheet(ws, "Kalender Keberangkatan", f"{org} \u00b7 {period} \u00b7 {len(rows)} keberangkatan \u00b7 dibuat {made}", rows, include_vehicle=True)
 
     out = BytesIO()
     wb.save(out)

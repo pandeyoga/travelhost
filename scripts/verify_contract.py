@@ -24,7 +24,7 @@ G, Y, R, C, B, X = "\033[92m", "\033[93m", "\033[91m", "\033[96m", "\033[1m", "\
 # Sinkron dengan docs/03_DATA_MODEL.md
 CANONICAL_COLLECTIONS = {
     "users", "sessions", "vehicles", "drivers", "customers", "leads",
-    "conversations", "messages", "bookings", "trips", "locations", "trip_shares",
+    "conversations", "messages", "bookings", "trips", "locations", "trip_shares", "schedule_shares",
     "payments", "expenses", "invoices", "notification_tasks", "broadcasts",
     "maintenance_records", "destinations", "articles", "testimonials",
     "audit_logs", "settings", "user_onboarding", "lead_activities",

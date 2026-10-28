@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from core_utils import new_id, now_iso
+from services import media_store as ms
 
 logger = logging.getLogger("travel_fleet.doc_layout")
 
@@ -195,7 +196,13 @@ async def images(db, layout: dict) -> dict:
         rec = await db.doc_assets.find_one({"id": fid}, {"_id": 0})
         if not rec:
             continue
-        path = UPLOAD_DIR / "docs" / rec["filename"]
+        if rec.get("storage_path"):  # aset baru: lewat media_store (lokal/objstore)
+            try:
+                out[key] = ms.fetch(rec["storage_path"], rec.get("storage_backend") or "")[0]
+            except ms.MediaError as e:
+                logger.warning("gambar layout %s gagal dibaca: %s", key, e)
+            continue
+        path = UPLOAD_DIR / "docs" / rec["filename"]  # aset lama (sebelum media_store)
         try:
             out[key] = path.read_bytes()
         except OSError as e:

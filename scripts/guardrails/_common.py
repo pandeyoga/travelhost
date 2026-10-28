@@ -83,7 +83,7 @@ GUARD_PHONE_PREFIXES = ("0800000", "0810000000")
 # Koleksi yang TERLIHAT pengguna di ERP → wajib bersih dari data uji.
 PURGE_COLLECTIONS = (
     "customers", "bookings", "payments", "invoices", "expenses", "trips", "locations",
-    "trip_shares", "leads", "lead_activities", "quotations", "conversations", "messages",
+    "trip_shares", "schedule_shares", "leads", "lead_activities", "quotations", "conversations", "messages",
     "notification_tasks", "events", "automation_runs", "audit_logs", "broadcasts",
     "campaign_recipients", "campaigns", "media_assets", "media_folders", "vehicles", "drivers",
     "subcharters", "partners", "partner_settlements", "driver_payouts", "maintenance_records",

@@ -9,15 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import DestinationSelect from "@/components/app/DestinationSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/utils/formatters";
+import { VEHICLE_TYPES } from "@/lib/vehicleTypes";
 
 // Tipe armada (sinkron dgn backend services/pricing.VEHICLE_TYPES).
-const VEHICLE_TYPES = [
-  { k: "hiace_premio", l: "Hiace Premio" },
-  { k: "hiace", l: "Hiace Commuter" },
-  { k: "elf", l: "Isuzu Elf" },
-  { k: "bus", l: "Medium Bus" },
-  { k: "avanza", l: "Avanza / MPV" },
-];
 const EMPTY = {
   lead_id: "", customer_name: "", phone: "", email: "", destination: "", trip_date: "",
   pax: 1, vehicle_type: "hiace_premio", days: 1, distance_km: 0, notes: "", valid_days: 7,

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { CheckCircle2, ArrowRight, Home as HomeIcon } from "lucide-react";
+import { CheckCircle2, ArrowRight, Home as HomeIcon, Search } from "lucide-react";
 import { useLangValue } from "@/hooks/useLang";
 import { bi } from "@/lib/i18n";
 
@@ -9,6 +9,10 @@ export default function ThankYou() {
   const name = state?.name;
   const isBooking = state?.kind === "booking";
   const code = state?.code;
+  const token = state?.token;
+  // Rute status publik: /booking/status?code=&token= (App.js) — sama dengan wizard pesan online.
+  const statusUrl = isBooking && code && token
+    ? `/booking/status?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}` : "";
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] px-5 pt-20" data-testid="thankyou-page">
       <div className="w-full max-w-lg rounded-3xl border border-[#e7e9ef] bg-white p-10 text-center">
@@ -25,6 +29,12 @@ export default function ThankYou() {
           </div>
         ) : null}
         <div className="mt-7 flex flex-wrap justify-center gap-3">
+          {statusUrl ? (
+            <Link to={statusUrl} data-testid="thankyou-status-link"
+              className="inline-flex items-center gap-2 rounded-full bg-[#2e9b57] px-5 py-3 text-[14px] font-semibold text-white hover:bg-[#278a4c]">
+              <Search size={16} /> {bi("Lihat status pesanan", "View booking status", lang)}
+            </Link>
+          ) : null}
           <Link to="/" className="inline-flex items-center gap-2 rounded-full bg-[#101935] px-5 py-3 text-[14px] font-semibold text-white hover:bg-[#1c2a52]"><HomeIcon size={16} /> {bi("Kembali ke Beranda", "Back to Home", lang)}</Link>
           <Link to="/destinations" className="inline-flex items-center gap-2 rounded-full border border-[#d8dae2] px-5 py-3 text-[14px] font-semibold text-[#101935] hover:bg-[#f3f4f7]">{bi("Jelajahi Destinasi", "Explore Destinations", lang)} <ArrowRight size={15} /></Link>
         </div>

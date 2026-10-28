@@ -30,6 +30,11 @@ def _maint_date(m):
     return m.get("completed_at") or m.get("created_at") or m.get("scheduled_date") or ""
 
 
+# Biaya perawatan baru menjadi BIAYA (P&L/cashflow) saat pekerjaannya selesai. Dulu catatan
+# 'scheduled'/'in_progress' (estimasi) ikut dijumlah → laba turun oleh biaya yang belum terjadi.
+_MAINT_REALIZED = {"status": "done"}
+
+
 async def _payments_by_booking(db):
     rows = await db.payments.aggregate([
         {"$group": {"_id": "$booking_id", "paid": {"$sum": {"$ifNull": ["$amount", 0]}}}},
@@ -62,7 +67,7 @@ async def pl_full(db, period=None):
 
     # Maintenance (fetch kecil → filter period di Python pakai tanggal efektif).
     maint = await db.maintenance_records.find(
-        {}, {"_id": 0, "vehicle_id": 1, "vehicle_name": 1, "cost": 1,
+        _MAINT_REALIZED, {"_id": 0, "vehicle_id": 1, "vehicle_name": 1, "cost": 1,
              "completed_at": 1, "created_at": 1, "scheduled_date": 1}).to_list(5000)
     maint_total = 0.0
     maint_by_veh = {}
@@ -77,9 +82,10 @@ async def pl_full(db, period=None):
     profit = round(revenue - total_cost, 2)
     margin = round((profit / revenue * 100), 1) if revenue > 0 else 0.0
 
-    # Per unit: revenue dari trips (period), opex via expenses(trip→vehicle), maintenance.
+    # Per unit: revenue trip yang SELESAI pada periode (end_at) — dulu created_at & ikut trip
+    # batal/masa depan; opex = expense yg terkait trip itu (incl. fee sopir akrual) + maintenance.
     trips = await db.trips.find(
-        {"created_at": {"$regex": f"^{period}"}},
+        {"status": "completed", "end_at": {"$regex": f"^{period}"}},
         {"_id": 0, "id": 1, "vehicle_id": 1, "revenue": 1}).to_list(5000)
     rev_by_veh, trip_to_veh, trip_ids = {}, {}, []
     for t in trips:
@@ -90,7 +96,7 @@ async def pl_full(db, period=None):
     opex_by_veh = {}
     if trip_ids:
         ex_rows = await db.expenses.aggregate([
-            {"$match": {"trip_id": {"$in": trip_ids}, "created_at": {"$regex": f"^{period}"}}},
+            {"$match": {"trip_id": {"$in": trip_ids}}},
             {"$group": {"_id": "$trip_id", "amount": {"$sum": {"$ifNull": ["$amount", 0]}}}},
         ]).to_list(5000)
         for r in ex_rows:
@@ -144,17 +150,29 @@ def _status_from_paid(invoice_amount, paid, current):
 
 
 async def reconciliation(db):
-    """Bandingkan tiap invoice vs Σ pembayaran booking-nya. Tandai selisih."""
+    """Bandingkan tiap invoice vs BAGIAN pembayaran yang dialokasikan kepadanya
+    (documents.invoice_paid_portion). Invoice batal (void) tidak direkonsiliasi.
+    'lebih' = booking terbayar melebihi rentang invoice terakhirnya (kelebihan bayar nyata)."""
+    from services.documents import invoice_paid_portion
     pay = await _payments_by_booking(db)
-    invoices = await db.invoices.find({}, {"_id": 0}).to_list(2000)
+    invoices = await db.invoices.find({"status": {"$ne": "void"}}, {"_id": 0}).to_list(2000)
     bookings = await db.bookings.find({}, {"_id": 0, "id": 1, "code": 1, "customer_name": 1}).to_list(5000)
     bk = {b["id"]: b for b in bookings}
+    tops = {}  # booking → (ujung rentang tagihan tertinggi, id invoice-nya)
+    for i in invoices:
+        end = float(i.get("paid_before") or 0) + float(i.get("amount") or 0)
+        if end >= tops.get(i.get("booking_id"), (-1.0, None))[0]:
+            tops[i.get("booking_id")] = (end, i.get("id"))
     items = []
     summary = {"lunas": 0, "sebagian": 0, "belum": 0, "lebih": 0,
                "total_invoiced": 0.0, "total_paid": 0.0}
     for inv in invoices:
         amount = round(float(inv.get("amount", 0) or 0), 2)
-        paid = round(float(pay.get(inv.get("booking_id"), 0.0)), 2)
+        bk_paid = float(pay.get(inv.get("booking_id"), 0.0))
+        paid = float(invoice_paid_portion(inv, bk_paid))
+        top_end, top_id = tops[inv.get("booking_id")]
+        if inv.get("id") == top_id and bk_paid > top_end + 0.01:
+            paid = round(paid + bk_paid - top_end, 2)  # kelebihan bayar → invoice teratas booking
         st = _recon_status(amount, paid)
         b = bk.get(inv.get("booking_id"), {})
         items.append({
@@ -175,15 +193,19 @@ async def reconciliation(db):
 async def sync_invoice_statuses(db):
     """Update invoices.status mengikuti pembayaran (paid/partial/sent)."""
     from core_utils import now_iso
+    from services.documents import invoice_paid_portion
     pay = await _payments_by_booking(db)
-    invoices = await db.invoices.find({}, {"_id": 0, "id": 1, "amount": 1, "booking_id": 1, "status": 1, "number": 1}).to_list(2000)
+    # Invoice batal TIDAK disentuh (dulu sinkron menghidupkan 'void' jadi 'sent'/'paid').
+    invoices = await db.invoices.find({"status": {"$ne": "void"}},
+                                      {"_id": 0, "id": 1, "amount": 1, "booking_id": 1, "status": 1,
+                                       "number": 1, "paid_before": 1}).to_list(2000)
     updated = []
     for inv in invoices:
         amount = float(inv.get("amount", 0) or 0)
-        paid = float(pay.get(inv.get("booking_id"), 0.0))
+        paid = float(invoice_paid_portion(inv, pay.get(inv.get("booking_id"), 0.0)))
         new_status = _status_from_paid(amount, paid, inv.get("status"))
         if new_status != inv.get("status"):
-            await db.invoices.update_one({"id": inv["id"]},
+            await db.invoices.update_one({"id": inv["id"], "status": inv.get("status")},
                                          {"$set": {"status": new_status, "reconciled_at": now_iso()}})
             updated.append({"invoice_id": inv["id"], "number": inv.get("number"),
                             "from": inv.get("status"), "to": new_status})
@@ -198,13 +220,28 @@ async def cashflow(db, months_back=6, horizon=3):
                     "t": {"$sum": {"$ifNull": ["$amount", 0]}}}},
     ]).to_list(1000)
     cin = {r["_id"]: float(r["t"]) for r in pay_rows}
+    # KAS keluar = uang yang benar-benar keluar (basis kas). Dulu semua expense dihitung pada
+    # created_at → akrual payroll yang BELUM dibayar ikut jadi kas keluar.
+    #  - expense biasa (tanpa flag `paid`)            → tanggal dibuat
+    #  - akrual payroll (`paid` True/False)           → hanya bila lunas, pada paid_at
+    #  - akrual fee sopir (source=driver_fee)         → DILEWATI; kasnya = pencairan di bawah
     exp_rows = await db.expenses.aggregate([
-        {"$group": {"_id": {"$substrBytes": [{"$ifNull": ["$created_at", ""]}, 0, 7]},
+        {"$match": {"source": {"$ne": "driver_fee"}, "paid": {"$ne": False}}},
+        {"$group": {"_id": {"$substrBytes": [{"$ifNull": ["$paid_at", {"$ifNull": ["$created_at", ""]}]}, 0, 7]},
                     "t": {"$sum": {"$ifNull": ["$amount", 0]}}}},
     ]).to_list(1000)
     cout = {r["_id"]: float(r["t"]) for r in exp_rows}
+    # Pencairan fee sopir model baru (tanpa expense sendiri; model lama ber-expense_id sudah
+    # terhitung di atas).
+    wd_rows = await db.driver_withdrawals.aggregate([
+        {"$match": {"status": "paid", "expense_id": {"$in": [None, ""]}}},
+        {"$group": {"_id": {"$substrBytes": [{"$ifNull": ["$paid_at", ""]}, 0, 7]},
+                    "t": {"$sum": {"$ifNull": ["$amount", 0]}}}},
+    ]).to_list(1000)
+    for r in wd_rows:
+        cout[r["_id"]] = cout.get(r["_id"], 0.0) + float(r["t"])
     # maintenance per bulan (tanggal efektif)
-    maint = await db.maintenance_records.find({}, {"_id": 0, "cost": 1, "completed_at": 1, "created_at": 1, "scheduled_date": 1}).to_list(5000)
+    maint = await db.maintenance_records.find(_MAINT_REALIZED, {"_id": 0, "cost": 1, "completed_at": 1, "created_at": 1, "scheduled_date": 1}).to_list(5000)
     mout = {}
     for m in maint:
         mk = _month(_maint_date(m))

@@ -30,8 +30,8 @@ _LOCK_ACQUIRE_TIMEOUT = 8.0   # batas tunggu total saat berebut lock
 _LOCK_POLL = 0.03
 
 
-async def _acquire_vehicle_lock(db, vehicle_id: str) -> str:
-    key = f"vehicle:{vehicle_id}"
+async def _acquire_lock(db, key: str, busy_detail: str) -> str:
+    """Mutex generik (koleksi `booking_locks`, `_id` unik + takeover lock basi + TTL)."""
     deadline = time.monotonic() + _LOCK_ACQUIRE_TIMEOUT
     while True:
         now = datetime.now(timezone.utc)
@@ -45,12 +45,11 @@ async def _acquire_vehicle_lock(db, vehicle_id: str) -> str:
             if time.monotonic() > deadline:
                 # Fail-safe: jangan blok selamanya; sinyalkan sibuk agar klien retry.
                 from fastapi import HTTPException
-                raise HTTPException(status_code=409,
-                                    detail="Armada sedang diproses permintaan lain, coba lagi sebentar")
+                raise HTTPException(status_code=409, detail=busy_detail)
             await asyncio.sleep(_LOCK_POLL)
 
 
-async def _release_vehicle_lock(db, key: str) -> None:
+async def _release_lock(db, key: str) -> None:
     try:
         await db.booking_locks.delete_one({"_id": key})
     except Exception:  # noqa: BLE001 — release tidak boleh menutupi error bisnis
@@ -58,44 +57,24 @@ async def _release_vehicle_lock(db, key: str) -> None:
 
 
 @asynccontextmanager
-async def vehicle_lock(db, vehicle_id: str):
+async def named_lock(db, key: str, busy_detail: str = "Data sedang diproses permintaan lain, coba lagi sebentar"):
+    """Mutex per-kunci bebas (mis. `driver-fee:<id>` untuk saldo fee sopir)."""
+    held = await _acquire_lock(db, key, busy_detail)
+    try:
+        yield
+    finally:
+        await _release_lock(db, held)
+
+
+def vehicle_lock(db, vehicle_id: str):
     """Mutex per-armada. Pakai utk membungkus cek-final ketersediaan + tulis booking."""
-    key = await _acquire_vehicle_lock(db, vehicle_id)
-    try:
-        yield
-    finally:
-        await _release_vehicle_lock(db, key)
+    return named_lock(db, f"vehicle:{vehicle_id}", "Armada sedang diproses permintaan lain, coba lagi sebentar")
 
 
-async def _acquire_driver_lock(db, driver_id: str) -> str:
+def driver_lock(db, driver_id: str):
     """RC-16 (dimensi DRIVER): mutex per-sopir — cegah 1 sopir di-assign paralel ke 2
-    booking tumpang-tindih (TOCTOU) pada jalur non-atomik (mis. PATCH driver). Mekanisme
-    identik `_acquire_vehicle_lock` (koleksi `booking_locks`, _id unik + takeover basi)."""
-    key = f"driver:{driver_id}"
-    deadline = time.monotonic() + _LOCK_ACQUIRE_TIMEOUT
-    while True:
-        now = datetime.now(timezone.utc)
-        try:
-            await db.booking_locks.insert_one({"_id": key, "acquired_at": now})
-            return key
-        except DuplicateKeyError:
-            await db.booking_locks.delete_one(
-                {"_id": key, "acquired_at": {"$lt": now - timedelta(seconds=_LOCK_STALE_SECONDS)}})
-            if time.monotonic() > deadline:
-                from fastapi import HTTPException
-                raise HTTPException(status_code=409,
-                                    detail="Driver sedang diproses permintaan lain, coba lagi sebentar")
-            await asyncio.sleep(_LOCK_POLL)
-
-
-@asynccontextmanager
-async def driver_lock(db, driver_id: str):
-    """Mutex per-sopir. Pakai utk membungkus cek-final konflik driver + tulis assignment."""
-    key = await _acquire_driver_lock(db, driver_id)
-    try:
-        yield
-    finally:
-        await _release_vehicle_lock(db, key)  # release generik: hapus by _id
+    booking tumpang-tindih (TOCTOU) pada jalur non-atomik (mis. PATCH driver)."""
+    return named_lock(db, f"driver:{driver_id}", "Driver sedang diproses permintaan lain, coba lagi sebentar")
 
 
 def overlaps(a_start, a_end, b_start, b_end) -> bool:

@@ -30,12 +30,8 @@ export const SHARE_STATUSES = ["pending", "hold", "confirmed", "ongoing", "compl
 export const SHARE_DEFAULT_STATUSES = ["hold", "confirmed", "ongoing", "completed"];
 export const HOUR_PX = 46;
 
-// Label tipe armada (sinkron backend services/pricing.VEHICLE_TYPES).
-export const VEHICLE_TYPE_LABEL = {
-  hiace_premio: "Hiace Premio", hiace: "Hiace Commuter", elf: "Isuzu Elf",
-  bus: "Medium Bus", avanza: "Avanza / MPV",
-};
-export const vtypeLabel = (k) => VEHICLE_TYPE_LABEL[k] || (k || "").replace(/_/g, " ");
+// Label tipe armada: SSOT lib/vehicleTypes (sinkron backend services/pricing.VEHICLE_TYPE_LABELS).
+export { VEHICLE_TYPE_LABEL, vtypeLabel } from "@/lib/vehicleTypes";
 
 // --- Lapisan risiko ("Perlu Perhatian") -------------------------------------
 // Sumber kebenaran ada di backend (services/attention.py). Di sini hanya gaya visual.

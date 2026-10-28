@@ -5,14 +5,19 @@ from datetime import datetime, timedelta, timezone
 
 from core_utils import money, now_iso
 from services import doc_layout as dl
+from services.geo import BUSINESS_TZ, parse_iso
 from services import doc_script as ds
 from services import pdf_layout as pl
 
 KIND_CODE = {"dp": "INVOICE_DP", "settlement": "INVOICE_SETTLEMENT", "full": "INVOICE"}
 KIND_LABEL = {"dp": "Uang Muka (DP)", "settlement": "Pelunasan", "full": "Tagihan Penuh"}
+CANCEL_FEE_LABEL = "Denda Pembatalan"
+OPEN_STATUS = ("draft", "sent", "partial")  # tagihan yang masih bisa ditagih/dikirim
+ROLE_LABEL = {"owner": "Pemilik", "ops_admin": "Admin Operasional", "marketing_admin": "Admin Marketing", "driver": "Driver"}
 KIND_RULE = {"dp": "invoice_dp", "settlement": "invoice_settlement", "full": "invoice"}
 METHOD_LABEL = {"transfer": "Transfer bank", "cash": "Tunai", "qris": "QRIS", "ewallet": "E-wallet", "card": "Kartu"}
-TYPE_LABEL = {"dp": "Uang muka (DP)", "settlement": "Pelunasan", "full": "Pembayaran penuh", "refund": "Pengembalian"}
+TYPE_LABEL = {"dp": "Uang muka (DP)", "settlement": "Pelunasan", "full": "Pembayaran penuh", "penalty": "Denda",
+              "refund": "Pengembalian"}
 INVOICE_CONFIG_DEFAULT = {
     "dp_percent_default": 30, "dp_due_days": 3, "settlement_due_days": 7, "settlement_due_before_start_days": 1,
     "bank_accounts": [], "payment_terms": ("DP bersifat mengikat jadwal & armada. Pelunasan paling lambat H-1 keberangkatan. "
@@ -24,10 +29,16 @@ _SATUAN = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan
 
 
 def fdate(value) -> str:
+    """Tanggal dokumen dalam WIB. Dulu tanggal UTC: berangkat 10 Nov 06.00 WIB tercetak
+    "9 November" di invoice/kwitansi (jatuh tempo H-1 ikut mundur sehari)."""
     if not value:
         return "-"
     try:
-        d = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        s = str(value)
+        if len(s) == 10:  # tanggal murni (YYYY-MM-DD) — tanpa konversi zona
+            d = datetime.fromisoformat(s)
+        else:
+            d = parse_iso(value).astimezone(BUSINESS_TZ)
         return f"{d.day} {_BULAN[d.month]} {d.year}"
     except Exception:  # noqa: BLE001
         return str(value)[:10]
@@ -89,6 +100,12 @@ def default_due(kind: str, cfg: dict, booking: dict) -> str:
     return (now + timedelta(days=int(cfg.get("settlement_due_days") or 7))).isoformat()
 
 
+def _route(booking: dict) -> str:
+    """" · Asal → Tujuan" — tanpa asal cukup " · Tujuan" (dulu "· - → Yogyakarta")."""
+    o, d = booking.get("origin") or "", booking.get("destination") or ""
+    return f" · {o} → {d or '-'}" if o else (f" · {d}" if d else "")
+
+
 def booking_items(booking: dict) -> list:
     """Baris rincian invoice. Bila booking punya `price_breakdown` (dihitung mesin harga:
     sewa unit, surcharge, jasa driver, tol, add-on, promo) baris itulah yang dipakai — invoice
@@ -96,9 +113,7 @@ def booking_items(booking: dict) -> list:
     Selisih pembulatan dicatat sebagai baris penyesuaian."""
     breakdown = [b for b in booking.get("price_breakdown") or [] if isinstance(b, dict) and money(b.get("amount"))]
     if breakdown:
-        route = ""
-        if booking.get("origin") or booking.get("destination"):
-            route = f" · {booking.get('origin') or '-'} → {booking.get('destination') or '-'}"
+        route = _route(booking)
         items = [{"label": (str(b.get("label") or "Biaya") + (route if i == 0 else ""))[:160], "qty": 1,
                   "unit_price": money(b.get("amount")), "amount": money(b.get("amount"))}
                  for i, b in enumerate(breakdown)]
@@ -108,9 +123,7 @@ def booking_items(booking: dict) -> list:
         return items
     items = []
     base = money(booking.get("base_price") or 0)
-    label = f"Sewa {booking.get('vehicle_name') or 'armada'}"
-    if booking.get("origin") or booking.get("destination"):
-        label += f" · {booking.get('origin') or '-'} → {booking.get('destination') or '-'}"
+    label = f"Sewa {booking.get('vehicle_name') or 'armada'}" + _route(booking)
     items.append({"label": label, "qty": 1, "unit_price": base, "amount": base})
     for a in booking.get("add_ons") or []:
         if isinstance(a, dict):
@@ -122,6 +135,34 @@ def booking_items(booking: dict) -> list:
     if diff:
         items.append({"label": "Penyesuaian / diskon" if diff < 0 else "Biaya lainnya", "qty": 1, "unit_price": diff, "amount": diff})
     return items
+
+
+def kind_label(inv: dict) -> str:
+    """Jenis tagihan utk PDF & caption WA. Invoice denda (type=cancellation_fee, tanpa `kind`)
+    dulu tercetak "Tagihan" dan caption WA "invoice  INV-…" (label kosong)."""
+    if inv.get("type") == "cancellation_fee":
+        return CANCEL_FEE_LABEL
+    return KIND_LABEL.get(inv.get("kind"), "Tagihan")
+
+
+def invoice_items(inv: dict, booking: dict) -> list:
+    """Rincian baris invoice. Denda = satu baris denda — dulu PDF denda memuat rincian sewa
+    penuh (jumlahnya ≠ baris TOTAL = nominal denda)."""
+    if inv.get("items"):
+        return inv["items"]
+    if inv.get("type") == "cancellation_fee":
+        amt = money(inv.get("amount") or 0)
+        return [{"label": f"{CANCEL_FEE_LABEL} booking {booking.get('code') or inv.get('booking_code') or ''}".strip(),
+                 "qty": 1, "unit_price": amt, "amount": amt}]
+    return booking_items(booking)
+
+
+async def issuer_of(db, user_id, fallback: dict = None) -> dict:
+    """Penanda tangan = PENERBIT dokumen (pembuat invoice / penerbit kwitansi), bukan pengunduh.
+    Dulu invoice yang sama bertanda tangan owner bila diunduh owner, ops bila diunduh ops,
+    dengan jabatan berupa kode role mentah ("ops_admin")."""
+    u = (await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "role": 1}) if user_id else None) or fallback or {}
+    return {"name": u.get("name") or "", "role": ROLE_LABEL.get(u.get("role"), u.get("role") or "")}
 
 
 async def _driver_name(db, booking):
@@ -142,10 +183,23 @@ async def invoice_context(db, inv: dict, booking: dict, cfg: dict, issuer: str) 
         "total": pl.rp(total), "dp_percent": f"{float(inv.get('dp_percent') or 0):g}%", "dp_amount": pl.rp(inv.get("dp_amount") or 0),
         "paid": pl.rp(inv.get("paid_before") or 0), "billed": pl.rp(inv.get("amount") or 0),
         "outstanding": pl.rp(inv.get("outstanding_after") or 0),
-        "bank_accounts": "\n".join(bank_lines(inv.get("bank_accounts") or cfg.get("bank_accounts"))) or "-",
+        "bank_accounts": ("\n".join(bank_lines(inv.get("bank_accounts") or cfg.get("bank_accounts")))
+                          or "Silakan hubungi kami untuk informasi rekening pembayaran."),
         "terms": inv.get("terms") or cfg.get("payment_terms") or "", "notes": inv.get("notes") or "-",
-        "kind_label": KIND_LABEL.get(inv.get("kind"), "Tagihan"), "issuer_name": issuer or "-",
+        "kind_label": kind_label(inv), "issuer_name": issuer or "-",
     }
+
+
+def _finish_content(content: str, inv: dict, ctx: dict, script: str) -> str:
+    """Invoice LUNAS tak lagi berbunyi "Mohon melakukan pembayaran paling lambat …" (kalimat
+    naskah bawaan dibuang + penanda LUNAS di atas); catatan invoice tercetak walau naskah tak
+    memuat {{notes}} (dulu catatan dari formulir tak pernah muncul di PDF)."""
+    if inv.get("status") == "paid":
+        content = content.replace(f"Mohon melakukan pembayaran paling lambat <b>{ctx['due_date']}</b>. ", "")
+        content = "<b>Status: LUNAS</b> — tagihan ini telah dibayar penuh. Terima kasih.\n\n" + content
+    if inv.get("notes") and "{{notes}}" not in (script or "") and inv.get("type") != "cancellation_fee":
+        content += f"\n\nCatatan: {inv['notes']}"
+    return content
 
 
 async def invoice_pdf(db, inv: dict, issuer: dict = None) -> bytes:
@@ -153,14 +207,15 @@ async def invoice_pdf(db, inv: dict, issuer: dict = None) -> bytes:
     cfg = await invoice_config(db)
     code = KIND_CODE.get(inv.get("kind"), "INVOICE")
     layout = await dl.get_layout(db, code)
-    issuer_name = (issuer or {}).get("name") or inv.get("created_by_name") or ""
+    issuer = await issuer_of(db, inv.get("created_by"), None if inv.get("created_by") else issuer)
+    issuer_name = issuer.get("name") or inv.get("created_by_name") or ""
     ctx = await invoice_context(db, inv, booking, cfg, issuer_name)
-    script = (await ds.get_script(db, code))["content"]
-    content = ds.substitute(script, ctx)
+    script = ds.CANCEL_FEE_SCRIPT if inv.get("type") == "cancellation_fee" else (await ds.get_script(db, code))["content"]
+    content = _finish_content(ds.substitute(script, ctx), inv, ctx, script)
     amounts = {"TOTAL_BOOKING": money(inv.get("subtotal") or 0), "DP_AMOUNT": money(inv.get("dp_amount") or 0),
                "PAID_BEFORE": money(inv.get("paid_before") or 0), "BILLED": money(inv.get("amount") or 0),
                "OUTSTANDING": money(inv.get("outstanding_after") or 0)}
-    items = inv.get("items") or booking_items(booking)
+    items = invoice_items(inv, booking)
     rows = [[i["label"], str(i.get("qty") or 1), pl.rp(i.get("unit_price")), pl.rp(i.get("amount"))] for i in items]
     total_row = ["TOTAL", "", "", pl.rp(inv.get("subtotal") or 0)]
     meta = [("Kepada", ctx["customer_name"]), ("Telepon", ctx["customer_phone"]), ("Booking", ctx["booking_code"]),
@@ -174,15 +229,28 @@ async def invoice_pdf(db, inv: dict, issuer: dict = None) -> bytes:
         meta=meta if dl.section_visible(layout, "identitas") else None,
         money_rows=dl.money_rows_for(layout, amounts), item_table=(["Deskripsi", "Qty", "Harga", "Jumlah"], rows, total_row),
         bank_lines=banks, note=cfg.get("footer_note") or "", terbilang=terbilang(inv.get("amount") or 0),
-        signatures_override=dl.signatures_for(layout, issuer_name=issuer_name, issuer_position=(issuer or {}).get("role")))
+        signatures_override=dl.signatures_for(layout, issuer_name=issuer_name, issuer_position=issuer.get("role")))
 
 
 STATUS_LABEL = {"draft": "Draft", "sent": "Terkirim", "partial": "Dibayar sebagian", "paid": "Lunas", "void": "Dibatalkan"}
 
 
+async def paid_upto(db, pay: dict) -> int:
+    """Σ pembayaran booking SAMPAI DENGAN pembayaran ini (urut paid_at). Kwitansi DP yang dicetak
+    ulang setelah pelunasan dulu menampilkan total terbayar & sisa TERKINI, bukan saat itu."""
+    rows = await db.payments.find({"booking_id": pay.get("booking_id")}, {"_id": 0, "id": 1, "amount": 1, "paid_at": 1}).to_list(1000)
+    rows.sort(key=lambda r: str(r.get("paid_at") or ""))  # sort stabil → urutan input utk paid_at sama
+    total = 0
+    for r in rows:
+        total += money(r.get("amount") or 0)
+        if r.get("id") == pay.get("id"):
+            return total
+    return total
+
+
 async def receipt_context(db, pay: dict, booking: dict, issuer: str) -> dict:
     total = money(booking.get("total_amount") or 0)
-    paid = money(booking.get("paid_amount") or 0)
+    paid = await paid_upto(db, pay)
     return {
         "doc_number": pay.get("receipt_no"), "date": fdate(pay.get("receipt_issued_at") or pay.get("paid_at")),
         "org_name": await org_name(db), "customer_name": booking.get("customer_name") or "-",
@@ -200,20 +268,24 @@ async def receipt_pdf(db, pay: dict, issuer: dict = None) -> bytes:
     cust = await db.customers.find_one({"id": booking.get("customer_id")}, {"_id": 0, "phone": 1}) or {}
     pay = {**pay, "customer_phone": cust.get("phone")}
     layout = await dl.get_layout(db, "KWITANSI")
-    issuer_name = (issuer or {}).get("name") or ""
+    issuer = await issuer_of(db, pay.get("receipt_issued_by"), None if pay.get("receipt_issued_by") else issuer)
+    issuer_name = issuer.get("name") or pay.get("receipt_issued_by_name") or ""
     ctx = await receipt_context(db, pay, booking, issuer_name)
-    content = ds.substitute((await ds.get_script(db, "KWITANSI"))["content"], ctx)
-    total, paid = money(booking.get("total_amount") or 0), money(booking.get("paid_amount") or 0)
+    script = (await ds.get_script(db, "KWITANSI"))["content"]
+    content = ds.substitute(script, ctx)
+    total, paid = money(booking.get("total_amount") or 0), await paid_upto(db, pay)
     amounts = {"AMOUNT": money(pay.get("amount") or 0), "TOTAL_BOOKING": total, "PAID_TOTAL": paid, "OUTSTANDING": max(total - paid, 0)}
-    meta = [("Diterima dari", ctx["customer_name"]), ("Booking", ctx["booking_code"]), ("Armada", ctx["vehicle_name"]),
-            ("Jenis pembayaran", ctx["payment_type"]), ("Tanggal", ctx["date"])]
+    # Naskah bawaan sudah memuat "Telah diterima dari" & "Terbilang" → jangan dicetak dua kali.
+    meta = ([] if "{{customer_name}}" in script else [("Diterima dari", ctx["customer_name"])]) + [
+        ("Booking", ctx["booking_code"]), ("Armada", ctx["vehicle_name"]),
+        ("Jenis pembayaran", ctx["payment_type"]), ("Tanggal", ctx["date"])]
     layout.setdefault("options", {})["doc_date"] = ctx["date"]
     cfg = await invoice_config(db)
     return pl.render_letter(
         layout, await dl.images(db, layout), title=layout["title"], doc_number=pay.get("receipt_no"), content=content,
         meta=meta if dl.section_visible(layout, "identitas") else None, money_rows=dl.money_rows_for(layout, amounts),
-        note=cfg.get("footer_note") or "", terbilang=ctx["amount_words"],
-        signatures_override=dl.signatures_for(layout, issuer_name=issuer_name, issuer_position=(issuer or {}).get("role")))
+        note=cfg.get("footer_note") or "", terbilang="" if "{{amount_words}}" in script else ctx["amount_words"],
+        signatures_override=dl.signatures_for(layout, issuer_name=issuer_name, issuer_position=issuer.get("role")))
 
 
 async def preview_pdf(db, code: str, layout: dict, script: str, issuer: dict = None) -> bytes:
@@ -230,7 +302,9 @@ async def preview_pdf(db, code: str, layout: dict, script: str, issuer: dict = N
         item_table=(["Deskripsi", "Qty", "Harga", "Jumlah"], s["items"], ["TOTAL", "", "", s["ctx"]["total"]]) if code != "KWITANSI" else None,
         bank_lines=s["ctx"]["bank_accounts"].split("\n") if code != "KWITANSI" and dl.section_visible(layout, "bank") and "{{bank_accounts}}" not in (script or "") else None,
         note="PRATINJAU dengan data contoh — bukan dokumen sah.", terbilang=s["ctx"]["amount_words"],
-        signatures_override=dl.signatures_for(layout, issuer_name=(issuer or {}).get("name"), issuer_position=(issuer or {}).get("role")))
+        signatures_override=dl.signatures_for(
+            layout, issuer_name=(issuer or {}).get("name"),
+            issuer_position=ROLE_LABEL.get((issuer or {}).get("role"), (issuer or {}).get("role"))))
 
 
 def invoice_paid_portion(inv: dict, booking_paid) -> int:

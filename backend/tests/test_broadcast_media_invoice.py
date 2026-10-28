@@ -193,10 +193,14 @@ class TestInvoiceWa:
         r = requests.get(f"{BASE}/api/bookings", headers=owner_headers, timeout=15)
         assert r.status_code == 200
         bookings = r.json()
+        # Booking dgn invoice terbuka ditolak (409: tagihan tak boleh tumpang-tindih) → lewati.
+        invs = requests.get(f"{BASE}/api/invoices?limit=1000", headers=owner_headers, timeout=15).json()
+        busy = {i.get("booking_id") for i in invs if i.get("status") in ("draft", "sent", "partial")}
         for b in bookings:
-            if b.get("status") in ("confirmed", "completed"):
+            if (b.get("status") in ("confirmed", "completed") and b["id"] not in busy
+                    and float(b.get("total_amount") or 0) > float(b.get("paid_amount") or 0)):
                 return b
-        pytest.skip("Tidak ada booking confirmed/completed")
+        pytest.skip("Tidak ada booking confirmed/completed yang masih bisa ditagih")
 
     def test_create_invoice_and_send_wa(self, owner_headers):
         booking = self._pick_booking(owner_headers)
@@ -237,7 +241,7 @@ class TestInvoiceWa:
         with_inv = {i.get("booking_id") for i in invs}
         target = None
         for b in bookings:
-            if b["id"] not in with_inv:
+            if b["id"] not in with_inv and b.get("status") != "cancelled":  # batal: pesan "tagihan terbuka"
                 target = b["id"]
                 break
         if not target:

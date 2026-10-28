@@ -236,8 +236,16 @@ async def process_event(db, event):
     return created
 
 
+# Teks bawaan LAMA yang diganti (migrasi sync_system_rules hanya menimpa rule yang teksnya masih
+# persis bawaan lama — rule yang sudah diedit pengguna tidak disentuh).
+LEGACY_WA_TEXTS = {
+    "booking.confirmed": ["Booking {code} dikonfirmasi ✅ Total Rp {total_amount}. Mohon DP {dp_percent}% untuk mengamankan jadwal {start_datetime}. Terima kasih!"],
+    "payment.recorded": ["Pembayaran Rp {amount} ({type}) untuk booking {code} sudah kami terima. Terima kasih, {customer_name}! 🙏"],
+}
+
+
 def default_rules():
-    """Rule contoh AKTIF (mock-first). Dipakai seed & endpoint reset."""
+    """Rule contoh AKTIF (mock-first). Dipakai seed, endpoint reset & sync_system_rules (startup)."""
     def rule(name, desc, event_type, actions, conditions=None):
         now = now_iso()
         return {
@@ -265,7 +273,7 @@ def default_rules():
              [{"type": "send_wa", "params": {"text": "Halo {customer_name}, penawaran {number} senilai Rp {total} telah kami kirim. Berlaku hingga {valid_until}. Ada yang bisa kami bantu?"}}]),
         rule("Konfirmasi booking + instruksi DP", "WA konfirmasi saat booking dikonfirmasi.",
              "booking.confirmed",
-             [{"type": "send_wa", "params": {"text": "Booking {code} dikonfirmasi ✅ Total Rp {total_amount}. Mohon DP {dp_percent}% untuk mengamankan jadwal {start_datetime}. Terima kasih!"}},
+             [{"type": "send_wa", "params": {"text": "Booking {code} dikonfirmasi ✅ Jadwal {start_datetime}, unit {vehicle_name}. Total Rp {total_amount}. {payment_note} Terima kasih!"}},
               {"type": "create_notification", "params": {"title": "Booking dikonfirmasi: {code}", "body": "{customer_name} — {vehicle_name}."}}]),
         rule("Notifikasi pembatalan booking", "WA info pembatalan + ajakan jadwal ulang ke pelanggan + notifikasi internal (G1).",
              "booking.cancelled",
@@ -282,6 +290,18 @@ def default_rules():
         rule("Booking hold kedaluwarsa (DP telat)", "Notifikasi internal saat hold dibatalkan otomatis karena DP tak masuk (E18).",
              "booking.hold_expired",
              [{"type": "create_notification", "params": {"title": "Hold kedaluwarsa: {code}", "body": "{customer_name} — DP tidak masuk sebelum batas waktu; booking dibatalkan & armada dibebaskan."}}]),
+        rule("Info hold hangus ke pelanggan", "WA ke pelanggan saat pesanan batal otomatis karena DP tak masuk (dulu pelanggan tak diberi tahu).",
+             "booking.hold_expired",
+             [{"type": "send_wa", "params": {"text": "Halo {customer_name}, batas waktu DP pesanan {code} sudah lewat sehingga pesanan dibatalkan otomatis dan unit kami lepas. Balas pesan ini bila ingin memesan ulang. Terima kasih, {company}."}}]),
+        rule("Instruksi DP setelah disetujui", "WA nominal DP + batas waktu + tautan status saat ops ACC + Minta DP (dulu tak ada pesan).",
+             "booking.hold_created",
+             [{"type": "send_wa", "params": {"text": "Halo {customer_name}, pesanan {code} ({start_datetime}) sudah kami setujui dan unit {vehicle_name} kami tahan untuk Anda sampai {hold_expires_at}. Mohon transfer DP Rp {dp_amount}. {status_hint} Terima kasih, {company}."}}]),
+        rule("Bukti DP masuk", "Notifikasi ops/keuangan saat pelanggan mengunggah bukti transfer.",
+             "booking.payment_proof_uploaded",
+             [{"type": "create_notification", "params": {"title": "Bukti DP masuk: {code}", "body": "{customer_name} — Rp {amount}. Verifikasi di Booking → Bukti Transfer."}}]),
+        rule("Bukti DP ditolak", "WA alasan penolakan bukti transfer + ajakan unggah ulang (dulu pelanggan tak diberi tahu).",
+             "booking.payment_proof_rejected",
+             [{"type": "send_wa", "params": {"text": "Halo {customer_name}, mohon maaf bukti transfer untuk pesanan {code} belum bisa kami terima: {reason}. {status_hint} Terima kasih, {company}."}}]),
         rule("Notifikasi driver ditugaskan", "WA ke pelanggan saat driver & unit di-assign (E3 Dispatch).",
              "trip.assigned",
              [{"type": "send_wa", "params": {"text": "Halo {customer_name}, perjalanan {code} Anda ke {destination} ({start_datetime}) telah dijadwalkan. Driver: {driver_name} ({driver_phone}), unit {vehicle_name}. Sampai jumpa! 🚐"}},
@@ -298,7 +318,7 @@ def default_rules():
              [{"type": "send_wa", "params": {"text": "Halo {customer_name}, Anda telah tiba di {destination}. Terima kasih telah memilih {company}! Perjalanan aman selalu. 🙏"}}]),
         rule("Terima kasih pembayaran", "WA konfirmasi tiap pembayaran tercatat.",
              "payment.recorded",
-             [{"type": "send_wa", "params": {"text": "Pembayaran Rp {amount} ({type}) untuk booking {code} sudah kami terima. Terima kasih, {customer_name}! 🙏"}}]),
+             [{"type": "send_wa", "params": {"text": "Pembayaran Rp {amount} ({type_label}) untuk booking {code} sudah kami terima. {outstanding_note} Terima kasih, {customer_name}! 🙏"}}]),
         rule("Pengingat keberangkatan H-1", "WA pengingat + notifikasi sebelum berangkat.",
              "booking.departure_due",
              [{"type": "send_wa", "params": {"text": "Pengingat keberangkatan {code} {when}. Driver {driver_name}, unit {vehicle_name}. Selamat jalan, {customer_name}!"}},
@@ -322,3 +342,49 @@ def default_rules():
              [{"type": "send_wa", "params": {"text": "Halo {customer_name}, kami rindu melayani perjalanan Anda! Ada promo spesial untuk pemesanan berikutnya bersama {company}. Balas pesan ini ya. 🚗"}},
               {"type": "create_notification", "params": {"title": "Pelanggan berisiko: {customer_name}", "body": "{lifecycle} \u00b7 {recency_days} hari sejak transaksi terakhir (LTV Rp {ltv})."}}]),
     ]
+
+
+# Rule sistem yang ditambahkan SETELAH instalasi awal — hanya ini yang dipasang sync_system_rules
+# pada DB lama yang belum punya penanda (rule lama yang tak ada berarti sengaja dihapus admin).
+SYNC_ADDED_RULES = {"Info hold hangus ke pelanggan", "Instruksi DP setelah disetujui", "Bukti DP masuk", "Bukti DP ditolak"}
+_SYNC_KEY = "automation_system_rules"
+
+
+async def sync_system_rules(db) -> dict:
+    """Startup: rule sistem baru ikut masuk ke DB lama & teks bawaan lama diperbarui (idempotent).
+
+    Dulu default_rules() hanya dipakai saat seed/reset — instalasi berjalan tak pernah mendapat
+    rule baru (mis. instruksi DP saat hold) dan tetap mengirim teks lama yang keliru.
+    Kunci = (event_type, name). Rule yang dinonaktifkan/diedit pengguna tidak diubah; rule yang
+    pernah terpasang lalu DIHAPUS admin tidak dipasang lagi (penanda di settings).
+    """
+    defaults = default_rules()
+    keys = {r["name"]: f"{r['event_type']}|{r['name']}" for r in defaults}
+    mark = await db.settings.find_one({"key": _SYNC_KEY}, {"_id": 0})
+    installed = set(((mark or {}).get("value") or {}).get("installed") or [])
+    if mark is None:
+        installed = {k for n, k in keys.items() if n not in SYNC_ADDED_RULES}
+    added = updated = 0
+    for r in defaults:
+        cur = await db.automation_rules.find_one({"event_type": r["event_type"], "name": r["name"]}, {"_id": 0})
+        if not cur:
+            if keys[r["name"]] not in installed:
+                await db.automation_rules.insert_one(dict(r))
+                installed.add(keys[r["name"]])
+                added += 1
+            continue
+        installed.add(keys[r["name"]])
+        legacy = LEGACY_WA_TEXTS.get(r["event_type"]) or []
+        acts = cur.get("actions") or []
+        new_wa = next((a for a in r["actions"] if a.get("type") == "send_wa"), None)
+        changed = False
+        for a in acts:
+            if a.get("type") == "send_wa" and new_wa and (a.get("params") or {}).get("text") in legacy:
+                a["params"] = dict(new_wa["params"])
+                changed = True
+        if changed:
+            await db.automation_rules.update_one({"id": cur["id"]}, {"$set": {"actions": acts, "updated_at": now_iso()}})
+            updated += 1
+    await db.settings.update_one({"key": _SYNC_KEY}, {"$set": {"value": {"installed": sorted(installed)}}}, upsert=True)
+    return {"added": added, "updated": updated}
+

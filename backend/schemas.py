@@ -391,7 +391,8 @@ class PricingQuoteRequest(APIModel):
 # === Phase 9 / Tahap B · B2: Quotation Lifecycle ===
 class QuotationItemIn(APIModel):
     label: str = Field(default="", max_length=120)
-    amount: float = Field(default=0, ge=0)  # tak boleh negatif → cegah subtotal/total penawaran negatif
+    # Boleh negatif utk baris diskon/potongan (dulu 422); total penawaran tetap wajib > 0 (router).
+    amount: float = Field(default=0, ge=-1_000_000_000, le=1_000_000_000)
 
 
 class QuotationDraftCreate(APIModel):

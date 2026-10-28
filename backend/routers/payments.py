@@ -119,6 +119,12 @@ async def create_payment(body: PaymentCreate, user=Depends(FIN)):
         "payment_id": doc["id"], "booking_id": body.booking_id, "code": booking.get("code"),
         "customer_name": booking.get("customer_name"), "phone": cust.get("phone"),
         "amount": float(doc["amount"]), "type": doc["type"],
+        # label manusiawi utk WA (dulu "(settlement)"/"(dp)" mentah) + sisa tagihan
+        "type_label": {"dp": "DP", "settlement": "pelunasan", "penalty": "denda",
+                       "refund": "pengembalian"}.get(doc["type"], doc["type"]),
+        "outstanding": float(max(total - new_paid, 0)),
+        "outstanding_note": "Pembayaran Anda sudah lunas." if new_paid >= total > 0 else
+        f"Sisa tagihan Rp {max(total - new_paid, 0):,}.".replace(",", "."),
     }, source="payments", ref_type="booking", ref_id=body.booking_id,
         dedupe_key=f"payment.recorded:{doc['id']}")
     # E18: DP-gate — bila booking 'hold' & DP tercukupi → promote ke 'confirmed' (idempotent via
@@ -137,13 +143,6 @@ async def create_payment(body: PaymentCreate, user=Depends(FIN)):
                 await record(db, actor=user, action="update", entity_type="booking",
                              entity_id=body.booking_id,
                              summary=f"DP tercukupi → booking {promoted.get('code')} dikonfirmasi (hold→confirmed)")
-                await emit(db, "booking.confirmed", {
-                    "booking_id": promoted["id"], "code": promoted.get("code"),
-                    "customer_name": promoted.get("customer_name"), "phone": cust.get("phone"),
-                    "total_amount": float(money(promoted.get("total_amount", 0))),
-                    "dp_percent": promoted.get("dp_percent", 30),
-                    "vehicle_name": promoted.get("vehicle_name"),
-                    "start_datetime": (promoted.get("start_datetime") or "")[:16].replace("T", " "),
-                }, source="payments", ref_type="booking", ref_id=promoted["id"],
-                    dedupe_key=f"booking.confirmed:{promoted['id']}")
+                from services import booking_flow as bf
+                await bf.emit_booking_confirmed(db, promoted, source="payments")
     return safe_doc(doc)

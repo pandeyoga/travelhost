@@ -6,11 +6,11 @@ request bersamaan, dengan `find_one_and_update($inc)` yang ATOMIK pada koleksi
 
 Dokumen counter: { id: <scope>, seq: <int> }
   - scope 'booking'         -> BK-0001, BK-0002, ...
-  - scope 'invoice:<YYYY>'  -> reset per tahun (lihat services.finance.next_invoice_number)
+  - scope 'invoice:<YYYY>'  -> reset per tahun (aturan "invoice" di services.numbering)
 
 Seed menginisialisasi counter agar nilai berikutnya tidak menabrak data awal.
-Catatan: nomor invoice dirakit di `services.finance.next_invoice_number`
-(memakai next_seq di sini) — JANGAN duplikasi format di file ini.
+Catatan: nomor dokumen (invoice/DP/pelunasan/denda/kwitansi) dirakit di
+`services.numbering.generate` (memakai next_seq di sini) — JANGAN duplikasi format di file ini.
 """
 from pymongo import ReturnDocument
 

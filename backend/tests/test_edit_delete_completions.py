@@ -107,9 +107,13 @@ def _find_booking_for_invoice(owner_session):
     r = owner_session.get(f"{API}/bookings?limit=200")
     assert r.status_code == 200, r.text
     rows = r.json()
+    # Booking dengan invoice terbuka ditolak (409: tagihan tak boleh tumpang-tindih) → lewati.
+    busy = {i.get("booking_id") for i in owner_session.get(f"{API}/invoices?limit=1000").json()
+            if i.get("status") in ("draft", "sent", "partial")}
     for status in ("confirmed", "hold", "partial", "on_trip", "done"):
         for b in rows:
-            if b.get("status") == status and float(b.get("total_amount") or 0) > 0:
+            if (b.get("status") == status and float(b.get("total_amount") or 0) > float(b.get("paid_amount") or 0)
+                    and b["id"] not in busy):
                 return b
     # fallback any
     return rows[0] if rows else None

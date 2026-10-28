@@ -17,7 +17,9 @@ from dependencies import require_section
 from schemas import InvoiceCreate, InvoiceStatusUpdate
 from services import documents as docs
 from services import numbering as nb
+from services import pdf_layout as pl
 from services.audit import record
+from services.availability import named_lock
 from services.exporter import invoice_xlsx
 
 router = APIRouter(prefix="/api", tags=["invoices"])
@@ -32,7 +34,7 @@ MANUAL_TRANSITIONS = {"draft": ("sent", "void"), "sent": ("draft", "void"), "par
 
 
 def _with_next(inv: dict) -> dict:
-    return {**inv, "next_status": list(MANUAL_TRANSITIONS.get(inv.get("status"), ()))}
+    return {**inv, "kind_label": docs.kind_label(inv), "next_status": list(MANUAL_TRANSITIONS.get(inv.get("status"), ()))}
 
 
 @router.get("/invoices")
@@ -100,11 +102,31 @@ def _compute(booking: dict, cfg: dict, kind: str, dp_percent, dp_amount) -> dict
 @router.post("/invoices")
 async def create_invoice(body: InvoiceCreate, user=Depends(FIN)):
     db = get_db()
+    # Mutex per booking + cek tagihan terbuka: dulu 12 invoice DP paralel diterima semua, dan DP +
+    # penuh bisa terbuka bersamaan (Rp 4,3 jt ditagih untuk booking Rp 3,3 jt).
+    async with named_lock(db, f"invoice:{body.booking_id}", "Invoice booking ini sedang diterbitkan, coba lagi sebentar"):
+        return await _create_invoice(db, body, user)
+
+
+async def _open_unpaid(db, booking: dict) -> list:
+    paid = booking.get("paid_amount") or 0
+    rows = await db.invoices.find({"booking_id": booking["id"], "status": {"$in": list(docs.OPEN_STATUS)},
+                                   "type": {"$ne": "cancellation_fee"}}, {"_id": 0}).to_list(50)
+    return [i for i in rows if docs.invoice_paid_portion(i, paid) < money(i.get("amount") or 0)]
+
+
+async def _create_invoice(db, body: InvoiceCreate, user):
     booking = await db.bookings.find_one({"id": body.booking_id}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=400, detail="Booking tidak ditemukan")
     if booking.get("status") == "cancelled":
         raise HTTPException(status_code=400, detail="Booking dibatalkan — invoice ditolak")
+    pending = await _open_unpaid(db, booking)
+    if pending:
+        nums = ", ".join(i.get("number") or i["id"] for i in pending)
+        raise HTTPException(status_code=409, detail=(
+            f"Masih ada invoice terbuka yang belum dibayar ({nums}). Tunggu pembayarannya atau batalkan (void) "
+            "invoice itu dulu sebelum menerbitkan invoice baru."))
     kind = body.kind if body.kind in docs.KIND_CODE else "full"
     cfg = await docs.invoice_config(db)
     calc = _compute(booking, cfg, kind, body.dp_percent, body.dp_amount)
@@ -161,7 +183,9 @@ async def export_invoice(invoice_id: str, format: str = Query(default="pdf"), us
     inv = await _get(db, invoice_id)
     fname = inv.get("number", "invoice").replace("/", "-")
     if format == "excel":
-        data, media, fname = invoice_xlsx(inv), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", f"{fname}.xlsx"
+        booking = await db.bookings.find_one({"id": inv.get("booking_id")}, {"_id": 0}) or {}
+        data = invoice_xlsx(inv, org=await docs.org_name(db), items=docs.invoice_items(inv, booking), kind_label=docs.kind_label(inv))
+        media, fname = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", f"{fname}.xlsx"
     else:
         data, media, fname = await docs.invoice_pdf(db, inv, issuer=user), "application/pdf", f"{fname}.pdf"
     return StreamingResponse(BytesIO(data), media_type=media, headers={"Content-Disposition": f'attachment; filename="{fname}"'})
@@ -191,15 +215,30 @@ async def _send_pdf_wa(db, phone, pdf, caption, filename, customer_id, customer_
     return res
 
 
+async def _invoice_caption(db, inv) -> str:
+    """Caption WA invoice. Dulu selalu "sebesar Rp <nominal> … Jatuh tempo …" — invoice yang
+    sudah lunas/dibayar sebagian ikut ditagih penuh; invoice denda tanpa label jenis; dan SEMUA
+    koma diganti titik ("Halo Budi. berikut …"). Nominal kini diformat sendiri-sendiri (pl.rp)."""
+    bk = await db.bookings.find_one({"id": inv.get("booking_id")}, {"_id": 0, "paid_amount": 1}) or {}
+    amount = money(inv.get("amount") or 0)
+    covered = docs.invoice_paid_portion(inv, bk.get("paid_amount") or 0)
+    head = (f"Halo {inv.get('customer_name') or 'Pelanggan'}, berikut invoice {docs.kind_label(inv).lower()} "
+            f"{inv.get('number')} sebesar {pl.rp(amount)} untuk booking {inv.get('booking_code')}. ")
+    if inv.get("status") == "paid" or (amount > 0 and covered >= amount):
+        return head + "Status: LUNAS. Terima kasih! 🙏"
+    paid = f"Sudah dibayar {pl.rp(covered)}, sisa {pl.rp(amount - covered)}. " if covered > 0 else ""
+    return head + paid + f"Jatuh tempo {docs.fdate(inv.get('due_at'))}. Terima kasih! 🙏"
+
+
 async def _send_invoice_wa(db, inv, user):
+    if inv.get("status") == "void":  # dulu invoice batal tetap terkirim sebagai tagihan
+        raise HTTPException(status_code=400, detail="Invoice sudah dibatalkan — tidak bisa dikirim")
     phone = await _resolve_customer_phone(db, inv)
     if not phone:
         raise HTTPException(status_code=400, detail="Nomor WhatsApp pelanggan tidak ditemukan")
-    pdf = await docs.invoice_pdf(db, inv, issuer=user)
-    due = docs.fdate(inv.get("due_at"))
-    caption = (f"Halo {inv.get('customer_name') or 'Pelanggan'}, berikut invoice {inv.get('kind_label', '').lower()} "
-               f"{inv.get('number')} sebesar Rp {money(inv.get('amount')):,} untuk booking {inv.get('booking_code')}. "
-               f"Jatuh tempo {due}. Terima kasih! 🙏").replace(",", ".")
+    # PDF yang diterima pelanggan berstatus "Terkirim" (dulu dirender sebelum draft→sent: "Draft").
+    pdf = await docs.invoice_pdf(db, {**inv, "status": "sent"} if inv.get("status") == "draft" else inv, issuer=user)
+    caption = await _invoice_caption(db, inv)
     res = await _send_pdf_wa(db, phone, pdf, caption, f"{inv.get('number', 'invoice').replace('/', '-')}.pdf",
                              inv.get("customer_id"), inv.get("customer_name"), "invoice", user)
     if inv.get("status") == "draft":
@@ -218,9 +257,15 @@ async def send_invoice_wa(invoice_id: str, user=Depends(FIN)):
 @router.post("/bookings/{booking_id}/send-invoice-wa")
 async def send_booking_invoice_wa(booking_id: str, user=Depends(FIN)):
     db = get_db()
-    inv = await db.invoices.find_one({"booking_id": booking_id, "status": {"$ne": "void"}}, {"_id": 0}, sort=[("created_at", -1)])
+    bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0, "status": 1}) or {}
+    # Booking batal: hanya tagihan yang masih terbuka (denda belum lunas) — dulu invoice DP
+    # lama yang sudah lunas pun bisa terkirim ulang ke pelanggan yang sudah membatalkan.
+    q = {"booking_id": booking_id, "status": {"$in": list(docs.OPEN_STATUS)} if bk.get("status") == "cancelled" else {"$ne": "void"}}
+    inv = await db.invoices.find_one(q, {"_id": 0}, sort=[("created_at", -1)])
     if not inv:
-        raise HTTPException(status_code=404, detail="Belum ada invoice untuk booking ini — buat dulu di Keuangan → Invoice")
+        raise HTTPException(status_code=404, detail=(
+            "Booking batal ini tidak punya tagihan terbuka" if bk.get("status") == "cancelled"
+            else "Belum ada invoice untuk booking ini — buat dulu di Keuangan → Invoice"))
     return await _send_invoice_wa(db, inv, user)
 
 
@@ -294,7 +339,7 @@ async def list_receipts(booking_id: str = Query(default=None), only_issued: bool
                         limit: int = Query(default=300, le=1000), user=Depends(FIN)):
     """Daftar pembayaran + status kwitansinya (receipt_no terisi = sudah terbit)."""
     db = get_db()
-    q = {}
+    q = {"amount": {"$gt": 0}}  # refund (payment negatif) bukan penerimaan → tak berkwitansi
     if booking_id:
         q["booking_id"] = booking_id
     if only_issued:
@@ -311,10 +356,16 @@ async def list_receipts(booking_id: str = Query(default=None), only_issued: bool
 async def _issue_receipt(db, pay: dict, user) -> dict:
     if pay.get("receipt_no"):
         return pay
+    if money(pay.get("amount")) <= 0 or pay.get("type") == "refund":
+        # Dulu refund tercetak "Telah diterima dari … Rp -150.000, terbilang: nol rupiah".
+        raise HTTPException(status_code=400, detail="Refund/pengembalian bukan penerimaan — tidak diterbitkan kwitansi")
     booking = await db.bookings.find_one({"id": pay.get("booking_id")}, {"_id": 0}) or {}
     number = await nb.generate(db, "receipt", {"booking_code": booking.get("code"), "customer_name": booking.get("customer_name")})
     upd = {"receipt_no": number, "receipt_issued_at": now_iso(), "receipt_issued_by": user.get("id"), "receipt_issued_by_name": user.get("name")}
-    await db.payments.update_one({"id": pay["id"]}, {"$set": upd})
+    # CAS: dua klik/permintaan bersamaan tak menerbitkan dua nomor untuk satu pembayaran.
+    res = await db.payments.update_one({"id": pay["id"], "receipt_no": {"$in": [None, ""]}}, {"$set": upd})
+    if not res.modified_count:
+        return await db.payments.find_one({"id": pay["id"]}, {"_id": 0}) or pay
     await record(db, actor=user, action="create", entity_type="receipt", entity_id=pay["id"],
                  summary=f"Terbitkan kwitansi {number} (Rp {money(pay.get('amount')):,}) booking {booking.get('code')}".replace(",", "."))
     return {**pay, **upd}
@@ -348,15 +399,15 @@ async def receipt_send_wa(payment_id: str, user=Depends(FIN)):
     pay = await db.payments.find_one({"id": payment_id}, {"_id": 0})
     if not pay:
         raise HTTPException(status_code=404, detail="Pembayaran tidak ditemukan")
-    pay = await _issue_receipt(db, pay, user)
     booking = await db.bookings.find_one({"id": pay.get("booking_id")}, {"_id": 0}) or {}
     cust = await db.customers.find_one({"id": booking.get("customer_id")}, {"_id": 0, "phone": 1}) or {}
     phone = booking.get("customer_phone") or cust.get("phone")
-    if not phone:
+    if not phone:  # cek SEBELUM menerbitkan nomor (dulu nomor kwitansi terpakai walau gagal kirim)
         raise HTTPException(status_code=400, detail="Nomor WhatsApp pelanggan tidak ditemukan")
+    pay = await _issue_receipt(db, pay, user)
     pdf = await docs.receipt_pdf(db, pay, issuer=user)
     caption = (f"Halo {booking.get('customer_name') or 'Pelanggan'}, terima kasih. Berikut kwitansi {pay['receipt_no']} "
-               f"atas pembayaran Rp {money(pay.get('amount')):,} untuk booking {booking.get('code')}. 🙏").replace(",", ".")
+               f"atas pembayaran {pl.rp(money(pay.get('amount')))} untuk booking {booking.get('code')}. 🙏")
     res = await _send_pdf_wa(db, phone, pdf, caption, f"{pay['receipt_no'].replace('/', '-')}.pdf",
                              booking.get("customer_id"), booking.get("customer_name"), "receipt", user)
     await record(db, actor=user, action="send", entity_type="receipt", entity_id=pay["id"],

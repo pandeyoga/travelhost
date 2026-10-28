@@ -81,6 +81,13 @@ class SectionIn(APIModel):
     visible: bool = True
     order: int = 0
 
+    @field_validator("key")
+    @classmethod
+    def _key(cls, v):
+        if v not in {k for k, _ in dl.SECTIONS}:
+            raise ValueError(f"Bagian dokumen '{v}' tidak dikenal.")
+        return v
+
 
 class MoneyRowIn(APIModel):
     code: str
@@ -112,6 +119,28 @@ class TableIn(APIModel):
     grid_color: Optional[str] = None
     width_pct: Optional[float] = Field(default=None, ge=40, le=100)
     alignment: Optional[str] = None
+
+    # Dulu nilai sembarang tersimpan (200) lalu SEMUA PDF jenis itu error 500 (hAlign tak dikenal).
+    @field_validator("grid")
+    @classmethod
+    def _grid(cls, v):
+        if v and v not in ("full", "horizontal", "none"):
+            raise ValueError("Garis tabel hanya: full, horizontal, none.")
+        return v
+
+    @field_validator("alignment")
+    @classmethod
+    def _align(cls, v):
+        if v and v not in ("left", "center", "right"):
+            raise ValueError("Perataan tabel hanya: left, center, right.")
+        return v
+
+    @field_validator("grid_color")
+    @classmethod
+    def _gcolor(cls, v):
+        if v and not HEX.match(v):
+            raise ValueError("Warna garis harus heksadesimal, mis. #E2E8F0.")
+        return v
 
 
 class OptionsIn(APIModel):

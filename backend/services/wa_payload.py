@@ -28,8 +28,10 @@ async def build_wa_payload(db, booking, trip=None):
         "booking_id": booking.get("id"), "code": booking.get("code"),
         "customer_name": booking.get("customer_name"),
         "phone": await customer_phone(db, booking),
-        "destination": booking.get("destination"), "origin": booking.get("origin"),
-        "pickup": booking.get("origin"),
+        # Fallback kalimat: dulu tujuan/titik jemput kosong menghasilkan "ke  telah", "Titik jemput: ."
+        "destination": booking.get("destination") or "tujuan Anda",
+        "origin": booking.get("origin") or "",
+        "pickup": booking.get("pickup_address") or booking.get("origin") or "sesuai kesepakatan",
         "start_datetime": booking.get("start_datetime"),
         "vehicle_name": booking.get("vehicle_name"),
         "driver_name": drv.get("name") or booking.get("driver_name"),

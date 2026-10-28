@@ -205,24 +205,46 @@ def service_meta(service) -> dict:
         "tagline": "Harga & unit ditetapkan tim kami", "price_basis": "penawaran"})
 
 
-async def emit_booking_confirmed(db, booking, source="bookings"):
-    """Pancarkan booking.confirmed (idempotent per booking) dgn telepon pelanggan utk WA.
+def _rp(v) -> str:
+    return f"Rp {money(v):,}".replace(",", ".")
+
+
+def payment_note(booking: dict, dp_percent, total=None) -> str:
+    """Kalimat status bayar utk WA konfirmasi. Dulu pesan SELALU "Mohon DP 30%" — juga kepada
+    pelanggan yang DP-nya baru saja masuk (konfirmasi terpicu oleh pembayaran itu sendiri)."""
+    total = money(booking.get("total_amount") if total is None else total)
+    paid = money(booking.get("paid_amount"))
+    if total > 0 and paid >= total:
+        return "Pembayaran sudah lunas."
+    if paid > 0:
+        return f"Pembayaran {_rp(paid)} sudah kami terima; sisa {_rp(total - paid)}."
+    dp = money(booking.get("dp_amount")) or money(total * float(dp_percent or 0) / 100.0)
+    return f"Mohon DP {int(float(dp_percent or 0))}% ({_rp(dp)}) untuk mengamankan jadwal." if dp else ""
+
+
+async def emit_booking_confirmed(db, booking, source="bookings", *, overrides=None, dedupe_key=None):
+    """SSOT event booking.confirmed (idempotent per booking) — create/confirm/setujui/DP lunas
+    (payments)/konversi penawaran/rombongan. Jadwal dikirim ISO (render template → WIB).
 
     SATU SUMBER DP (services.pricing.get_dp_percent) — dulu router membaca
     `pricing_defaults.dp_percent` sendiri sehingga DP di WhatsApp bisa berbeda dari situs.
-    Dipakai create/confirm (routers/bookings) & setujui (routers/booking_lifecycle).
     """
     from services.events import emit
     from services.pricing import get_dp_percent
-    cust = await db.customers.find_one({"id": booking.get("customer_id")}, {"_id": 0, "phone": 1}) or {}
-    await emit(db, "booking.confirmed", {
+    cust = await db.customers.find_one({"id": booking.get("customer_id")}, {"_id": 0, "phone": 1, "name": 1}) or {}
+    dp_pct = booking.get("dp_percent") if booking.get("dp_percent") is not None else await get_dp_percent(db)
+    payload = {
         "booking_id": booking["id"], "code": booking.get("code"),
-        "customer_name": booking.get("customer_name"), "phone": cust.get("phone"),
-        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": await get_dp_percent(db),
-        "vehicle_name": booking.get("vehicle_name"),
-        "start_datetime": (booking.get("start_datetime") or "")[:16].replace("T", " "),
-    }, source=source, ref_type="booking", ref_id=booking["id"],
-        dedupe_key=f"booking.confirmed:{booking['id']}")
+        "customer_name": booking.get("customer_name") or cust.get("name"),
+        "phone": cust.get("phone") or booking.get("contact_phone"),
+        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": dp_pct,
+        "vehicle_name": booking.get("vehicle_name"), "start_datetime": booking.get("start_datetime"),
+        "paid_amount": float(money(booking.get("paid_amount"))),
+    }
+    payload.update(overrides or {})
+    payload["payment_note"] = payment_note(booking, dp_pct, total=payload["total_amount"])
+    await emit(db, "booking.confirmed", payload, source=source, ref_type="booking", ref_id=booking["id"],
+               dedupe_key=dedupe_key or f"booking.confirmed:{booking['id']}")
 
 
 async def pending_proof(db, booking_id: str):

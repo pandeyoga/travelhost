@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Inbox as InboxIcon, Send, StickyNote, Globe, MessageCircle, Phone, Check, CheckCheck,
-  UserCheck, Search, Loader2, ChevronLeft, Clock, Ban, ShieldCheck, Sparkles, Zap, Paperclip, X, FileText,
+  UserCheck, Search, Loader2, ChevronLeft, Clock, Ban, ShieldCheck, Sparkles, Zap, Paperclip, X, FileText, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import apiClient from "@/services/apiClient";
@@ -20,7 +20,9 @@ const CHANNEL_LABEL = { web: "Web Chat", whatsapp: "WhatsApp", internal: "Intern
 const STATUS_TONE = { open: "success", snoozed: "warning", closed: "neutral" };
 const STATUS_LABEL = { open: "Terbuka", snoozed: "Ditunda", closed: "Selesai" };
 
-function MsgStatus({ status }) {
+function MsgStatus({ status, error }) {
+  // Gagal kirim harus terlihat (dulu tampil ✓ seperti terkirim — agen mengira pesan sampai).
+  if (status === "failed") return <span className="inline-flex items-center gap-0.5 font-semibold text-[#FFD8D3]" title={error || "Gagal terkirim"}><AlertCircle size={12} /> Gagal</span>;
   if (status === "read") return <CheckCheck size={13} className="text-[#34C759]" />;
   if (status === "delivered") return <CheckCheck size={13} className="text-[#8E8E93]" />;
   return <Check size={13} className="text-[#8E8E93]" />;
@@ -127,6 +129,14 @@ export default function Inbox() {
     if (!key || key === "none") return;
     send({ template_key: key, body: "" });
     toast.success("Template WhatsApp dikirim");
+  };
+
+  const retryMsg = async (m) => {
+    try {
+      await apiClient.post(`/conversations/${activeId}/messages/${m.id}/retry`);
+      toast.success("Pesan terkirim ulang");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Masih gagal mengirim"); }
+    await loadThread(activeId);
   };
 
   const toggleOptIn = async () => {
@@ -316,8 +326,16 @@ export default function Inbox() {
                             <span>{formatDateTime(m.created_at)}</span>
                             {m.template_key ? <span className="rounded bg-white/20 px-1">tpl:{m.template_key}</span> : null}
                             {mine && m.cost ? <span className="tabular-nums">· Rp {Math.round(m.cost)}</span> : null}
-                            {mine ? <MsgStatus status={m.status} /> : null}
+                            {mine ? <MsgStatus status={m.status} error={m.error} /> : null}
                           </div>
+                          {mine && m.status === "failed" ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10.5px] text-white/85" data-testid={`inbox-msg-failed-${m.id}`}>
+                              <span>{m.error || "Gagal terkirim"}{m.retry_at && m.retry_at !== "sending" ? ` · dicoba ulang otomatis ${formatDateTime(m.retry_at)}` : ""}</span>
+                              {!m.attachment ? (
+                                <button type="button" className="rounded bg-white/20 px-1.5 py-0.5 font-semibold hover:bg-white/30" onClick={() => retryMsg(m)} data-testid={`inbox-msg-retry-${m.id}`}>Kirim ulang</button>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     );

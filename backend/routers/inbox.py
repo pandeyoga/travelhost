@@ -176,6 +176,24 @@ async def post_message(conversation_id: str, body: MessageCreate, user=Depends(C
     return out
 
 
+@router.post("/conversations/{conversation_id}/messages/{message_id}/retry")
+async def retry_message(conversation_id: str, message_id: str, user=Depends(CRM)):
+    """Tombol "Kirim ulang" untuk pesan WA teks yang gagal (sesi terputus dll.)."""
+    db = get_db()
+    msg = await db.messages.find_one({"id": message_id, "conversation_id": conversation_id}, {"_id": 0})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Pesan tidak ditemukan")
+    if msg.get("status") != "failed" or msg.get("direction") != "out":
+        raise HTTPException(status_code=400, detail="Hanya pesan keluar yang gagal yang bisa dikirim ulang")
+    if msg.get("attachment"):
+        raise HTTPException(status_code=400, detail="Lampiran tidak bisa dikirim ulang dari sini — kirim ulang dari dokumennya")
+    from services.whatsapp import resend_message
+    res = await resend_message(db, msg)
+    if res.get("status") not in ("sent", "delivered", "read"):
+        raise HTTPException(status_code=400, detail=res.get("error") or "Masih gagal mengirim WhatsApp")
+    return safe_doc(await db.messages.find_one({"id": message_id}, {"_id": 0}))
+
+
 ALLOWED_MEDIA = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 MAX_MEDIA_BYTES = 8 * 1024 * 1024
 

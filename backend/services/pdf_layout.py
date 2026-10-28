@@ -175,7 +175,7 @@ def _tcfg(layout):
             "header_fill": t.get("header_fill", True) is not False, "zebra": t.get("zebra", True) is not False,
             "total_highlight": t.get("total_highlight", True) is not False, "font_size": float(t.get("font_size") or 8.5),
             "grid_color": t.get("grid_color") or "#e2e8f0", "width_pct": float(t.get("width_pct") or 100),
-            "alignment": t.get("alignment") or "left"}
+            "alignment": t.get("alignment") if t.get("alignment") in ("left", "center", "right") else "left"}
 
 
 def _table_style(cfg, accent, *, has_header, has_total):
@@ -239,7 +239,8 @@ def _signature_block(layout, imgs, st):
     flow = []
     if o.get("show_place_date", True):
         tempat = (o.get("place") or "").strip()
-        flow += [Paragraph(f"{tempat + ', ' if tempat else ''}{o.get('doc_date') or ''}", st["right"]), Spacer(1, 6)]
+        # escape: "Bandung <Kota" (kolom teks bebas) dulu membuat PDF 500.
+        flow += [Paragraph(escape(f"{tempat + ', ' if tempat else ''}{o.get('doc_date') or ''}"), st["right"]), Spacer(1, 6)]
     cells, lebar = [], st["width"] / max(len(sigs), 1)
     for i, s in enumerate(sigs):
         isi = [Paragraph(f"<b>{_safe(s.get('title'))}</b>", st["body"])]

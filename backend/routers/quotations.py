@@ -10,6 +10,7 @@ Urutan rute: literal & sub-path didefinisikan sebelum param generik /{quotation_
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
+import hashlib
 from io import BytesIO
 
 from core_utils import new_id, now_iso, safe_doc
@@ -25,7 +26,7 @@ from services.events import emit
 from services.exporter import quotation_pdf
 from services.geo import parse_iso
 from services.identity import ensure_customer
-from services.pricing import compute_quote, get_dp_percent, get_pricing_rules
+from services.pricing import compute_quote, get_pricing_rules
 from services.quotations import (QUO_STATUS_LABEL, next_quotation_number,
                                  normalize_phone, valid_until_iso)
 
@@ -101,6 +102,8 @@ async def create_quotation(body: QuotationDraftCreate, user=Depends(QUOT)):
                           holidays=await _holidays(db), include_travel=True)
         items = q["breakdown"]
     subtotal = _items_total(items)
+    if subtotal <= 0:
+        raise HTTPException(status_code=400, detail="Total penawaran harus lebih dari 0 (cek baris diskon)")
 
     doc = {
         "id": new_id("quo"), "number": await next_quotation_number(db),
@@ -129,7 +132,8 @@ async def quotation_pdf_export(quotation_id: str, user=Depends(QUOT)):
     quo = await get_db().quotations.find_one({"id": quotation_id}, {"_id": 0})
     if not quo:
         raise HTTPException(status_code=404, detail="Penawaran tidak ditemukan")
-    data = quotation_pdf(quo)
+    from services.documents import org_name
+    data = quotation_pdf(quo, org=await org_name(get_db()))
     fname = f"{quo.get('number', 'penawaran')}.pdf"
     return StreamingResponse(BytesIO(data), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})
@@ -168,6 +172,8 @@ async def update_quotation(quotation_id: str, body: QuotationDraftUpdate, user=D
         items = [{"label": i.label, "amount": int(round(float(i.amount or 0)))} for i in body.items]
         updates["items"] = items
         updates["subtotal"] = _items_total(items)
+        if updates["subtotal"] <= 0:
+            raise HTTPException(status_code=400, detail="Total penawaran harus lebih dari 0 (cek baris diskon)")
         updates["total"] = updates["subtotal"]
     if updates:
         updates["updated_at"] = now_iso()
@@ -224,13 +230,17 @@ async def _set_status(db, quotation_id, new_status, allowed_from, user, label):
 async def send_quotation(quotation_id: str, user=Depends(QUOT)):
     db = get_db()
     res = await _set_status(db, quotation_id, "sent", {"draft", "sent"}, user, "Terkirim")
+    from services.documents import fdate
+    # dedupe per ISI penawaran: klik ganda tak mengirim dua kali, tapi revisi (nominal/masa berlaku/
+    # item berubah) terkirim lagi — dulu dedupe per id saja: revisi tak pernah sampai ke pelanggan.
+    rev = hashlib.sha1(repr((res.get("total"), res.get("valid_until"), res.get("items"))).encode()).hexdigest()[:10]
     await emit(db, "quotation.sent", {
         "quotation_id": res.get("id"), "number": res.get("number"),
         "customer_name": res.get("customer_name"), "phone": res.get("phone"),
-        "total": float(res.get("total", 0) or 0), "valid_until": (res.get("valid_until") or "")[:10],
+        "total": float(res.get("total", 0) or 0), "valid_until": fdate(res.get("valid_until")),
         "lead_id": res.get("lead_id"),
     }, source="quotations", ref_type="quotation", ref_id=res.get("id"),
-        dedupe_key=f"quotation.sent:{quotation_id}")
+        dedupe_key=f"quotation.sent:{quotation_id}:{rev}")
     return res
 
 
@@ -284,9 +294,12 @@ async def convert_quotation(quotation_id: str, body: QuotationConvert, user=Depe
     booking = {
         "id": new_id("bk"), "code": await next_booking_code(db),
         "customer_id": cust["id"], "vehicle_id": body.vehicle_id, "driver_id": body.driver_id,
-        "origin": "", "destination": quo.get("destination") or "",
+        "origin": quo.get("origin") or "", "destination": quo.get("destination") or "",
         "start_datetime": start_iso, "end_datetime": end_iso,
         "base_price": base, "add_ons": [], "total_amount": base, "paid_amount": 0.0,
+        # Rincian item penawaran ikut ke booking → invoice tercetak per item (dulu satu baris "Sewa …").
+        "price_breakdown": [{"label": i.get("label"), "amount": i.get("amount")} for i in (quo.get("items") or [])
+                            if i.get("label")],
         "payment_status": "belum_bayar", "status": "confirmed",
         "customer_name": cust.get("name"), "vehicle_name": vehicle.get("name"),
         "driver_name": driver.get("name") if driver else None,
@@ -322,14 +335,9 @@ async def convert_quotation(quotation_id: str, body: QuotationConvert, user=Depe
             "last_activity_at": now_iso()}})
         await log_activity(db, quo["lead_id"], user.get("id"), "converted",
                            text=f"Penawaran {quo.get('number')} → booking {booking['code']} ({STAGE_LABEL.get('won')})")
-    await emit(db, "booking.confirmed", {
-        "booking_id": booking["id"], "code": booking["code"],
-        "customer_name": cust.get("name"), "phone": cust.get("phone"),
-        # SATU SUMBER DP (INV-PRICE-01) — dulu angka 30 ditulis mati di pesan WA konversi.
-        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": await get_dp_percent(db),
-        "vehicle_name": booking.get("vehicle_name"),
-        "start_datetime": (booking.get("start_datetime") or "")[:16].replace("T", " "),
-    }, source="quotations", ref_type="booking", ref_id=booking["id"],
-        dedupe_key=f"booking.confirmed:{booking['id']}")
+    # SATU SUMBER event konfirmasi + DP (INV-PRICE-01) — dulu angka 30 ditulis mati di WA konversi.
+    from services import booking_flow as bf
+    await bf.emit_booking_confirmed(db, booking, source="quotations",
+                                    overrides={"customer_name": cust.get("name"), "phone": cust.get("phone")})
     return {"quotation": safe_doc(await db.quotations.find_one({"id": quotation_id}, {"_id": 0})),
             "booking": safe_doc(booking), "customer": safe_doc(cust)}

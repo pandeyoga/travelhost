@@ -266,7 +266,7 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
         "booking_id": doc["id"], "code": doc["code"], "customer_id": customer["id"],
         "customer_name": doc["customer_name"], "phone": phone,
         "destination": doc["destination"], "origin": doc["origin"],
-        "start_datetime": start_iso[:16].replace("T", " "), "pax": doc["pax"],
+        "start_datetime": start_iso, "pax": doc["pax"],
         "service": service, "status": status, "total_amount": float(total),
         "dp_amount": float(money(doc.get("dp_amount"))),
         "hold_expires_at": doc.get("hold_expires_at"),
@@ -492,6 +492,16 @@ async def find_by_code_phone(db, code: str, phone: str):
         candidates.add(normalize_phone(customer.get("phone")))
         candidates.add(str(customer.get("phone_normalized") or ""))
     return booking if norm in {c for c in candidates if c} else None
+
+
+async def status_link(db, booking: dict) -> str:
+    """Tautan halaman status pelanggan (untuk WA). Absolut bila PUBLIC_SITE_URL diset."""
+    from urllib.parse import quote
+    from services.reviews import site_url
+    token = await ensure_token(db, booking)
+    base = site_url()
+    path = f"/booking/status?code={quote(str(booking.get('code') or ''))}&token={quote(token)}"
+    return f"{base}{path}" if base else ""
 
 
 async def ensure_token(db, booking: dict) -> str:

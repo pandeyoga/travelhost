@@ -9,7 +9,9 @@ jadi tiap langkah di sini berjalan sekali per booking (dulu cancel paralel me-re
   4) kuota promo dikembalikan (dulu hanya pembatalan pelanggan & hold hangus yang melepasnya).
 """
 from core_utils import money, new_id
-from services.finance import next_invoice_number, recompute_booking_payment
+from services import documents as docs
+from services import numbering as nb
+from services.finance import recompute_booking_payment
 
 
 async def post_cancellation(db, booking: dict, *, reason: str, cfee: float, refund: float,
@@ -20,7 +22,7 @@ async def post_cancellation(db, booking: dict, *, reason: str, cfee: float, refu
         await promo_svc.release(db, booking["promo_id"])
     # Tagihan terbuka booking ini tidak lagi berlaku → void (dulu tetap 'sent' & ikut ditagih/AR).
     await db.invoices.update_many(
-        {"booking_id": booking_id, "status": {"$in": ["draft", "sent", "partial"]},
+        {"booking_id": booking_id, "status": {"$in": list(docs.OPEN_STATUS)},
          "type": {"$ne": "cancellation_fee"}},
         {"$set": {"status": "void", "voided_at": ts, "void_reason": "Booking dibatalkan"}})
     # E21-Ledger: post REFUND sbg payment negatif (idempotent per booking).
@@ -59,7 +61,10 @@ async def post_cancellation(db, booking: dict, *, reason: str, cfee: float, refu
             fee_status = "paid" if retained >= money(cfee) else ("partial" if retained > 0 else "sent")
             inv_doc = {
                 "id": new_id("inv"),
-                "number": await next_invoice_number(db),
+                # Ikuti aturan penomoran "invoice" (dulu pola lama tetap INV-YYYY-NNNN).
+                "number": await nb.generate(db, "invoice", {"booking_code": booking.get("code"),
+                                                            "customer_name": booking.get("customer_name")}),
+                "kind_label": docs.CANCEL_FEE_LABEL,
                 "booking_id": booking_id,
                 "customer_id": booking.get("customer_id"),
                 "customer_name": booking.get("customer_name"),

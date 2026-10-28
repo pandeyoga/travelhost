@@ -6,6 +6,7 @@ Agregasi read-only dari koleksi driver_payouts + expenses (gaji_driver) + paymen
   - Biaya SDM vs revenue (rasio payroll_cost / revenue periode)
 Export PDF (reportlab) + Excel (openpyxl).
 """
+from xml.sax.saxutils import escape
 from datetime import datetime, timezone
 from io import BytesIO
 
@@ -129,7 +130,7 @@ def report_pdf(data: dict, company: dict = None) -> bytes:
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=17, spaceAfter=2)
     small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9.5, textColor=colors.HexColor("#6B6B73"))
-    el = [Paragraph(f"{company.get('name') or 'Rekap Payroll Driver'}", h1),
+    el = [Paragraph(escape(company.get('name') or 'Rekap Payroll Driver'), h1),
           Paragraph(f"Periode {data.get('period')} · SDM vs Revenue: {_rp(data['sdm_vs_revenue']['payroll_cost'])} / {_rp(data['sdm_vs_revenue']['revenue'])} = {data['sdm_vs_revenue']['ratio_pct']}%", small),
           Spacer(1, 8)]
 

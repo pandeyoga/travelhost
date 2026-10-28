@@ -9,6 +9,7 @@ Agregasi read-only dari koleksi `trips` (+ nama dari `drivers`):
 Periode = bulan efektif trip (end_at → start_at → created_at, ambil YYYY-MM).
 Tidak menulis DB. Export PDF (reportlab) + Excel (openpyxl).
 """
+from xml.sax.saxutils import escape
 from datetime import datetime, timezone
 from io import BytesIO
 
@@ -111,7 +112,7 @@ def report_pdf(data: dict, company: dict = None) -> bytes:
     small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9.5,
                            textColor=colors.HexColor("#6B6B73"))
     fl = data.get("fleet", {})
-    el = [Paragraph(f"{company.get('name') or 'Laporan Driver (Leaderboard)'}", h1),
+    el = [Paragraph(escape(company.get('name') or 'Laporan Driver (Leaderboard)'), h1),
           Paragraph(f"Periode {data.get('period')} · Total {fl.get('trips', 0)} trip "
                     f"({fl.get('completed', 0)} selesai) · Revenue {_rp(fl.get('revenue'))} · "
                     f"Revenue/Trip {_rp(fl.get('revenue_per_trip'))}", small),

@@ -33,7 +33,7 @@
 | `routers/reports.py` | laporan agregat (tren/kategori/status/top-customer/utilisasi) + export Excel | ✅ (Phase 5) |
 | `routers/locations.py` `routers/trips.py` `routers/driver.py` | GPS ingest/live, trips+ETA+track, driver checkin | ✅ (Phase 1) |
 | `services/crm.py` | auto-assign round-robin, log_activity, pipeline stats | ✅ (Phase 4) |
-| `services/finance.py` | INV-2/INV-3 + profit_loss/accounts_receivable/next_invoice_number (INV-8) | ✅ (Phase 2/5) |
+| `services/finance.py` | INV-2/INV-3 + profit_loss/accounts_receivable (nomor invoice → `services/numbering.generate`, INV-8) | ✅ (Phase 2/5) |
 | `services/reports.py` | agregasi laporan (read-only) | ✅ (Phase 5) |
 | `services/exporter.py` | invoice PDF (reportlab) + invoice/laporan Excel (openpyxl) | ✅ (Phase 5) |
 | `services/availability.py` | `overlaps()`, `find_conflicts()` (INV-4) | ✅ |
@@ -341,4 +341,32 @@ frontend Dispatch.jsx        badge diterima sopir/tiba, tombol per fase + "Seles
 frontend DriverTaskCard/DriverWorkspace/DriverCheckin  aksi mengikuti fase, tugas batal tetap terlihat
 frontend GpsTracking.jsx     trip aktif + segar 30 dtk; lib/mediaKind.backendHref utk tautan POD/bukti
 tests/test_flow_fixes_r2.py  BARU — 12 test regresi ronde ini
+```
+
+**Ronde 5 (2026-10-28) — audit pengiriman dokumen, cetak & otomasi WhatsApp/OpenWA**
+```
+services/whatsapp.py         phone_variants (1 nomor = 1 percakapan), dedupe pesan masuk, cooldown balasan
+                             otomatis (WIB), coba-ulang pesan gagal (retry_failed/resend_message), timeout
+                             connect OpenWA 4 dtk
+routers/whatsapp.py          /wa/webhook publik hanya Meta Cloud
+routers/inbox.py             POST …/messages/{mid}/retry (tombol "Kirim ulang")
+services/automation.py       rule baru (instruksi DP, hold hangus, bukti DP masuk/ditolak) + sync_system_rules
+services/booking_flow.py     payment_note + emit_booking_confirmed dipakai payments/quotations/rombongan
+services/notifications.py    overdue_reminder_due (WA tagihan bertahap), keberangkatan sekali per jadwal
+services/documents.py        fdate WIB, kind_label/invoice_items (denda), issuer_of (penanda tangan),
+                             paid_upto (kwitansi), OPEN_STATUS, naskah LUNAS/catatan
+services/doc_script.py       CANCEL_FEE_SCRIPT (naskah invoice denda)
+services/numbering.py        generate() melewati nomor yang sudah terpakai (_TAKEN_IN)
+services/calendar_export.py  WIB, escape, nama perusahaan; routers/bookings._period_query (bulan WIB)
+services/exporter.py         invoice_xlsx rinci & numerik; quotation_pdf nama perusahaan + tanggal ID
+services/analytics.py        KPI BI memasukkan biaya perawatan selesai (= Laporan Keuangan)
+services/pdf_layout.py · payroll_*.py · driver_report.py   escape teks pengguna di PDF
+routers/documents.py         validasi tabel/section layout (422, bukan PDF 500)
+routers/invoices.py          mutex + tolak tagihan tumpang-tindih, caption WA, void/refund ditolak
+frontend lib/vehicleTypes.js BARU — SSOT label tipe armada (= backend VEHICLE_TYPE_LABELS)
+frontend lib/apiError.js     BARU — detail galat API (string/array Pydantic) → teks Indonesia
+frontend components/documents/layoutDiff.js · docErrors.js  BARU — simpan layout hanya selisih (pewarisan
+                             __default__ tetap jalan); NumberingPanel tak lagi crash
+frontend Inbox.jsx           status "Gagal" + tombol "Kirim ulang"
+tests/test_wa_docs_fixes_r3.py BARU — 21 test regresi ronde ini
 ```

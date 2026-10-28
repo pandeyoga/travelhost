@@ -307,6 +307,13 @@ async def _startup():
         await _crd.ensure_indexes(db)
     except Exception as exc:  # index opsional; jangan gagalkan boot
         logger.warning("index init skip: %s", exc)
+    try:  # rule otomasi sistem baru / teks bawaan lama → selaras dgn services.automation.default_rules
+        from services.automation import sync_system_rules
+        res = await sync_system_rules(db)
+        if res["added"] or res["updated"]:
+            logger.info("automation system rules sync: %s", res)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("automation rules sync skip: %s", exc)
     try:  # fee sopir lama → biaya akrual per trip (idempotent; lihat services/driver_fee_ledger)
         from services.driver_fee_ledger import backfill as _fee_backfill
         made = await _fee_backfill(db)
@@ -371,6 +378,14 @@ async def _scheduler_loop():
                 logger.info("scheduler: %d konten terbit sesuai jadwal", published)
         except Exception as exc:  # noqa: BLE001
             logger.warning("scheduler publish error: %s", exc)
+        # Coba-ulang WA gagal (sesi OpenWA putus / sidecar restart) — services.whatsapp.retry_failed.
+        try:
+            from services.whatsapp import retry_failed as wa_retry
+            resent = await wa_retry(db)
+            if resent:
+                logger.info("scheduler: %d pesan WA gagal terkirim ulang", resent)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("scheduler wa retry error: %s", exc)
         # CMS-07 — jaring pengaman funnel ulasan: pesanan selesai yang belum diminta ulasan.
         try:
             from services.reviews import scan_due as review_scan

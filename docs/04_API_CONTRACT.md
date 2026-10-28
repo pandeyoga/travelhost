@@ -603,3 +603,45 @@ GET  /api/trips · /trips/{id} · /track · /eta   sopir hanya trip miliknya, ta
 # Publik GET /api/public/booking/{code}?token= → + dp_required, cancel_blocked_reason, cancellation_reason;
 #   can_upload_proof false saat pending; unggah bukti saat pending → 400
 ```
+
+## 11. AUDIT RONDE 3 — DOKUMEN · CETAK · OTOMASI WHATSAPP/OpenWA (2026-10-28)
+```
+# WhatsApp (services/whatsapp.py)
+POST /api/wa/webhook                     HANYA provider meta_cloud (selain itu 403); signature X-Hub dicek bila
+                                         app_secret diisi. OpenWA masuk lewat /api/wa/openwa-webhook?key= (ber-key),
+                                         simulasi mock lewat /api/wa/simulate-inbound (login)
+pesan masuk                              didedupe per wa_message_id (retry webhook → {"status":"duplicate"});
+                                         0812…/62812…/+62812… = satu percakapan & satu kontak
+balasan otomatis                         sekali per auto_reply_cooldown_hours (bawaan 12) per percakapan;
+                                         jam kerja dibaca dalam WIB
+pesan otomasi/sistem gagal               dicoba ulang otomatis 5 → 30 → 120 mnt (scheduler, retry_failed)
+POST /api/conversations/{cid}/messages/{mid}/retry   kirim ulang pesan TEKS keluar yang gagal (bukan lampiran);
+                                         400 bila bukan pesan gagal / masih gagal
+# Otomasi (rule sistem baru, dipasang otomatis saat startup — sync_system_rules)
+booking.hold_created → WA nominal DP + batas waktu + tautan status   booking.hold_expired → WA ke pelanggan
+booking.payment_proof_uploaded → notifikasi ops                      booking.payment_proof_rejected → WA alasan
+booking.confirmed WA: jadwal WIB + payment_note (lunas / sudah dibayar Rp X sisa Rp Y / mohon DP N%)
+payment.recorded WA: {type_label} (DP/pelunasan/denda/pengembalian) + {outstanding_note}
+invoice.overdue WA ke pelanggan: hari ke-1, 3, 7, 14 lalu tiap 14 hari (notifikasi internal tetap harian);
+booking.departure_due sekali per jadwal keberangkatan
+quotation.sent: dedupe per isi penawaran (revisi terkirim lagi; klik ganda tidak); valid_until "4 November 2026"
+# Dokumen
+POST /api/invoices                       409 bila booking masih punya invoice terbuka yang belum dibayar (tagihan
+                                         tak boleh tumpang-tindih); mutex per booking (permintaan paralel)
+POST /api/invoices/{id}/send-wa          400 utk invoice void; PDF terkirim berstatus "Terkirim" (bukan Draft);
+                                         caption: sudah dibayar/sisa atau LUNAS; nama tidak lagi dirusak (koma)
+POST /api/bookings/{id}/send-invoice-wa  booking batal: hanya tagihan terbuka (404 "tidak punya tagihan terbuka")
+GET  /api/bookings                       has_invoice booking batal = ada tagihan terbuka
+GET  /api/invoices                       + kind_label (invoice denda: "Denda Pembatalan")
+GET  /api/invoices/{id}/export?format=excel   judul per jenis, rincian item, nominal NUMERIK, terbayar/sisa
+GET  /api/receipts                       tanpa refund; POST …/receipt utk refund/nominal ≤ 0 → 400
+POST /api/payments/{id}/receipt/send-wa  nomor kwitansi baru terbit SETELAH nomor WA pelanggan ada
+PUT  /api/doc-layouts/{code}             table.grid ∈ full|horizontal|none, table.alignment ∈ left|center|right,
+                                         table.grid_color hex, sections[].key harus dikenal → selain itu 422
+GET  /api/bookings/calendar(?month) · /calendar/export   bulan/rentang menurut hari WIB; jam cetak WIB;
+                                         nama perusahaan dari pengaturan; teks pengguna di-escape
+GET  /api/quotations/{id}/pdf            nama perusahaan dari pengaturan, tanggal Indonesia, tanpa status "Draft"
+POST/PATCH /api/quotations               item boleh negatif (diskon) asal total > 0 (400)
+POST /api/quotations/{id}/convert        item penawaran → booking.price_breakdown (invoice per item)
+# Semua tanggal dokumen (invoice/kwitansi/kalender/CSV hold) = WIB; penanda tangan = penerbit dokumen.
+```

@@ -344,32 +344,19 @@ class TestInvoicesE2E:
         pytest.dp_invoice_id = inv_id
         pytest.dp_invoice_amount = inv.get("amount")
 
-    def test_settlement_invoice(self, owner_h, booking_id):
+    def test_settlement_blocked_while_dp_unpaid(self, owner_h, booking_id):
+        # Tagihan terbuka tak boleh tumpang-tindih: pelunasan dihitung total − terbayar, jadi saat
+        # invoice DP belum dibayar ia ikut menagih porsi DP (dulu DP + pelunasan = tagihan ganda).
         r = requests.post(f"{API}/invoices", headers=owner_h,
                           json={"booking_id": booking_id, "kind": "settlement"}, timeout=30)
-        assert r.status_code == 200, r.text
-        inv = r.json()
-        assert inv.get("kind") == "settlement"
-        assert inv.get("amount") > 0
-        pytest.settle_invoice_id = inv["id"]
+        assert r.status_code == 409, r.text
+        assert "invoice terbuka" in r.json()["detail"]
 
     def test_create_invoice_booking_not_found(self, owner_h):
         r = requests.post(f"{API}/invoices", headers=owner_h,
                           json={"booking_id": "nonexistent-xyz", "kind": "dp"}, timeout=30)
         assert r.status_code == 400
 
-    def test_patch_invoice_status(self, owner_h):
-        inv_id = getattr(pytest, "settle_invoice_id", None)
-        if not inv_id:
-            pytest.skip("no settle invoice")
-        r = requests.patch(f"{API}/invoices/{inv_id}", headers=owner_h,
-                           json={"status": "void"}, timeout=30)
-        assert r.status_code == 200, r.text
-        assert r.json().get("status") == "void"
-        # invalid
-        r2 = requests.patch(f"{API}/invoices/{inv_id}", headers=owner_h,
-                            json={"status": "banana"}, timeout=30)
-        assert r2.status_code == 400
 
     def test_payment_syncs_invoice_status(self, owner_h, booking_id):
         amount = getattr(pytest, "dp_invoice_amount", None)
@@ -392,6 +379,29 @@ class TestInvoicesE2E:
                           json={"booking_id": booking_id, "kind": "dp", "dp_percent": 30}, timeout=30)
         assert r.status_code == 400
         assert "sisa" in (r.text.lower())
+
+    def test_settlement_invoice(self, owner_h, booking_id):
+        # DP sudah lunas (test di atas) → pelunasan boleh, sebesar sisa.
+        r = requests.post(f"{API}/invoices", headers=owner_h,
+                          json={"booking_id": booking_id, "kind": "settlement"}, timeout=30)
+        assert r.status_code == 200, r.text
+        inv = r.json()
+        assert inv.get("kind") == "settlement"
+        assert inv.get("amount") > 0 and inv.get("paid_before") > 0
+        pytest.settle_invoice_id = inv["id"]
+
+    def test_patch_invoice_status(self, owner_h):
+        inv_id = getattr(pytest, "settle_invoice_id", None)
+        if not inv_id:
+            pytest.skip("no settle invoice")
+        r = requests.patch(f"{API}/invoices/{inv_id}", headers=owner_h,
+                           json={"status": "void"}, timeout=30)
+        assert r.status_code == 200, r.text
+        assert r.json().get("status") == "void"
+        # invalid
+        r2 = requests.patch(f"{API}/invoices/{inv_id}", headers=owner_h,
+                            json={"status": "banana"}, timeout=30)
+        assert r2.status_code == 400
 
     # Receipts kept in the same class so they share the same worker (LoadScope) and can reuse
     # pytest.payment_id set by test_payment_syncs_invoice_status above.

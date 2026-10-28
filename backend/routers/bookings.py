@@ -24,6 +24,7 @@ from services.geo import parse_iso
 from services.finance import derive_payment_status
 from services.pricing import compute_quote, dp_amount_for, get_dp_percent, get_pricing_rules, span_days
 from services.refs import destination_or_400, origin_or_400
+from services.documents import OPEN_STATUS as OPEN_INVOICE
 from services import booking_flow as bf
 from services import booking_search as bs
 
@@ -72,16 +73,35 @@ async def list_bookings(status: str = Query(default=None), vehicle_id: str = Que
     db = get_db()
     docs = await db.bookings.find(query, {"_id": 0}).sort("start_datetime", -1).skip(skip).to_list(limit)
     # UI: ikon "Kirim invoice WA" hanya utk booking yang punya invoice (dulu → 404 di klik).
-    with_inv = set(await db.invoices.distinct(
-        "booking_id", {"booking_id": {"$in": [d["id"] for d in docs]}, "status": {"$ne": "void"}}))
-    return safe_doc([{**d, "has_invoice": d["id"] in with_inv} for d in docs])
+    # Booking batal: hanya bila masih ada tagihan terbuka (denda belum lunas) — selaras
+    # POST /bookings/{id}/send-invoice-wa yang memilih tagihan itu.
+    ids = [d["id"] for d in docs]
+    with_inv = set(await db.invoices.distinct("booking_id", {"booking_id": {"$in": ids}, "status": {"$ne": "void"}}))
+    with_open = set(await db.invoices.distinct("booking_id", {"booking_id": {"$in": ids}, "status": {"$in": list(OPEN_INVOICE)}}))
+    return safe_doc([{**d, "has_invoice": d["id"] in (with_open if d.get("status") == "cancelled" else with_inv)}
+                     for d in docs])
+
+
+def _period_query(month=None, start=None, end=None) -> dict:
+    """Filter bulan/rentang menurut hari WIB (SSOT schedule_share.period_bounds). Dulu regex atas
+    string UTC: berangkat 1 Des 00.00–06.59 WIB (= 30 Nov UTC) masuk kalender November."""
+    from services.schedule_share import period_bounds
+    if start and end:
+        scope = {"type": "range", "start": start[:10], "end": end[:10]}
+    elif month:
+        scope = {"type": "month", "month": month}
+    else:
+        return {}
+    try:
+        lo, hi = period_bounds(scope)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Periode tidak valid (bulan YYYY-MM / tanggal YYYY-MM-DD)")
+    return {"start_datetime": {"$gte": lo.isoformat(), "$lt": hi.isoformat()}}
 
 
 @router.get("/bookings/calendar")
 async def bookings_calendar(month: str = Query(default=None), user=Depends(CALENDAR)):
-    query = {}
-    if month:
-        query["start_datetime"] = {"$regex": f"^{month}"}
+    query = _period_query(month=month)
     docs = await get_db().bookings.find(
         query,
         {"_id": 0, "id": 1, "code": 1, "customer_name": 1, "vehicle_id": 1, "vehicle_name": 1,
@@ -102,23 +122,20 @@ async def bookings_calendar_export(month: str = Query(default=None), start: str 
     `group=vehicle` -> dikelompokkan per armada (bagian/sheet terpisah).
     """
     from services.calendar_export import calendar_pdf, calendar_xlsx, period_label
-    query = {}
-    if start and end:
-        query["start_datetime"] = {"$gte": start, "$lte": f"{end}T23:59:59.999999+00:00"}
-    elif month:
-        query["start_datetime"] = {"$regex": f"^{month}"}
+    from services.documents import org_name
+    query = _period_query(month=month, start=start, end=end)
     rows = await get_db().bookings.find(query, {"_id": 0}).sort("start_datetime", 1).to_list(3000)
     rows = safe_doc(rows)
     label = period_label(month=month, start=start, end=end)
     grouped = (group or "").lower() == "vehicle"
     tag = (start or month or "semua")
     if (format or "").lower() == "pdf":
-        blob = calendar_pdf(label, rows, grouped=grouped)
+        blob = calendar_pdf(label, rows, grouped=grouped, org=await org_name(get_db()))
         return StreamingResponse(
             BytesIO(blob), media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="kalender-keberangkatan-{tag}.pdf"'},
         )
-    blob = calendar_xlsx(label, rows, grouped=grouped)
+    blob = calendar_xlsx(label, rows, grouped=grouped, org=await org_name(get_db()))
     return StreamingResponse(
         BytesIO(blob),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -340,13 +357,10 @@ async def create_group_booking(body: GroupBookingCreate, user=Depends(MANAGER)):
     if not body.require_dp and created:
         lead = created[0]
         cust = await db.customers.find_one({"id": body.customer_id}, {"_id": 0, "phone": 1}) or {}
-        dp = await get_dp_percent(db)
-        await emit(db, "booking.confirmed", {
-            "booking_id": lead["id"], "code": lead["code"], "customer_name": customer.get("name"),
-            "phone": cust.get("phone"), "total_amount": float(grand_total), "dp_percent": dp,
-            "vehicle_name": f"{n} unit (rombongan)",
-            "start_datetime": (lead.get("start_datetime") or "")[:16].replace("T", " "),
-        }, source="bookings", ref_type="booking", ref_id=lead["id"], dedupe_key=f"booking.confirmed:group:{group_id}")
+        await bf.emit_booking_confirmed(db, lead, overrides={
+            "customer_name": customer.get("name"), "phone": cust.get("phone"),
+            "total_amount": float(grand_total), "vehicle_name": f"{n} unit (rombongan)"},
+            dedupe_key=f"booking.confirmed:group:{group_id}")
     return {"group_id": group_id, "count": n, "grand_total": grand_total,
             "require_dp": bool(body.require_dp), "bookings": created}
 
@@ -655,8 +669,9 @@ async def reschedule_booking(booking_id: str, body: BookingReschedule, user=Depe
     from services.wa_payload import build_wa_payload
     payload = await build_wa_payload(db, res)
     payload.update({
-        "old_start": (old_start or "")[:16].replace("T", " "), "old_end": (old_end or "")[:16].replace("T", " "),
-        "new_start": start_iso[:16].replace("T", " "), "new_end": end_iso[:16].replace("T", " "),
+        # ISO → template merender WIB (dulu "2031-06-04 02:00" = jam UTC terbaca sbg jam lokal)
+        "old_start": old_start or "", "old_end": old_end or "",
+        "new_start": start_iso, "new_end": end_iso,
         "reason": body.reason or "",
     })
     await emit(db, "booking.rescheduled", payload, source="bookings", ref_type="booking",

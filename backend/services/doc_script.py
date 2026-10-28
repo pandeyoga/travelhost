@@ -60,6 +60,13 @@ DEFAULTS = {
                  "Kwitansi ini sah sebagai bukti penerimaan pembayaran dan dicetak dari sistem {{org_name}}."),
 }
 DEFAULTS["__default__"] = DEFAULTS["INVOICE"]
+# Invoice denda pembatalan (bukan jenis dokumen yang naskahnya bisa diedit). Dulu memakai naskah
+# INVOICE: "dengan total <denda>" + rincian sewa penuh — kata "denda" tak muncul sama sekali.
+CANCEL_FEE_SCRIPT = _inv_body(
+    "Sehubungan dengan pembatalan pemesanan {{booking_code}} — {{vehicle_name}}, {{start_date}} s.d. "
+    "{{end_date}}, berikut kami sampaikan tagihan <b>denda pembatalan sebesar {{billed}}</b> sesuai "
+    "kebijakan pembatalan. Keterangan: {{notes}}.",
+    "Terima kasih atas pengertian Anda.")
 
 
 def placeholders(code: str) -> list:

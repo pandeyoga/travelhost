@@ -48,6 +48,10 @@ REGISTRY = [
     _r("receipt", "Kwitansi penerimaan pembayaran", "KWT", "KWT"),
 ]
 REGISTRY_BY_KEY = {r["key"]: r for r in REGISTRY}
+# Tempat nomor terbit disimpan — generate() melewati nomor yang sudah dipakai. Dulu mengubah
+# reset (mis. tahunan → tidak pernah) membuat scope counter baru mulai dari 1 → INV-2026-0001 ganda.
+_TAKEN_IN = {"invoice": ("invoices", "number"), "invoice_dp": ("invoices", "number"),
+             "invoice_settlement": ("invoices", "number"), "receipt": ("payments", "receipt_no")}
 GROUP_LABELS = {"keuangan": "Keuangan & Dokumen"}
 
 
@@ -206,7 +210,14 @@ async def generate(db, key: str, context: dict = None) -> str:
     if n < start:
         await db.counters.update_one({"id": scope}, {"$set": {"seq": start}})
         n = start
-    return render(rule["pattern"], tokens, n, int(rule["width"]), dt)
+    number = render(rule["pattern"], tokens, n, int(rule["width"]), dt)
+    coll, field = _TAKEN_IN.get(key, (None, None))
+    for _ in range(5000):  # batas aman; tiap langkah menaikkan counter (atomik) → tetap bebas balapan
+        if not coll or not await db[coll].find_one({field: number}, {"_id": 1}):
+            break
+        n = await next_seq(db, scope)
+        number = render(rule["pattern"], tokens, n, int(rule["width"]), dt)
+    return number
 
 
 def token_catalog(key: str) -> list:

@@ -12,7 +12,7 @@
 users, sessions,
 vehicles, drivers, customers,
 leads, lead_activities, conversations, messages,
-bookings, trips, locations, trip_shares,
+bookings, trips, locations, trip_shares, schedule_shares,
 payments, expenses, invoices,
 notification_tasks, broadcasts, maintenance_records,
 destinations, articles, testimonials,
@@ -78,6 +78,9 @@ audit_logs, settings, user_onboarding
   · **E11 (Driver Payroll/HR Lite)**: akses section `finance` (owner/ops_admin). Generator akrual dari trip SELESAI dalam periode + gaji pokok & komponen kompensasi (`drivers.comp`). Alur draft→approved→paid; approve buat expense `gaji_driver` (akrual P&L), pay tandai expense lunas (kas). Hanya draft yang bisa diubah/hapus. Slip PDF+Excel.
 ### trip_shares
 `id(shr_)`, `token`(rahasia, untuk URL publik), `trip_id`(trp_), `vehicle_id`(veh_, nullable snapshot), `label`, `expires_at`(ISO), `revoked`(bool), `revoked_at`, `created_by`(usr_), `last_accessed_at`, `access_count`(int), `created_at`
+### schedule_shares (share-link jadwal keberangkatan, read-only publik — 2026-10-28)
+`id(ssh_)`, `token`(rahasia 24 byte, URL `/schedule/:token`), `label`, `scope`({`type`: upcoming|month|range|all, `days`(int|null, upcoming), `month`(YYYY-MM), `start`/`end`(YYYY-MM-DD, range)}), `vehicle_ids[]`(veh_, kosong = semua armada), `statuses[]`(subset pending|hold|confirmed|ongoing|completed|cancelled; default hold/confirmed/ongoing/completed), `visibility`({customer, driver, driver_phone, payment, notes}: bool), `expires_at`(ISO | **null = tanpa batas waktu**), `revoked`(bool), `revoked_at`, `created_by`(usr_), `last_accessed_at`, `access_count`(int), `created_at`
+  · Menyimpan KRITERIA, bukan salinan → penerima selalu melihat data terbaru. Batas hari memakai WIB (UTC+7). Payload publik = allowlist `services/schedule_share.public_departure` (tanpa nominal uang, kontak pelanggan, ID internal). Kelola: section `calendar` (owner/ops_admin). Siklus hidup token bersama `trip_shares`: `services/share_links.py`.
 ### pickup_points (master titik jemput — INV-REF-02 batch 2)
 `id(pkp_)`, `name` (unik case-insensitive), `created_at`
 Relasi: `bookings.origin` menyimpan NAMA KANONIK dari master ini (validator `refs.origin_or_400`;
@@ -155,7 +158,7 @@ quick-add via `POST /api/pickup-points`).
 | INV-9 | **Intent KPI**: `dashboard.active_bookings == len(bookings status∈{confirmed,ongoing})`; `dashboard.vehicles == len(vehicles)` | RC-7 |
 | INV-10 | Snapshot: `booking.customer_name/vehicle_name/driver_name` tidak null saat status≥confirmed | RC-6 |
 | INV-21 | **Maintenance window memblok booking (DUA ARAH, E27)**: untuk `vehicle_id` sama, tidak ada booking aktif ∈{hold,confirmed,ongoing} yang `[start,end]` overlap dengan maintenance window ∈{scheduled,in_progress} yang punya `start_date`+`end_date`. Ditegakkan **dua arah**: jalur booking menolak armada yang sedang dirawat, DAN `POST`/`PATCH /api/maintenance` menolak (400) window yang menabrak keberangkatan aktif (`routers/maintenance.py::_assert_no_departure_clash`, dibungkus `vehicle_lock`). | RC-16 |
-| INV-22 | **Share token sah**: `trip_shares` aktif (dipakai publik) wajib `revoked==false` dan `expires_at` > now; token unik | RC-5 |
+| INV-22 | **Share token sah**: `trip_shares` & `schedule_shares` aktif (dipakai publik) wajib `revoked==false` dan belum kedaluwarsa (`schedule_shares.expires_at` boleh null = tanpa batas); token unik lintas jenis; publik: 404 tak dikenal · 403 dinonaktifkan · 410 kedaluwarsa (`services/share_links.py`) | RC-5 |
 | INV-23 | **Message FK**: setiap `messages.conversation_id` merujuk `conversations` yang ada (tak ada pesan yatim) | RC-6 |
 
 ---
@@ -169,7 +172,7 @@ C-18 |
 | INV-9 | **Intent KPI**: `dashboard.active_bookings == len(bookings status∈{confirmed,ongoing})`; `dashboard.vehicles == len(vehicles)` | RC-7 |
 | INV-10 | Snapshot: `booking.customer_name/vehicle_name/driver_name` tidak null saat status≥confirmed | RC-6 |
 | INV-21 | **Maintenance window memblok booking (DUA ARAH, E27)**: untuk `vehicle_id` sama, tidak ada booking aktif ∈{hold,confirmed,ongoing} yang `[start,end]` overlap dengan maintenance window ∈{scheduled,in_progress} yang punya `start_date`+`end_date`. Ditegakkan **dua arah**: jalur booking menolak armada yang sedang dirawat, DAN `POST`/`PATCH /api/maintenance` menolak (400) window yang menabrak keberangkatan aktif (`routers/maintenance.py::_assert_no_departure_clash`, dibungkus `vehicle_lock`). | RC-16 |
-| INV-22 | **Share token sah**: `trip_shares` aktif (dipakai publik) wajib `revoked==false` dan `expires_at` > now; token unik | RC-5 |
+| INV-22 | **Share token sah**: `trip_shares` & `schedule_shares` aktif (dipakai publik) wajib `revoked==false` dan belum kedaluwarsa (`schedule_shares.expires_at` boleh null = tanpa batas); token unik lintas jenis; publik: 404 tak dikenal · 403 dinonaktifkan · 410 kedaluwarsa (`services/share_links.py`) | RC-5 |
 | INV-23 | **Message FK**: setiap `messages.conversation_id` merujuk `conversations` yang ada (tak ada pesan yatim) | RC-6 |
 
 ---

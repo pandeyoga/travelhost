@@ -193,6 +193,27 @@ async def finalize_trip_completion(db, trip: dict, user=None, odometer_end=None)
     return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
 
 
+async def apply_trip_status(db, trip: dict, new_status: str, user=None) -> dict:
+    """SSOT transisi status trip — dipakai POST /trips/{id}/status dan geofence (HP driver via
+    routers/locations.py & device GPS via services/gps.py). Dulu geofence menulis status
+    sendiri: trip 'completed' tetapi booking tetap 'confirmed', tanpa event trip.completed
+    (WA + permintaan ulasan), driver tetap online, fee driver tak terkredit.
+    """
+    if new_status == "completed":
+        return await finalize_trip_completion(db, trip, user)
+    updates = {"status": new_status}
+    if new_status in ("to_pickup", "on_trip"):
+        if new_status == "on_trip" and not trip.get("start_at"):
+            updates["start_at"] = now_iso()
+        # Sinkron sumber daya: armada dipakai, driver online.
+        if trip.get("vehicle_id"):
+            await db.vehicles.update_one({"id": trip["vehicle_id"]}, {"$set": {"status": "on_trip"}})
+        if trip.get("driver_id"):
+            await db.drivers.update_one({"id": trip["driver_id"]}, {"$set": {"status": "online"}})
+    await db.trips.update_one({"id": trip["id"]}, {"$set": updates})
+    return safe_doc(await db.trips.find_one({"id": trip["id"]}, {"_id": 0}))
+
+
 async def recompute_trip_fee(db, booking_id, start_iso, end_iso):
     """Fee /hari disnapshot saat assign — hitung ULANG days/total saat tanggal berubah
     (reschedule). Hanya trip AKTIF; trip completed sudah dikreditkan & tak boleh berubah."""

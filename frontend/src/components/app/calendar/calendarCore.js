@@ -11,6 +11,11 @@ export const STATUS_SHORT = {
   pending: "Menunggu", hold: "Hold", confirmed: "Terkonfirmasi", ongoing: "Berjalan",
   completed: "Selesai", cancelled: "Dibatalkan", draft: "Draft",
 };
+export const STATUS_SHORT_EN = {
+  pending: "Pending", hold: "On hold", confirmed: "Confirmed", ongoing: "On the road",
+  completed: "Completed", cancelled: "Cancelled", draft: "Draft",
+};
+export const statusLabel = (s, lang = "id") => (lang === "en" ? STATUS_SHORT_EN : STATUS_SHORT)[s] || s || "-";
 export const STATUS_LEGEND = [
   { tone: "info", label: "Terkonfirmasi" },
   { tone: "warning", label: "Hold / Berjalan / Menunggu" },
@@ -27,6 +32,10 @@ export const STATUS_FILTERS = [
   { v: "completed", l: "Selesai" }, { v: "cancelled", l: "Dibatalkan" },
 ];
 export const ACTIVE = ["hold", "confirmed", "ongoing"];
+// Share-link jadwal: status yang boleh dibagikan + default (sinkron backend
+// services/schedule_share.SHAREABLE_STATUSES / DEFAULT_STATUSES).
+export const SHARE_STATUSES = ["pending", "hold", "confirmed", "ongoing", "completed", "cancelled"];
+export const SHARE_DEFAULT_STATUSES = ["hold", "confirmed", "ongoing", "completed"];
 export const HOUR_PX = 46;
 
 // Label tipe armada (sinkron backend services/pricing.VEHICLE_TYPES).

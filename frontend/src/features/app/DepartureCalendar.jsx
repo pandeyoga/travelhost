@@ -9,7 +9,7 @@
 // mengenal 1 kelas risiko (bentrok armada) yang praktis mustahil terjadi karena INV-4
 // sudah dikunci di semua jalur tulis → banner selalu 0. Sekarang 8 kelas risiko nyata.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, LayoutGrid, Columns3, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, LayoutGrid, Columns3, CalendarRange, Share2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import apiClient from "@/services/apiClient";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import CalendarWeekTimeline from "@/components/app/calendar/CalendarWeekTimeline
 import CalendarExportPanel from "@/components/app/calendar/CalendarExportPanel";
 import DayListPanel from "@/components/app/calendar/DayListPanel";
 import DepartureDetailPanel from "@/components/app/calendar/DepartureDetailPanel";
+import ScheduleShareDialog from "@/components/app/calendar/ScheduleShareDialog";
 import {
   STATUS_TONE, TONE_DOT, STATUS_LEGEND, VEHICLE_PALETTE, MONTHS, STATUS_FILTERS,
   buildGrid, dayKey, dayKeyOfIso, packLanes, startOfDay, startOfWeek, weekLabelOf, ymOf,
@@ -94,6 +95,7 @@ export default function DepartureCalendar() {
   const [exportEnd, setExportEnd] = useState("");
   const [exportGroup, setExportGroup] = useState(false);
   const [exporting, setExporting] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Rentang tanggal yang terlihat (menentukan bulan mana yang perlu di-fetch).
   const range = useMemo(() => {
@@ -353,6 +355,11 @@ export default function DepartureCalendar() {
             start={exportStart} setStart={setExportStart} end={exportEnd} setEnd={setExportEnd}
             group={exportGroup} setGroup={setExportGroup} exporting={exporting} onExport={doExport} />
           {canManage ? (
+            <button className="secondary-button" onClick={() => setShareOpen(true)} data-testid="dc-share-open">
+              <Share2 size={14} /> Bagikan
+            </button>
+          ) : null}
+          {canManage ? (
             <button className="primary-button" onClick={() => openCreate(selectedDay)} data-testid="dc-create-open">
               <Plus size={14} /> Buat Keberangkatan
             </button>
@@ -454,6 +461,10 @@ export default function DepartureCalendar() {
       <BookingRescheduleDialog open={Boolean(rescheduleBooking)} onOpenChange={(v) => !v && setRescheduleBooking(null)} booking={rescheduleBooking} onSaved={afterMutation} />
       <BookingApproveDialog open={Boolean(approveBooking)} onOpenChange={(v) => !v && setApproveBooking(null)} booking={approveBooking} onSaved={afterMutation} />
       <CancelBookingDialog open={Boolean(cancelBooking)} onOpenChange={(v) => !v && setCancelBooking(null)} booking={cancelBooking} onSaved={afterMutation} />
+      {canManage ? (
+        <ScheduleShareDialog open={shareOpen} onOpenChange={setShareOpen} defaultMonth={ymOf(viewDate)}
+          vehicles={Object.values(maps.vehicles)} />
+      ) : null}
       <PaymentDialog open={Boolean(payBooking)} onOpenChange={(v) => !v && setPayBooking(null)} booking={payBooking} onSaved={afterMutation} />
     </div>
   );

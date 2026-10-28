@@ -43,6 +43,17 @@
 /about                 Tentang
 /contact               Kontak (+ WhatsApp)
 ```
+**Halaman publik bertoken (di LUAR PublicLayout — tanpa header/footer situs, tanpa login):**
+```
+/track/:token          Tracking posisi armada 1 trip (share-link korporat, Phase 6)
+/schedule/:token       **Jadwal Keberangkatan** read-only (share-link dari Kalender → tombol "Bagikan",
+                       2026-10-28). Tampilan Daftar (agenda per tanggal) / Kalender (grid bulan);
+                       klik jadwal → dialog detail TANPA tombol aksi. meta robots noindex.
+                       testid: public-schedule-page/info/title/period/total/search/vehicle ·
+                       public-schedule-view-{list|calendar} · schedule-day-{YYYY-MM-DD} ·
+                       schedule-item-{BK-xxxx} · schedule-detail · sd-{start|end|route|vehicle|
+                       customer|driver|payment|notes|readonly} · public-schedule-error(-text)
+```
 Global public: announcement bar, header transparan (nav), WhatsApp floating button, footer.
 
 ### 1a. Struktur header publik (SSOT — diubah 2026-08-12, permintaan user "navbar terlalu ramai")

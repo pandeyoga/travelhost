@@ -7,6 +7,7 @@ ke baseline. Bug kelas ini lolos gate lama karena gate lama menguji clean-seed+h
 Cek:
   SM1 (RC-04) assign→cancel : trip terkait → cancelled & armada dibebaskan (available).
   SM2 (RC-03) /trips/{id}/status=completed : efek identik checkout (booking completed, armada bebas).
+  SM5 (RC-03) geofence tiba tujuan (POST /locations) : efek identik checkout (booking completed + event).
   SM3 (RC-02) complete tanpa lunas : payment_status ∈ {dp,belum_bayar} & TETAP muncul di AR (jujur).
   SM4 (RC-05) pembayaran ke booking cancelled : DITOLAK (400).
 
@@ -136,6 +137,34 @@ async def main():
         else:
             skip(f"SM2 buat booking → {sc}")
 
+        # ---- SM5 (RC-03): geofence "tiba tujuan" = efek checkout (bukan sekadar status trip) ----
+        # Bug nyata (2026-10-28): ingest lokasi menulis trip.status=completed sendiri → booking
+        # tetap 'confirmed', tanpa event trip.completed (WA + ulasan), driver tetap online.
+        sc, b5 = await mk(v2, "2028-04-10T08:00:00+00:00", "2028-04-11T08:00:00+00:00")
+        if sc == 200:
+            r = await c.post(f"{API}/api/dispatch/{b5['id']}/assign", headers=H,
+                             json={"driver_id": d1["id"], "vehicle_id": v2["id"]})
+            tid5 = r.json().get("trip", {}).get("id") if r.status_code == 200 else None
+            if tid5:
+                CREATED["trips"].append(tid5)
+                await c.post(f"{API}/api/trips/{tid5}/status", headers=H, json={"status": "on_trip"})
+                DBC.trips.update_one({"id": tid5}, {"$set": {"dest_lat": -7.9425, "dest_lng": 112.9530}})
+                rl = await c.post(f"{API}/api/locations", headers=H,
+                                  json={"trip_id": tid5, "lat": -7.9425, "lng": 112.9530, "speed": 0})
+                bk5 = DBC.bookings.find_one({"id": b5["id"]}, {"_id": 0, "status": 1}) or {}
+                tr5 = DBC.trips.find_one({"id": tid5}, {"_id": 0, "status": 1}) or {}
+                evt = DBC.events.count_documents({"type": "trip.completed", "ref_id": b5["id"]})
+                geo = (rl.json() or {}).get("geofence") if rl.status_code == 200 else None
+                if geo and tr5.get("status") == "completed" and bk5.get("status") == "completed" and evt == 1:
+                    ok("SM5 (RC-03) geofence tiba tujuan → trip & booking completed + event trip.completed.")
+                else:
+                    fail(f"SM5 (RC-03) geofence split-brain: http={rl.status_code}, geofence={geo}, "
+                         f"trip={tr5.get('status')}, booking={bk5.get('status')}, trip.completed={evt}")
+            else:
+                skip(f"SM5 assign → {r.status_code}")
+        else:
+            skip(f"SM5 buat booking → {sc}")
+
         # ---- SM3 (RC-02): complete tanpa lunas ----
         sc, b3 = await mk(v1, "2028-03-10T08:00:00+00:00", "2028-03-11T08:00:00+00:00", price=2000000)
         if sc == 200:
@@ -181,6 +210,9 @@ def _cleanup():
         # Hygiene: notification_tasks juga menyimpan booking_id di TOP-LEVEL (dipakai
         # verify_schema untuk cek FK) — filter payload saja meninggalkan referensi menggantung.
         DBC.notification_tasks.delete_many({"booking_id": b})
+        # Efek samping finalize_trip_completion (SM2/SM5): permintaan ulasan + fee driver.
+        DBC.review_requests.delete_many({"booking_id": b})
+        DBC.driver_fee_entries.delete_many({"booking_id": b})
     for t in CREATED["trips"]:
         DBC.trips.delete_one({"id": t})
     for p in CREATED["payments"]:

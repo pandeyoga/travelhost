@@ -507,49 +507,7 @@ class BroadcastUpdate(BaseModel):
     segment_source: Optional[str] = None
 
 
-# === Phase 6: Maintenance + GPS lengkap (share-link) ===
-class MaintenanceCreate(BaseModel):
-    vehicle_id: str = Field(min_length=1)
-    type: Optional[str] = Field(default="servis", max_length=40)  # servis | kir | pajak | perbaikan | lainnya
-    title: Optional[str] = Field(default="", max_length=200)
-    description: Optional[str] = ""
-    scheduled_date: Optional[str] = None
-    start_date: Optional[str] = None  # window mulai (memblok availability)
-    end_date: Optional[str] = None    # window selesai
-    odometer: Optional[float] = Field(default=0, ge=0)
-    cost: Optional[float] = Field(default=0, ge=0)
-    workshop: Optional[str] = ""
-    workshop_id: Optional[str] = None  # E8: ref ke koleksi workshops (master vendor/bengkel)
-    status: Optional[str] = Field(default="scheduled", max_length=32)  # scheduled | in_progress | done | cancelled
-    note: Optional[str] = Field(default="", max_length=1000)
-
-
-class MaintenanceUpdate(BaseModel):
-    type: Optional[str] = Field(default=None, max_length=40)
-    title: Optional[str] = Field(default=None, max_length=200)
-    description: Optional[str] = None
-    scheduled_date: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    odometer: Optional[float] = Field(default=None, ge=0)
-    cost: Optional[float] = Field(default=None, ge=0)
-    workshop: Optional[str] = None
-    workshop_id: Optional[str] = None  # E8: ref ke koleksi workshops
-    status: Optional[str] = Field(default=None, max_length=32)
-    note: Optional[str] = Field(default=None, max_length=1000)
-
-
-class MaintenanceComplete(BaseModel):
-    completed_at: Optional[str] = None
-    odometer: Optional[float] = Field(default=None, ge=0)
-    cost: Optional[float] = Field(default=None, ge=0)
-    note: Optional[str] = Field(default="", max_length=1000)
-
-
-class ShareCreate(BaseModel):
-    trip_id: str = Field(min_length=1)
-    label: Optional[str] = Field(default="", max_length=120)
-    hours: Optional[int] = Field(default=72, ge=0)  # masa berlaku tautan (jam)
+# === Phase 6: Maintenance + share-link → schemas_ops.py (jaga file < 800 baris) ===
 
 
 # === Phase 7: CRM Inbox + Settings ===

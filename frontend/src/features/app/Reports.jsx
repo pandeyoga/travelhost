@@ -15,21 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatCurrency, formatQty } from "@/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { canAccess } from "@/config/navigationConfig";
+import { CAT_LABEL, lastMonths } from "@/lib/financeLabels";
 
 const STATUS_TONE = { confirmed: "info", ongoing: "warning", completed: "success", cancelled: "danger", draft: "neutral" };
-const CAT_LABEL = { bbm: "BBM / Solar", tol: "Tol & Parkir", uang_jalan: "Uang Jalan", gaji_driver: "Gaji/Komisi Driver", other: "Lainnya" };
 const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-
-function lastMonths(n = 6) {
-  const out = [];
-  const d = new Date();
-  for (let i = 0; i < n; i += 1) {
-    const dt = new Date(d.getFullYear(), d.getMonth() - i, 1);
-    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-    out.push([key, dt.toLocaleDateString("id-ID", { month: "long", year: "numeric" })]);
-  }
-  return out;
-}
 
 function monthShort(key) {
   const m = Number(String(key).slice(5, 7));

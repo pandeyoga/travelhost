@@ -14,6 +14,8 @@ from dependencies import require_section
 from services import doc_layout as dl
 from services import doc_script as ds
 from services import documents as docs
+from services import media_lib as ml
+from services import media_store as ms
 from services import numbering as nb
 from services.audit import record
 
@@ -247,26 +249,38 @@ async def preview_layout(code: str, body: PreviewIn, user=Depends(FIN)):
 # ------------------------------------------------------------------ aset gambar (logo/kop/ttd)
 @router.post("/doc-assets")
 async def upload_asset(file: UploadFile = File(...), user=Depends(SET)):
+    """Gambar dokumen ditulis lewat services/media_store (validasi MIME, batas ukuran, anti
+    path-traversal — INV-MEDIA-03) dan tercatat di Media Library (`source="documents"`).
+    Aset lama (`filename` di uploads/docs) tetap terbaca oleh services/doc_layout.images."""
     ext = (Path(file.filename or "").suffix or "").lower()
     if ext not in (".png", ".jpg", ".jpeg", ".webp"):
         raise HTTPException(status_code=400, detail="Hanya gambar PNG/JPG/WEBP.")
     data = await file.read()
     if len(data) > 3 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Ukuran gambar maksimal 3 MB.")
-    fid = new_id("dimg")
-    folder = dl.UPLOAD_DIR / "docs"
-    folder.mkdir(parents=True, exist_ok=True)
-    fname = f"{fid}{ext}"
-    (folder / fname).write_bytes(data)
-    rec = {"id": fid, "filename": fname, "original": file.filename, "size": len(data),
-           "url": f"/api/uploads/docs/{fname}", "uploaded_by": user.get("email"), "created_at": now_iso()}
-    await get_db().doc_assets.insert_one(dict(rec))
+    db = get_db()
+    try:
+        meta = ms.upload_bytes(data, ms.resolve_content_type(file.content_type, file.filename or ""),
+                               filename=file.filename or "dokumen", folder="documents")
+    except ms.MediaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    if meta["kind"] != "image":
+        ms.remove(meta.get("storage_path") or "")
+        ms.remove(meta.get("thumb_path") or "")
+        raise HTTPException(status_code=400, detail="Hanya gambar PNG/JPG/WEBP.")
+    asset = await ml.register_asset(db, meta, user, source="documents")
+    rec = {"id": new_id("dimg"), "media_id": asset["id"], "storage_path": meta["storage_path"],
+           "storage_backend": meta["storage_backend"], "original": file.filename, "size": meta["size"],
+           "url": ml.public_doc(asset)["url"], "uploaded_by": user.get("email"), "created_at": now_iso()}
+    await db.doc_assets.insert_one(dict(rec))
+    rec.pop("storage_path")
     return safe_doc(rec)
 
 
 @router.get("/doc-assets")
 async def list_assets(user=Depends(FIN)):
-    return safe_doc(await get_db().doc_assets.find({}, {"_id": 0}).sort("created_at", -1).to_list(200))
+    return safe_doc(await get_db().doc_assets.find({}, {"_id": 0, "storage_path": 0})
+                    .sort("created_at", -1).to_list(200))
 
 
 # ------------------------------------------------------------------ penomoran

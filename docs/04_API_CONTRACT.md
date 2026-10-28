@@ -504,3 +504,35 @@ GET /api/public/redirect?path=/blog/slug-lama → 200 {from_path, to_path, statu
   kunjungan yang sudah dilihat → mustahil berputar.
 - SPA tidak bisa mengirim 301 sungguhan: `status: 301` adalah NIAT semantik dan pengalihan
   dijalankan halaman detail publik lewat `useSlugRedirect` (`navigate(..., {replace:true})`).
+
+---
+
+## 8. SHARE-LINK JADWAL KEBERANGKATAN (2026-10-28)
+Kelola dari Kalender Keberangkatan (tombol **Bagikan**). Siklus hidup token bersama tracking trip:
+`services/share_links.py`; aturan cakupan & allowlist field: `services/schedule_share.py`.
+
+### Admin (section RBAC `calendar` = owner/ops_admin)
+```
+GET    /api/schedule-shares?active=&limit=&skip=   → [share + {expired, is_active, period_label, departure_count}]
+POST   /api/schedule-shares                         ← {label?, scope: upcoming|month|range|all,
+                                                        days? (upcoming; 0 = tanpa batas akhir),
+                                                        month? (YYYY-MM), start?/end? (YYYY-MM-DD, ≤366 hari),
+                                                        vehicle_ids?[], statuses?[],
+                                                        visibility?{customer,driver,driver_phone,payment,notes},
+                                                        hours? (masa berlaku; 0 = tanpa batas waktu, maks 8760)}
+                                                    → share (400: cakupan/armada tak valid · 422: skema)
+POST   /api/schedule-shares/{id}/revoke             → share (revoked=true)
+DELETE /api/schedule-shares/{id}                    → {deleted:true, id}
+```
+### Publik (tanpa auth, rate-limit 120/menit/IP, `Cache-Control: no-store`, `X-Robots-Tag: noindex`)
+```
+GET    /api/public/schedule/{token}  → {label, scope, period_label, period{start,end}, statuses,
+                                        visibility, expires_at, generated_at, total, truncated,
+                                        items:[{ref(kode booking), start_datetime, end_datetime, origin,
+                                        destination, status, pax, vehicle_name, plate_number, capacity,
+                                        vehicle_type_label, customer_name?, driver_name?, driver_phone?,
+                                        payment_status?, notes?}]}
+                                     404 token tak dikenal · 403 dinonaktifkan · 410 kedaluwarsa
+```
+Field bertanda `?` hanya muncul bila diizinkan `visibility`. Nominal uang, kontak pelanggan, dan ID
+internal TIDAK PERNAH dikirim. Halaman FE: `/schedule/:token` (`features/public/PublicSchedule.jsx`).

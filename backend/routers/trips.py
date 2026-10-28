@@ -11,7 +11,7 @@ Urutan rute: literal/spesifik sebelum /{id} agar tidak tertelan path param.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from core_utils import now_iso, safe_doc
+from core_utils import safe_doc
 from db import get_db
 from dependencies import get_current_user
 from schemas import TripStatusUpdate
@@ -102,18 +102,5 @@ async def update_trip_status(trip_id: str, body: TripStatusUpdate, user=Depends(
             raise HTTPException(status_code=403, detail="Hanya boleh mengubah trip milik Anda")
     # RC-03: 'completed' via jalur generik ini HARUS memicu efek samping identik dgn
     # driver/checkout (bebaskan armada, selesaikan booking, hitung KM) — anti split-brain.
-    if body.status == "completed":
-        from services.trips import finalize_trip_completion
-        return await finalize_trip_completion(db, trip, user)
-    updates = {"status": body.status}
-    if body.status in ("to_pickup", "on_trip"):
-        if body.status == "on_trip" and not trip.get("start_at"):
-            updates["start_at"] = now_iso()
-        # Sinkron sumber daya: armada dipakai, driver online.
-        if trip.get("vehicle_id"):
-            await db.vehicles.update_one({"id": trip["vehicle_id"]}, {"$set": {"status": "on_trip"}})
-        if trip.get("driver_id"):
-            await db.drivers.update_one({"id": trip["driver_id"]}, {"$set": {"status": "online"}})
-    await db.trips.update_one({"id": trip_id}, {"$set": updates})
-    doc = await db.trips.find_one({"id": trip_id}, {"_id": 0})
-    return safe_doc(doc)
+    from services.trips import apply_trip_status
+    return await apply_trip_status(db, trip, body.status, user)

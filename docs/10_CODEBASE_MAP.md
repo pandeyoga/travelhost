@@ -207,3 +207,60 @@ scripts/seed_data.py            reset 3 koleksi + riwayat versi awal untuk konte
 scripts/test_core_cms_cw3.py    POC 100/100
 scripts/gate.sh                 + guard:content_lifecycle & selftest:content_lifecycle
 ```
+
+---
+
+## 🧩 SHARE-LINK JADWAL KEBERANGKATAN + perbaikan SSOT — berkas yang lahir/berubah (2026-10-28)
+
+**Backend**
+```
+services/share_links.py      BARU — SSOT siklus hidup tautan publik bertoken (token, expiry, revoke,
+                             delete, resolve publik 404/403/410 + catat akses). Dipakai trip_shares
+                             (/track) DAN schedule_shares (/schedule) — dulu logika ini ada di 2 router.
+services/schedule_share.py   BARU — cakupan (upcoming|month|range|all, batas hari WIB), query bookings,
+                             allowlist field publik `public_departure`, `build_public_schedule`.
+routers/shares.py            + /schedule-shares (GET/POST, /{id}/revoke, DELETE; section 'calendar')
+                             + GET /public/schedule/{token} (publik, rate-limit, no-store, noindex)
+routers/shares.py (lanjutan)  GET /public/track/{token} DIPINDAH dari routers/public.py (path API sama)
+                             & memakai share_links.resolve_public_share — dua endpoint publik
+                             share-link kini satu router; public.py turun 855 → 795 baris.
+routers/public.py            lead quotation & landing kini menyimpan `phone_normalized` (Customer 360)
+schemas_ops.py               + ScheduleShareCreate / ScheduleShareVisibility
+services/trips.py            + apply_trip_status() — SSOT transisi status trip. Dipakai
+                             POST /trips/{id}/status, geofence HP (routers/locations.py) & geofence
+                             device (services/gps.py). Perbaiki bug: geofence 'tiba tujuan' dulu
+                             tidak menyelesaikan booking / emit trip.completed.
+routers/documents.py         POST /doc-assets lewat media_store + terdaftar di Media Library
+                             (INV-MEDIA-03); services/doc_layout.images membaca via media_store
+                             (aset lama di uploads/docs tetap terbaca).
+routers/quotations.py        WA booking.confirmed dari konversi penawaran memakai get_dp_percent()
+server.py                    + index schedule_shares.token (unik) & created_at
+tests/test_schedule_share.py BARU — 11 test (RBAC, privasi allowlist, cakupan/WIB, filter, siklus hidup,
+                             regresi /public/track)
+```
+
+**Frontend**
+```
+components/app/calendar/ScheduleShareDialog.jsx  BARU — dialog "Bagikan Jadwal" (daftar tautan: salin,
+                                                 buka, nonaktifkan, hapus + ConfirmDialog)
+components/app/calendar/ScheduleShareForm.jsx    BARU — form cakupan/armada/status/visibilitas/masa berlaku
+components/app/calendar/DetailField.jsx          BARU — baris detail bersama (dulu lokal di DepartureDetailPanel)
+components/app/calendar/calendarCore.js          + STATUS_SHORT_EN, statusLabel(), SHARE_STATUSES/DEFAULT
+components/app/calendar/CalendarMonthGrid.jsx    + prop riskHint (dipakai ulang di halaman publik)
+features/app/DepartureCalendar.jsx               + tombol `dc-share-open` (owner/ops)
+features/public/PublicSchedule.jsx               BARU — halaman /schedule/:token (Daftar | Kalender)
+components/public/schedule/ScheduleAgenda.jsx    BARU — agenda per tanggal
+components/public/schedule/ScheduleDetailDialog.jsx BARU — detail read-only (tanpa aksi)
+components/cms/SiteSettingsPanel.jsx             logo dipilih via MediaPickerDialog (INV-MEDIA-03)
+App.js                                           + route publik /schedule/:token
+```
+
+**Guardrail/skrip**
+```
+memory/INVARIANTS.md         DIPULIHKAN (hilang saat sinkron) — diturunkan dari Guard(...) tiap penjaga
+scripts/verify_state_machine.py  + SM5 geofence tiba tujuan = efek checkout
+scripts/guardrails/verify_auth_coverage.py  + allowlist GET /public/schedule/{token} (beralasan)
+scripts/guardrails/verify_rbac_runtime.py   + SECTION_PROBES 'documents' (None + alasan)
+scripts/guardrails/_common.py · verify_contract.py · validate_compliance.py · verify_schema.py ·
+verify_data_integrity.py (INV-22 lintas jenis) · seed_data.py — registrasi koleksi schedule_shares
+```

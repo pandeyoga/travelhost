@@ -67,6 +67,10 @@ SECTION_PROBES = {
     "customers": "/customers",
     "dashboard": "/dashboard",
     "dispatch": "/dispatch/today",
+    # Halaman FE "Dokumen" (owner) tidak punya endpoint ber-section sendiri: routers/documents.py
+    # sengaja memakai section 'finance' untuk BACA (ops perlu cetak invoice) dan 'settings' untuk
+    # UBAH (owner) — keduanya sudah diprobe lewat kunci 'finance' & 'settings'.
+    "documents": None,
     "driver-workspace": "/driver/my-trips",
     "drivers": "/drivers",
     "finance": "/payments",

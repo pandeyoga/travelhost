@@ -75,7 +75,9 @@ export default function Inbox() {
   }, []);
 
   useEffect(() => { loadList(); }, [loadList]);
-  useEffect(() => { apiClient.get("/users").then((r) => setUsers(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, []);
+  // Daftar agen = SSOT backend services/crm.assignable_agents (section crm, sama dgn router Inbox).
+  // Dulu memanggil /users (khusus owner) → ops & marketing kena 403 dan dropdown assign kosong.
+  useEffect(() => { apiClient.get("/leads/agents").then((r) => setUsers(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, []);
   useEffect(() => { apiClient.get("/wa/templates").then((r) => setTemplates(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, []);
   useEffect(() => { if (activeId) loadThread(activeId); }, [activeId, loadThread]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [active?.messages?.length]);

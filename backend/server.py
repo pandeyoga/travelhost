@@ -199,6 +199,8 @@ async def _startup():
         await db.maintenance_records.create_index([("vehicle_id", 1), ("status", 1)])
         await db.trip_shares.create_index("token", unique=True)
         await db.trip_shares.create_index("trip_id")
+        await db.schedule_shares.create_index("token", unique=True)  # share-link jadwal (INV-22)
+        await db.schedule_shares.create_index([("created_at", -1)])
         await db.notification_tasks.create_index("dedupe_key", unique=True, sparse=True)
         await db.notification_tasks.create_index([("status", 1), ("created_at", -1)])
         await db.conversations.create_index("chat_token", sparse=True)

@@ -25,7 +25,7 @@ from services.events import emit
 from services.exporter import quotation_pdf
 from services.geo import parse_iso
 from services.identity import ensure_customer
-from services.pricing import compute_quote, get_pricing_rules
+from services.pricing import compute_quote, get_dp_percent, get_pricing_rules
 from services.quotations import (QUO_STATUS_LABEL, next_quotation_number,
                                  normalize_phone, valid_until_iso)
 
@@ -325,7 +325,8 @@ async def convert_quotation(quotation_id: str, body: QuotationConvert, user=Depe
     await emit(db, "booking.confirmed", {
         "booking_id": booking["id"], "code": booking["code"],
         "customer_name": cust.get("name"), "phone": cust.get("phone"),
-        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": 30,
+        # SATU SUMBER DP (INV-PRICE-01) — dulu angka 30 ditulis mati di pesan WA konversi.
+        "total_amount": float(booking.get("total_amount", 0) or 0), "dp_percent": await get_dp_percent(db),
         "vehicle_name": booking.get("vehicle_name"),
         "start_datetime": (booking.get("start_datetime") or "")[:16].replace("T", " "),
     }, source="quotations", ref_type="booking", ref_id=booking["id"],

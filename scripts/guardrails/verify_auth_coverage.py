@@ -44,6 +44,15 @@ PUBLIC_ENDPOINTS = {
         "dibaca browser pengunjung ANONIM untuk memuat Pixel/Google tag. Allowlist field KETAT: hanya "
         "ID publik (pixel_id, ga4_measurement_id, ads_conversion_id, label konversi) + setelan banner "
         "consent. Token/app secret TIDAK PERNAH disertakan (dijaga INV-TRACK-01 + POC test_core_ads).",
+    ("shares.py", "GET", "/public/track/{token}"):
+        "tracking posisi 1 trip untuk customer korporat TANPA akun (Phase 6; dipindah dari public.py "
+        "2026-10-28 agar dua endpoint publik share-link satu tempat). Dijaga token acak 24 byte "
+        "(`trip_shares.token`) + revoke + expiry (services/share_links, INV-22).",
+    ("shares.py", "GET", "/public/schedule/{token}"):
+        "jadwal keberangkatan read-only untuk penerima share-link TANPA akun (by design). Akses "
+        "dijaga token acak 24 byte (`schedule_shares.token`) + revoke + expiry (services/share_links, "
+        "INV-22) + rate-limit per IP. Payload = ALLOWLIST services/schedule_share.public_departure: "
+        "tanpa nominal uang, kontak pelanggan, maupun ID internal (dijaga tests/test_schedule_share.py).",
     ("ads_manage.py", "GET", "/public/webhooks/meta/leads"):
         "verifikasi langganan webhook Meta Lead Ads (hub.challenge) — Meta memanggil tanpa sesi; "
         "dijaga perbandingan `hub.verify_token` terhadap rahasia tersimpan (fail-closed bila kosong).",
@@ -54,7 +63,7 @@ PUBLIC_ENDPOINTS = {
 }
 # File yang SELURUH endpoint-nya publik by design → alasan.
 PUBLIC_FILES = {
-    "public.py": "API situs publik (fleet/destinasi/artikel/quotation/booking/track/chat)",
+    "public.py": "API situs publik (fleet/destinasi/artikel/quotation/booking/chat)",
     "booking_public.py":
         "alur PEMESANAN ONLINE untuk pengunjung anonim (cari ketersediaan → harga server → "
         "buat pesanan → unggah bukti DP → cek status). Tidak ada akun pelanggan by design; "

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from core_utils import money, new_id, now_iso, safe_doc
 from db import get_db
 from dependencies import require_role, require_section
-from schemas import MaintenanceComplete, MaintenanceCreate, MaintenanceUpdate
+from schemas_ops import MaintenanceComplete, MaintenanceCreate, MaintenanceUpdate
 from services.audit import record
 from services.refs import must_exist
 from services.availability import (

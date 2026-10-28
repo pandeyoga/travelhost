@@ -157,12 +157,8 @@ async def ingest_device(db, norm):
             from services.geofence import evaluate as evaluate_geofence
             event, new_status = evaluate_geofence(trip, doc["lat"], doc["lng"])
             if new_status and new_status != trip.get("status"):
-                updates = {"status": new_status}
-                if new_status == "on_trip" and not trip.get("start_at"):
-                    updates["start_at"] = now_iso()
-                if new_status == "completed":
-                    updates["end_at"] = now_iso()
-                await db.trips.update_one({"id": trip_id}, {"$set": updates})
+                from services.trips import apply_trip_status  # efek samping = jalur manual (RC-03)
+                await apply_trip_status(db, trip, new_status)
                 geofence = {"event": event, "new_status": new_status}
         except Exception:  # noqa: BLE001 — geofence tak boleh gagalkan ingest
             geofence = None

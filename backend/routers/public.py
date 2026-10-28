@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 import hashlib
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime
 
 from pymongo.errors import DuplicateKeyError
 
@@ -30,14 +30,12 @@ from services import landing_stats
 from services import reviews as review_svc
 from services.crm import auto_assign_agent, log_activity
 from services.events import emit
-from services.geo import parse_iso
-from services.maps import fallback_eta, route_eta
+from services.identity import normalize_phone
 from services.pricing import compute_quote, get_pricing_rules
 from services.ratelimit import allow, client_ip
 
 router = APIRouter(prefix="/api/public", tags=["public"])
 
-STALE_SECONDS = 300
 
 
 def _rate_guard(request: Request, bucket: str, limit: int, window: int):
@@ -312,7 +310,7 @@ async def public_quotation(body: QuotationCreate, request: Request):
     consent = bool(body.marketing_consent)
     doc = {
         "id": new_id("led"), "customer_name": body.name.strip(),
-        "phone": body.phone or "", "email": body.email or "",
+        "phone": body.phone or "", "phone_normalized": normalize_phone(body.phone), "email": body.email or "",
         "source": "website", "stage": "new", "assigned_to": assigned,
         "destination": await destination_normalize(db, body.destination), "trip_date": body.trip_date,
         "pax": int(body.pax or 0), "message": body.message or "",
@@ -416,66 +414,6 @@ async def public_trip_estimate(body: TripEstimateRequest, request: Request):
         "breakdown": q["breakdown"], "total": q["total"], "days": q["days"],
         "vehicle_type": q["vehicle_type"], "dp_amount": q["dp_amount"], "dp_percent": q["dp_percent"],
         "note": "Estimasi indikatif. Harga final menyesuaikan rute, musim, dan ketersediaan armada.",
-    }
-
-
-@router.get("/track/{token}")
-async def public_track(token: str):
-    """Tracking publik korporat via share-link (TANPA auth). Validasi token + expiry + revoke.
-
-    Mengembalikan posisi terkini, ETA, dan jejak (polyline) untuk peta read-only.
-    """
-    db = get_db()
-    share = await db.trip_shares.find_one({"token": token}, {"_id": 0})
-    if not share:
-        raise HTTPException(status_code=404, detail="Tautan pelacakan tidak ditemukan")
-    if share.get("revoked"):
-        raise HTTPException(status_code=403, detail="Tautan pelacakan telah dinonaktifkan")
-    exp = parse_iso(share.get("expires_at"))
-    if exp and exp <= datetime.now(timezone.utc):
-        raise HTTPException(status_code=410, detail="Tautan pelacakan telah kedaluwarsa")
-    trip = await db.trips.find_one({"id": share.get("trip_id")}, {"_id": 0})
-    if not trip:
-        raise HTTPException(status_code=404, detail="Perjalanan tidak ditemukan")
-
-    await db.trip_shares.update_one(
-        {"id": share["id"]},
-        {"$set": {"last_accessed_at": now_iso()}, "$inc": {"access_count": 1}},
-    )
-
-    pts = await db.locations.find({"trip_id": trip["id"]}, {"_id": 0}).sort("timestamp", 1).to_list(2000)
-    cur = pts[-1] if pts else None
-    veh = None
-    if trip.get("vehicle_id"):
-        veh = await db.vehicles.find_one({"id": trip["vehicle_id"]}, {"_id": 0})
-
-    eta = None
-    if cur and trip.get("dest_lat") is not None and trip.get("dest_lng") is not None:
-        res = await route_eta(cur["lat"], cur["lng"], trip["dest_lat"], trip["dest_lng"])
-        if res is None:
-            res = fallback_eta(cur["lat"], cur["lng"], trip["dest_lat"], trip["dest_lng"])
-        eta = {"eta_minutes": res["eta_minutes"], "distance_km": res["distance_km"],
-               "approx": res.get("approx", False)}
-
-    stale = True
-    if cur:
-        ts = parse_iso(cur.get("timestamp"))
-        stale = (datetime.now(timezone.utc) - ts).total_seconds() > STALE_SECONDS if ts else True
-
-    return {
-        "label": share.get("label"),
-        "vehicle_name": (veh.get("name") if veh else share.get("vehicle_name")),
-        "plate_number": veh.get("plate_number") if veh else None,
-        "status": trip.get("status"),
-        "dest_name": trip.get("dest_name"),
-        "destination": ({"lat": trip.get("dest_lat"), "lng": trip.get("dest_lng")}
-                        if trip.get("dest_lat") is not None else None),
-        "current": ({"lat": cur["lat"], "lng": cur["lng"], "speed": cur.get("speed"),
-                     "timestamp": cur.get("timestamp")} if cur else None),
-        "stale": stale,
-        "eta": eta,
-        "track": [{"lat": p["lat"], "lng": p["lng"]} for p in pts],
-        "expires_at": share.get("expires_at"),
     }
 
 
@@ -651,7 +589,9 @@ async def public_landing_lead(slug: str, body: LandingLeadCreate, request: Reque
 
     assigned = await auto_assign_agent(db)
     doc = {
-        "id": new_id("led"), "customer_name": name, "phone": phone, "email": (body.email or "")[:160],
+        "id": new_id("led"), "customer_name": name, "phone": phone,
+        # Kunci identitas yg dipakai Customer 360 & dedupe lead WhatsApp (services/identity).
+        "phone_normalized": normalize_phone(phone), "email": (body.email or "")[:160],
         "source": "landing_page", "stage": "new", "assigned_to": assigned,
         "origin": await origin_normalize(db, (body.origin or "")[:200]),
         "destination": await destination_normalize(db, (body.destination or "")[:200]),

@@ -194,10 +194,9 @@ async def finalize_trip_completion(db, trip: dict, user=None, odometer_end=None)
 
 
 async def apply_trip_status(db, trip: dict, new_status: str, user=None) -> dict:
-    """SSOT transisi status trip — dipakai POST /trips/{id}/status dan geofence (HP driver via
-    routers/locations.py & device GPS via services/gps.py). Dulu geofence menulis status
-    sendiri: trip 'completed' tetapi booking tetap 'confirmed', tanpa event trip.completed
-    (WA + permintaan ulasan), driver tetap online, fee driver tak terkredit.
+    """SSOT transisi status trip — dipakai POST /trips/{id}/status dan geofence pickup
+    (services/trips.apply_geofence). Dulu geofence menulis status sendiri: trip 'completed'
+    tetapi booking tetap 'confirmed', tanpa event trip.completed (WA + permintaan ulasan).
     """
     if new_status == "completed":
         return await finalize_trip_completion(db, trip, user)
@@ -212,6 +211,41 @@ async def apply_trip_status(db, trip: dict, new_status: str, user=None) -> dict:
             await db.drivers.update_one({"id": trip["driver_id"]}, {"$set": {"status": "online"}})
     await db.trips.update_one({"id": trip["id"]}, {"$set": updates})
     return safe_doc(await db.trips.find_one({"id": trip["id"]}, {"_id": 0}))
+
+
+async def mark_trip_arrived(db, trip: dict, user=None, source: str = "driver") -> dict:
+    """SSOT "tiba di tujuan": isi `arrived_at` (sekali) + emit `trip.arrived` (WA ke pelanggan).
+
+    Dipakai tombol Dispatch, tombol Ruang Kerja Driver, dan geofence. Dulu dua tombol menulis
+    sendiri dengan kunci dedupe BERBEDA (per trip vs per booking) → WA "tiba" bisa terkirim dua
+    kali bila ops & sopir sama-sama menekan. Kini satu kunci per booking.
+    """
+    if not trip.get("arrived_at"):
+        await db.trips.update_one({"id": trip["id"], "arrived_at": {"$in": [None, ""]}},
+                                  {"$set": {"arrived_at": now_iso()}})
+    bkid = trip.get("booking_id")
+    if bkid:
+        from services.events import emit
+        from services.wa_payload import build_wa_payload
+        bk = await db.bookings.find_one({"id": bkid}, {"_id": 0})
+        if bk:
+            payload = await build_wa_payload(db, bk, trip)
+            await emit(db, "trip.arrived", payload, source=source, ref_type="booking",
+                       ref_id=bkid, dedupe_key=f"trip.arrived:{bkid}")
+    return safe_doc(await db.trips.find_one({"id": trip["id"]}, {"_id": 0}))
+
+
+async def apply_geofence(db, trip: dict, lat: float, lng: float, user=None):
+    """Evaluasi geofence untuk satu ping lokasi (HP driver & device GPS) → dict hasil / None."""
+    from services.geofence import evaluate
+    event, new_status = evaluate(trip, lat, lng)
+    if event == "arrived_destination":
+        await mark_trip_arrived(db, trip, user, source="geofence")
+        return {"event": event, "new_status": trip.get("status"), "arrived": True}
+    if new_status and new_status != trip.get("status"):
+        await apply_trip_status(db, trip, new_status, user)
+        return {"event": event, "new_status": new_status}
+    return None
 
 
 async def recompute_trip_fee(db, booking_id, start_iso, end_iso):

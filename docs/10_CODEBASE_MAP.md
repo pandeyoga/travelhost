@@ -226,10 +226,13 @@ routers/shares.py (lanjutan)  GET /public/track/{token} DIPINDAH dari routers/pu
                              share-link kini satu router; public.py turun 855 → 795 baris.
 routers/public.py            lead quotation & landing kini menyimpan `phone_normalized` (Customer 360)
 schemas_ops.py               + ScheduleShareCreate / ScheduleShareVisibility
-services/trips.py            + apply_trip_status() — SSOT transisi status trip. Dipakai
-                             POST /trips/{id}/status, geofence HP (routers/locations.py) & geofence
-                             device (services/gps.py). Perbaiki bug: geofence 'tiba tujuan' dulu
-                             tidak menyelesaikan booking / emit trip.completed.
+services/trips.py            + apply_trip_status() — SSOT transisi status trip (POST /trips/{id}/status
+                             & geofence pickup). + mark_trip_arrived() — SSOT "tiba di tujuan"
+                             (arrived_at sekali + WA trip.arrived, dedupe per booking) dipakai tombol
+                             Dispatch, tombol Ruang Kerja Driver & geofence. + apply_geofence() —
+                             satu evaluasi geofence utk HP driver (locations.py) & device (gps.py).
+                             Keputusan: geofence tujuan = DITANDAI TIBA, bukan selesai (KM nyata
+                             tetap dari check-out odometer / POD).
 routers/documents.py         POST /doc-assets lewat media_store + terdaftar di Media Library
                              (INV-MEDIA-03); services/doc_layout.images membaca via media_store
                              (aset lama di uploads/docs tetap terbaca).
@@ -249,7 +252,8 @@ components/app/calendar/calendarCore.js          + STATUS_SHORT_EN, statusLabel(
 components/app/calendar/CalendarMonthGrid.jsx    + prop riskHint (dipakai ulang di halaman publik)
 features/app/DepartureCalendar.jsx               + tombol `dc-share-open` (owner/ops)
 features/public/PublicSchedule.jsx               BARU — halaman /schedule/:token (Daftar | Kalender)
-components/public/schedule/ScheduleAgenda.jsx    BARU — agenda per tanggal
+components/public/schedule/ScheduleTable.jsx     BARU — tabel keberangkatan (kolom ikut visibility) +
+                                                 kartu untuk layar < 640px; di bawah kalender
 components/public/schedule/ScheduleDetailDialog.jsx BARU — detail read-only (tanpa aksi)
 components/cms/SiteSettingsPanel.jsx             logo dipilih via MediaPickerDialog (INV-MEDIA-03)
 App.js                                           + route publik /schedule/:token
@@ -258,9 +262,27 @@ App.js                                           + route publik /schedule/:token
 **Guardrail/skrip**
 ```
 memory/INVARIANTS.md         DIPULIHKAN (hilang saat sinkron) — diturunkan dari Guard(...) tiap penjaga
-scripts/verify_state_machine.py  + SM5 geofence tiba tujuan = efek checkout
+scripts/verify_state_machine.py  + SM5 geofence tiba tujuan = ditandai tiba 1× (bukan selesai)
 scripts/guardrails/verify_auth_coverage.py  + allowlist GET /public/schedule/{token} (beralasan)
 scripts/guardrails/verify_rbac_runtime.py   + SECTION_PROBES 'documents' (None + alasan)
 scripts/guardrails/_common.py · verify_contract.py · validate_compliance.py · verify_schema.py ·
 verify_data_integrity.py (INV-22 lintas jenis) · seed_data.py — registrasi koleksi schedule_shares
+```
+
+**Ronde 2 (2026-10-28) — keputusan sesuai rekomendasi**
+```
+routers/inbox.py · services/crm.inbox_agents   GET /conversations/agents (peran section 'inbox' dari
+                                               SECTION_ACCESS: owner, ops_admin, marketing_admin) —
+                                               Inbox.jsx memakainya; PATCH assigned_to divalidasi.
+frontend/src/lib/tracking.js                   GTM + PostHog dipindah dari public/index.html: dimuat
+                                               HANYA dari situs publik, HANYA setelah consent, tidak
+                                               pernah di /app, /track/, /schedule/, /review/ atau URL
+                                               ber-?token=. dataLayer: page_view (SPA), view_item,
+                                               begin_checkout, generate_lead, cta_click (quotation/
+                                               booking/whatsapp/phone). Fix: page_view halaman pertama
+                                               utk pengunjung yg sudah setuju dulu tidak terkirim.
+                                               ID override: REACT_APP_GTM_ID / REACT_APP_POSTHOG_KEY.
+frontend/public/index.html                     snippet GTM/PostHog dihapus; lang="id".
+components/public/ConsentBanner.jsx            banner juga muncul bila hanya GTM/PostHog yang aktif.
+components/public/PublicLayout.jsx             tidak inisialisasi pelacakan di rute privat/bertoken.
 ```

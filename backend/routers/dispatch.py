@@ -24,6 +24,7 @@ from db import get_db
 from dependencies import require_section
 from schemas import AssignTripRequest
 from services import availability
+from services.trips import mark_trip_arrived
 from services.audit import record
 from services.events import emit
 from services.geocode import geocode
@@ -303,11 +304,10 @@ async def trip_enroute(trip_id: str, user=Depends(DISPATCH)):
 async def trip_arrived(trip_id: str, user=Depends(DISPATCH)):
     db = get_db()
     trip = await _trip_or_404(db, trip_id)
-    await db.trips.update_one({"id": trip_id}, {"$set": {"arrived_at": now_iso()}})
-    await _emit_trip_event(db, trip, "trip.arrived")
+    doc = await mark_trip_arrived(db, trip, user, source="dispatch")  # SSOT services/trips
     await record(db, actor=user, action="trip_arrived", entity_type="trip", entity_id=trip_id,
                  summary="Tiba di tujuan (WA ke pelanggan)")
-    return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
+    return doc
 
 
 @router.post("/dispatch/trips/{trip_id}/pod")

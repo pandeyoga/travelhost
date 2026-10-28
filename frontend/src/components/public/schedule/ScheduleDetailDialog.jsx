@@ -8,7 +8,7 @@ import Field from "@/components/app/calendar/DetailField";
 import { PaymentPill } from "@/components/shared/StatusPill";
 import { formatDateTime } from "@/utils/formatters";
 import { bi } from "@/lib/i18n";
-import { SchedulePill } from "./ScheduleAgenda";
+import { SchedulePill } from "./ScheduleTable";
 
 export default function ScheduleDetailDialog({ item, lang, onOpenChange }) {
   const it = item || {};

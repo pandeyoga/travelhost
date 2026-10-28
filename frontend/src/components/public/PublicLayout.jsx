@@ -9,7 +9,7 @@ import { syncLangFromUrl } from "@/lib/lang";
 import { t, bi } from "@/lib/i18n";
 import LanguageSwitch from "@/components/public/LanguageSwitch";
 import { captureAttribution } from "@/utils/attribution";
-import { initTracking, trackPageView } from "@/lib/tracking";
+import { initTracking, isPrivatePath, trackPageView } from "@/lib/tracking";
 import ConsentBanner from "@/components/public/ConsentBanner";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import ChatWidget from "@/components/public/ChatWidget";
@@ -100,7 +100,11 @@ function PublicShell() {
 
   // Pelacakan iklan: muat tag sekali (ID dari server, gerbang consent), lalu kirim
   // page_view MANUAL tiap perubahan URL (SPA tidak boleh menghitung ganda).
-  useEffect(() => { initTracking(); }, []);
+  // Halaman bertoken di dalam layout ini (/review/:token, /booking/status?token=) tidak
+  // memicu pemuatan tag pihak ketiga; inisialisasi terjadi di halaman publik biasa pertama.
+  useEffect(() => {
+    if (!isPrivatePath(location.pathname, location.search)) initTracking();
+  }, [location.pathname, location.search]);
   useEffect(() => {
     setMenuOpen(false); setMegaOpen(false); window.scrollTo(0, 0); captureAttribution();
     // CMS-06: `?lang=` pada URL yang dibagikan/di-crawl adalah sumber kebenaran tertinggi —

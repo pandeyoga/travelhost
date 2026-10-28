@@ -18,8 +18,7 @@ from db import get_db
 from dependencies import get_current_user
 from schemas import LocationCreate
 from services.geo import parse_iso, valid_coord
-from services.geofence import evaluate as evaluate_geofence
-from services.trips import apply_trip_status
+from services.trips import apply_geofence
 
 router = APIRouter(prefix="/api", tags=["locations"])
 
@@ -69,11 +68,8 @@ async def ingest_location(body: LocationCreate, user=Depends(get_current_user)):
     # Geofence auto-status: tiba pickup → on_trip; tiba tujuan → completed.
     geofence = None
     if trip:
-        event, new_status = evaluate_geofence(trip, float(body.lat), float(body.lng))
-        if new_status and new_status != trip.get("status"):
-            # Efek samping identik dgn perubahan status manual (RC-03, services/trips).
-            await apply_trip_status(db, trip, new_status, user)
-            geofence = {"event": event, "new_status": new_status}
+        # Pickup → on_trip (efek identik perubahan manual); tujuan → ditandai tiba (services/trips).
+        geofence = await apply_geofence(db, trip, float(body.lat), float(body.lng), user)
 
     out = safe_doc(doc)
     if geofence:

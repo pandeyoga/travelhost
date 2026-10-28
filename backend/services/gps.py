@@ -154,12 +154,8 @@ async def ingest_device(db, norm):
     geofence = None
     if trip:
         try:
-            from services.geofence import evaluate as evaluate_geofence
-            event, new_status = evaluate_geofence(trip, doc["lat"], doc["lng"])
-            if new_status and new_status != trip.get("status"):
-                from services.trips import apply_trip_status  # efek samping = jalur manual (RC-03)
-                await apply_trip_status(db, trip, new_status)
-                geofence = {"event": event, "new_status": new_status}
+            from services.trips import apply_geofence  # sama persis dgn ingest HP driver
+            geofence = await apply_geofence(db, trip, doc["lat"], doc["lng"])
         except Exception:  # noqa: BLE001 — geofence tak boleh gagalkan ingest
             geofence = None
 

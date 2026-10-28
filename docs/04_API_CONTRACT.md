@@ -74,6 +74,8 @@ POST /api/leads/{id}/activities ; POST /api/leads/{id}/convert ; GET /api/leads/
 GET/POST /api/broadcasts ; POST /api/broadcasts/{id}/send        (WA = SIMULASI)
 # TARGET (Inbox — BELUM diimplementasi; lihat plan.md §0.5-C):
 GET  /api/conversations ; GET /api/conversations/{id}/messages ; POST /api/conversations/{id}/messages
+GET  /api/conversations/agents  → [{id,name,role}] agen yang boleh di-assign (peran section 'inbox' dari
+                                  permissions_config.SECTION_ACCESS; PATCH assigned_to divalidasi ke daftar ini)
 GET/POST /api/notification-tasks
 ```
 ### Finance (IMPLEMENTED — Phase 5)

@@ -9,12 +9,26 @@
 //     menghitung ganda.
 //  4. `event_id` memakai ID BISNIS yang sama dengan konversi server-side (Meta men-dedup
 //     browser<->server dalam 48 jam).
+//  5. Google Tag Manager & PostHog (2026-10-28) dulu ditempel di public/index.html → termuat di
+//     SEMUA halaman (termasuk ERP /app & halaman bertoken /schedule/:token, /track/:token yang
+//     URL-nya memuat token rahasia) dan SEBELUM pengunjung setuju. Kini dimuat dari sini:
+//     hanya dari situs publik, hanya setelah consent, tidak pernah di rute privat. Event
+//     konversi & page_view SPA ikut dikirim ke `dataLayer` agar bisa dipakai trigger GTM.
 import apiClient from "@/services/apiClient";
+
+const GTM_ID = (process.env.REACT_APP_GTM_ID ?? "GTM-M3CZCBPR").trim();
+const POSTHOG_KEY = (process.env.REACT_APP_POSTHOG_KEY ?? "phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs").trim();
+const POSTHOG_HOST = "https://us.i.posthog.com";
+// Rute yang TIDAK boleh dilacak: ERP internal + halaman publik bertoken (token di URL = rahasia).
+const PRIVATE_PREFIXES = ["/app", "/track/", "/schedule/", "/review/"];
 
 const CONSENT_KEY = "tf_tracking_consent"; // "granted" | "denied"
 let cfg = null;
 let metaLoaded = false;
 let googleLoaded = false;
+let gtmLoaded = false;
+let posthogLoaded = false;
+let ctaInstalled = false;
 let lastPath = "";
 const readyListeners = new Set();
 
@@ -31,6 +45,23 @@ function notifyReady() {
   readyListeners.forEach((fn) => {
     try { fn(trackingStatus()); } catch { /* jangan rusak render karena listener */ }
   });
+}
+
+/** True untuk ERP (/app) dan halaman bertoken — pelacakan pihak ketiga tidak dijalankan di sana. */
+export function isPrivatePath(pathname = "", search = "") {
+  const p = String(pathname || "");
+  if (PRIVATE_PREFIXES.some((x) => (x.endsWith("/") ? p.startsWith(x) : p === x || p.startsWith(`${x}/`)))) return true;
+  return /[?&]token=/.test(String(search || ""));
+}
+
+const onPrivatePage = () => typeof window === "undefined"
+  || isPrivatePath(window.location.pathname, window.location.search);
+
+/** Event untuk trigger GTM (objek `{event: ...}` — format yang dibaca GTM, beda dari gtag()). */
+function dlPush(obj) {
+  if (!gtmLoaded || typeof window === "undefined") return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push(obj);
 }
 
 export function getConsent() {
@@ -107,14 +138,72 @@ function loadMeta(m) {
   metaLoaded = true;
 }
 
+function loadGtm() {
+  if (gtmLoaded || !GTM_ID || onPrivatePage()) return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ "gtm.start": Date.now(), event: "gtm.js" });
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(GTM_ID)}`;
+  document.head.appendChild(s);
+  gtmLoaded = true;
+}
+
+function loadPosthog() {
+  if (!POSTHOG_KEY || onPrivatePage()) return;
+  if (posthogLoaded) { window.posthog?.opt_in_capturing?.(); return; }
+  /* eslint-disable */
+  // Snippet resmi PostHog (dipindah apa adanya dari public/index.html).
+  !(function (t, e) { var o, n, p, r; e.__SV || ((window.posthog = e), (e._i = []), (e.init = function (i, s, a) { function g(t, e) { var o = e.split("."); 2 == o.length && ((t = t[o[0]]), (e = o[1])), (t[e] = function () { t.push([e].concat(Array.prototype.slice.call(arguments, 0))); }); } ((p = t.createElement("script")).type = "text/javascript"), (p.crossOrigin = "anonymous"), (p.async = !0), (p.src = s.api_host.replace(".i.posthog.com", "-assets.i.posthog.com") + "/static/array.js"), (r = t.getElementsByTagName("script")[0]).parentNode.insertBefore(p, r); var u = e; for (void 0 !== a ? (u = e[a] = []) : (a = "posthog"), u.people = u.people || [], u.toString = function (t) { var e = "posthog"; return "posthog" !== a && (e += "." + a), t || (e += " (stub)"), e; }, u.people.toString = function () { return u.toString(1) + ".people (stub)"; }, o = "init capture register register_once unregister identify alias reset opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing set_config startSessionRecording stopSessionRecording get_distinct_id getFeatureFlag isFeatureEnabled onFeatureFlags reloadFeatureFlags group".split(" "), n = 0; n < o.length; n++) g(u, o[n]); e._i.push([i, s, a]); }), (e.__SV = 1)); })(document, window.posthog || []);
+  /* eslint-enable */
+  window.posthog.init(POSTHOG_KEY, {
+    api_host: POSTHOG_HOST,
+    person_profiles: "identified_only",
+    // page_view dikirim manual per perubahan URL (trackPageView) — SPA tidak dihitung ganda.
+    capture_pageview: false,
+    session_recording: { recordCrossOriginIframes: true, capturePerformance: false },
+  });
+  posthogLoaded = true;
+}
+
+/** Klik tombol konversi di mana pun di situs publik → `cta_click` (tanpa menyentuh tiap komponen). */
+function ctaKind(href) {
+  const h = String(href || "");
+  if (/^\/quotation|\/booking\/permintaan/.test(h)) return "quotation";
+  if (/^\/booking(\?|$|\/?$)/.test(h)) return "booking";
+  if (/wa\.me|api\.whatsapp\.com|whatsapp:/.test(h)) return "whatsapp";
+  if (/^tel:/.test(h)) return "phone";
+  return "";
+}
+
+function installCtaTracking() {
+  if (ctaInstalled || typeof document === "undefined") return;
+  ctaInstalled = true;
+  document.addEventListener("click", (e) => {
+    if (!gtmLoaded || onPrivatePage()) return;
+    const a = e.target?.closest?.("a[href]");
+    if (!a) return;
+    const raw = a.getAttribute("href") || "";
+    const kind = ctaKind(raw.startsWith("http") && raw.includes(window.location.host) ? new URL(raw).pathname : raw);
+    if (!kind) return;
+    dlPush({
+      event: "cta_click", cta_type: kind, cta_text: (a.textContent || "").trim().slice(0, 80),
+      page_path: window.location.pathname,
+    });
+  }, true);
+}
+
 function activate() {
-  if (!cfg || !hasConsent()) return;
-  loadMeta(cfg.meta);
-  loadGoogle(cfg.google);
+  if (!cfg || !hasConsent() || onPrivatePage()) return;
   gtag("consent", "update", {
     ad_storage: "granted", analytics_storage: "granted",
     ad_user_data: "granted", ad_personalization: "granted",
   });
+  loadMeta(cfg.meta);
+  loadGoogle(cfg.google);
+  loadGtm();
+  loadPosthog();
+  installCtaTracking();
 }
 
 /** Dipanggil sekali dari PublicLayout. Aman bila kredensial belum diisi (mode MOCK). */
@@ -132,6 +221,9 @@ export async function initTracking() {
   }
   activate();
   notifyReady();
+  // Pengunjung yang SUDAH setuju sebelumnya: page_view halaman pertama dulu hilang karena
+  // trackPageView() jalan sebelum tag termuat (konfigurasi diambil async). Kirim ulang di sini.
+  if (hasConsent() && !onPrivatePage()) trackPageView(window.location.pathname + window.location.search, true);
   return cfg;
 }
 
@@ -144,6 +236,7 @@ export function grantConsent() {
 
 export function denyConsent() {
   try { localStorage.setItem(CONSENT_KEY, "denied"); } catch { /* private mode */ }
+  window.posthog?.opt_out_capturing?.();
   gtag("consent", "update", {
     ad_storage: "denied", analytics_storage: "denied",
     ad_user_data: "denied", ad_personalization: "denied",
@@ -154,6 +247,7 @@ export function trackingStatus() {
   return {
     consent: getConsent(),
     meta: !!(cfg?.meta?.enabled), google: !!(cfg?.google?.enabled),
+    gtm: Boolean(GTM_ID), posthog: Boolean(POSTHOG_KEY),
     requireConsent: cfg?.consent?.require_consent !== false,
     bannerEnabled: cfg?.consent?.banner_enabled !== false,
     bannerText: cfg?.consent?.banner_text || "",
@@ -164,7 +258,8 @@ export function trackingStatus() {
 
 /** page_view manual: satu kali per URL (cegah hitung ganda di SPA). */
 export function trackPageView(path, force = false) {
-  if (!hasConsent()) return;
+  const [pathname, query] = String(path || "").split("?");
+  if (!hasConsent() || isPrivatePath(pathname, query ? `?${query}` : "")) return;
   if (!force && path === lastPath) return;
   lastPath = path;
   if (metaLoaded) window.fbq?.("track", "PageView");
@@ -173,6 +268,8 @@ export function trackPageView(path, force = false) {
       page_location: window.location.href, page_path: path, page_title: document.title,
     });
   }
+  dlPush({ event: "page_view", page_path: path, page_location: window.location.href, page_title: document.title });
+  if (posthogLoaded) window.posthog?.capture?.("$pageview");
 }
 
 const seenItems = new Set();
@@ -191,12 +288,12 @@ export function trackViewItem({ id, name, value = 0, category = "armada" }) {
       content_category: category, value: Number(value) || 0, currency: "IDR",
     });
   }
+  const items = [{ item_id: id, item_name: name, item_category: category, price: Number(value) || 0, quantity: 1 }];
   if (googleLoaded) {
-    window.gtag?.("event", "view_item", {
-      currency: "IDR", value: Number(value) || 0,
-      items: [{ item_id: id, item_name: name, item_category: category, price: Number(value) || 0, quantity: 1 }],
-    });
+    window.gtag?.("event", "view_item", { currency: "IDR", value: Number(value) || 0, items });
   }
+  dlPush({ ecommerce: null });
+  dlPush({ event: "view_item", ecommerce: { currency: "IDR", value: Number(value) || 0, items } });
 }
 
 /** Mulai isi formulir pemesanan (begin_checkout / InitiateCheckout). */
@@ -204,6 +301,8 @@ export function trackBeginCheckout({ value = 0, items = [] } = {}) {
   if (!hasConsent()) return;
   if (metaLoaded) window.fbq?.("track", "InitiateCheckout", { value: Number(value) || 0, currency: "IDR" });
   if (googleLoaded) window.gtag?.("event", "begin_checkout", { currency: "IDR", value: Number(value) || 0, items });
+  dlPush({ ecommerce: null });
+  dlPush({ event: "begin_checkout", ecommerce: { currency: "IDR", value: Number(value) || 0, items } });
 }
 
 /**
@@ -225,4 +324,5 @@ export function trackLead({ eventKey, value = 0, source = "form" }) {
       });
     }
   }
+  dlPush({ event: "generate_lead", lead_id: eventKey || "", lead_source: source, value: Number(value) || 0, currency: "IDR" });
 }

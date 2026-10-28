@@ -13,6 +13,7 @@ from db import get_db
 from services.refs import must_exist
 from dependencies import require_section
 from schemas import ConversationCreate, ConversationUpdate, MessageCreate
+from services.crm import inbox_agents
 from services.geo import parse_iso
 
 router = APIRouter(prefix="/api", tags=["inbox"])
@@ -83,6 +84,12 @@ async def create_conversation(body: ConversationCreate, user=Depends(CRM)):
     return _enrich(await db.conversations.find_one({"id": doc["id"]}, {"_id": 0}), await _users_map(db))
 
 
+@router.get("/conversations/agents")
+async def conversation_agents(user=Depends(CRM)):
+    """Pilihan 'assign agen' Inbox (services/crm.inbox_agents) — literal sebelum /{id}."""
+    return safe_doc(await inbox_agents(get_db()))
+
+
 @router.get("/conversations/{conversation_id}")
 async def get_conversation(conversation_id: str, user=Depends(CRM)):
     db = get_db()
@@ -111,8 +118,8 @@ async def update_conversation(conversation_id: str, body: ConversationUpdate, us
         updates["status"] = body.status
     if body.assigned_to is not None:
         target = body.assigned_to or None
-        if target and not await db.users.find_one({"id": target}, {"_id": 1}):
-            raise HTTPException(status_code=400, detail="Agen tidak ditemukan")
+        if target and target not in {a["id"] for a in await inbox_agents(db)}:
+            raise HTTPException(status_code=400, detail="Agen tidak ditemukan atau tidak punya akses Inbox")
         updates["assigned_to"] = target
     if body.snooze_until is not None:
         updates["snooze_until"] = body.snooze_until

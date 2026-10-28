@@ -52,7 +52,7 @@ DP/pelunasan, expenses, Laba-Rugi per trip & bulanan, AR/piutang, invoice, expor
 **Exit:** invarian profit & pembayaran lulus; export berfungsi; testing agent.
 
 ## PHASE 6 — GPS lengkap + Maintenance · ~40 mnt · **COMPLETED ✅**
-Live fleet map semua unit + indikator stale/offline, histori track lintas-trip, geofence auto-status (tiba pickup/tujuan), reminder KIR/pajak/servis (H-30/14/7) + window perawatan blok booking (INV-21), share-link korporat (token+expiry+revoke) + halaman publik `/track/:token`, adapter Maps (OSRM default, Google stub siap).
+Live fleet map semua unit + indikator stale/offline, histori track lintas-trip, geofence auto-status (tiba pickup → on_trip; tiba tujuan → ditandai tiba + WA, penyelesaian tetap via check-out odometer/POD — 2026-10-28), reminder KIR/pajak/servis (H-30/14/7) + window perawatan blok booking (INV-21), share-link korporat (token+expiry+revoke) + halaman publik `/track/:token`, adapter Maps (OSRM default, Google stub siap).
 **Exit:** ✅ alur penuh booking→assign→tracking→complete→report; gate HIJAU 10/10; `verify_delivery` Phase 6 10/10 P0 (0 orphan); INV-21/22 PASS; `testing_agent_v3` Backend 97.5% (0 bug nyata) · Frontend 100%.
 
 ---

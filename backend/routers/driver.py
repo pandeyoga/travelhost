@@ -26,7 +26,7 @@ from dependencies import require_section
 from schemas import CheckinRequest
 from services.audit import record
 from services.events import emit
-from services.trips import compute_distance
+from services.trips import compute_distance, mark_trip_arrived
 
 router = APIRouter(prefix="/api", tags=["driver"])
 # RBAC-SECT-01: seluruh permukaan Ruang Kerja Driver lewat pintu section `driver-workspace`
@@ -258,12 +258,10 @@ async def arrived_task(trip_id: str, user=Depends(WORKSPACE)):
     if not is_manager and not drv:
         raise HTTPException(status_code=403, detail="Akun Anda belum tertaut ke data driver")
     trip = await _owned_trip(db, trip_id, drv, manager=is_manager)
-    await db.trips.update_one({"id": trip_id}, {"$set": {"arrived_at": now_iso()}})
-    if trip.get("booking_id"):
-        await _emit_trip(db, trip["booking_id"], "trip.arrived")
+    doc = await mark_trip_arrived(db, trip, user, source="driver")  # SSOT services/trips
     await record(db, actor=user, action="trip_arrived", entity_type="trip", entity_id=trip_id,
                  summary="Driver tiba di tujuan (WA ke pelanggan)")
-    return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
+    return doc
 
 
 @router.post("/driver/tasks/{trip_id}/pod")

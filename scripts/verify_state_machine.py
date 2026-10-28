@@ -7,7 +7,7 @@ ke baseline. Bug kelas ini lolos gate lama karena gate lama menguji clean-seed+h
 Cek:
   SM1 (RC-04) assign→cancel : trip terkait → cancelled & armada dibebaskan (available).
   SM2 (RC-03) /trips/{id}/status=completed : efek identik checkout (booking completed, armada bebas).
-  SM5 (RC-03) geofence tiba tujuan (POST /locations) : efek identik checkout (booking completed + event).
+  SM5 (RC-03) geofence tiba tujuan (POST /locations) : ditandai tiba sekali (arrived_at + WA), bukan selesai.
   SM3 (RC-02) complete tanpa lunas : payment_status ∈ {dp,belum_bayar} & TETAP muncul di AR (jujur).
   SM4 (RC-05) pembayaran ke booking cancelled : DITOLAK (400).
 
@@ -137,9 +137,10 @@ async def main():
         else:
             skip(f"SM2 buat booking → {sc}")
 
-        # ---- SM5 (RC-03): geofence "tiba tujuan" = efek checkout (bukan sekadar status trip) ----
-        # Bug nyata (2026-10-28): ingest lokasi menulis trip.status=completed sendiri → booking
-        # tetap 'confirmed', tanpa event trip.completed (WA + ulasan), driver tetap online.
+        # ---- SM5 (RC-03): geofence "tiba tujuan" = DITANDAI TIBA (bukan selesai), sekali saja ----
+        # Riwayat: geofence dulu menulis trip.status=completed sendiri (booking tetap 'confirmed',
+        # tanpa trip.completed). Keputusan 2026-10-28: tujuan → arrived_at + WA trip.arrived,
+        # status tetap on_trip; penyelesaian tetap lewat check-out odometer / POD (KM nyata).
         sc, b5 = await mk(v2, "2028-04-10T08:00:00+00:00", "2028-04-11T08:00:00+00:00")
         if sc == 200:
             r = await c.post(f"{API}/api/dispatch/{b5['id']}/assign", headers=H,
@@ -149,17 +150,21 @@ async def main():
                 CREATED["trips"].append(tid5)
                 await c.post(f"{API}/api/trips/{tid5}/status", headers=H, json={"status": "on_trip"})
                 DBC.trips.update_one({"id": tid5}, {"$set": {"dest_lat": -7.9425, "dest_lng": 112.9530}})
-                rl = await c.post(f"{API}/api/locations", headers=H,
-                                  json={"trip_id": tid5, "lat": -7.9425, "lng": 112.9530, "speed": 0})
+                ping = {"trip_id": tid5, "lat": -7.9425, "lng": 112.9530, "speed": 0}
+                rl = await c.post(f"{API}/api/locations", headers=H, json=ping)
+                await c.post(f"{API}/api/locations", headers=H, json=ping)  # ping ke-2 di radius sama
                 bk5 = DBC.bookings.find_one({"id": b5["id"]}, {"_id": 0, "status": 1}) or {}
-                tr5 = DBC.trips.find_one({"id": tid5}, {"_id": 0, "status": 1}) or {}
-                evt = DBC.events.count_documents({"type": "trip.completed", "ref_id": b5["id"]})
+                tr5 = DBC.trips.find_one({"id": tid5}, {"_id": 0, "status": 1, "arrived_at": 1}) or {}
+                arrived_evt = DBC.events.count_documents({"type": "trip.arrived", "ref_id": b5["id"]})
                 geo = (rl.json() or {}).get("geofence") if rl.status_code == 200 else None
-                if geo and tr5.get("status") == "completed" and bk5.get("status") == "completed" and evt == 1:
-                    ok("SM5 (RC-03) geofence tiba tujuan → trip & booking completed + event trip.completed.")
+                if (geo and geo.get("arrived") and tr5.get("status") == "on_trip" and tr5.get("arrived_at")
+                        and bk5.get("status") == "confirmed" and arrived_evt == 1):
+                    ok("SM5 (RC-03) geofence tiba tujuan → ditandai tiba (on_trip + arrived_at), "
+                       "WA trip.arrived 1×, booking belum diselesaikan.")
                 else:
-                    fail(f"SM5 (RC-03) geofence split-brain: http={rl.status_code}, geofence={geo}, "
-                         f"trip={tr5.get('status')}, booking={bk5.get('status')}, trip.completed={evt}")
+                    fail(f"SM5 (RC-03) geofence tujuan salah: http={rl.status_code}, geofence={geo}, "
+                         f"trip={tr5.get('status')}/{tr5.get('arrived_at')}, booking={bk5.get('status')}, "
+                         f"trip.arrived={arrived_evt} (harus on_trip+arrived_at, confirmed, 1×)")
             else:
                 skip(f"SM5 assign → {r.status_code}")
         else:

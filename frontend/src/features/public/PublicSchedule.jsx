@@ -2,19 +2,20 @@
 //
 // Read-only by design: tidak ada tombol aksi; data & field yang tampil ditentukan backend
 // (GET /api/public/schedule/:token → services/schedule_share.public_departure allowlist).
-// Tampilan Kalender memakai ulang grid bulan ERP (CalendarMonthGrid) tanpa lapisan risiko.
+// Tata letak: KALENDER bulan di atas (grid ERP CalendarMonthGrid dipakai ulang, tanpa lapisan
+// risiko) lalu TABEL keberangkatan di bawahnya (ikut bulan kalender / tanggal terpilih / semua).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, List, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react";
 import apiClient from "@/services/apiClient";
 import { Logo } from "@/components/public/Logo";
 import LanguageSwitch from "@/components/public/LanguageSwitch";
 import SelectField from "@/components/shared/SelectField";
 import CalendarMonthGrid from "@/components/app/calendar/CalendarMonthGrid";
 import {
-  MONTHS, STATUS_TONE, TONE_DOT, buildGrid, dayKey, dayKeyOfIso,
+  MONTHS, STATUS_TONE, TONE_DOT, buildGrid, dayKey, dayKeyOfIso, ymOf,
 } from "@/components/app/calendar/calendarCore";
-import ScheduleAgenda, { dayTitle } from "@/components/public/schedule/ScheduleAgenda";
+import ScheduleTable, { dayTitle } from "@/components/public/schedule/ScheduleTable";
 import ScheduleDetailDialog from "@/components/public/schedule/ScheduleDetailDialog";
 import { formatDateTime, formatQty } from "@/utils/formatters";
 import { useLangValue } from "@/hooks/useLang";
@@ -48,7 +49,7 @@ export default function PublicSchedule() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [company, setCompany] = useState({});
-  const [view, setView] = useState("list");
+  const [tableScope, setTableScope] = useState("month"); // month | all
   const [query, setQuery] = useState("");
   const [vehicle, setVehicle] = useState("all");
   const [selected, setSelected] = useState(null);
@@ -112,8 +113,17 @@ export default function PublicSchedule() {
   const cells = useMemo(() => (viewDate ? buildGrid(viewDate) : []), [viewDate]);
   const monthLabel = viewDate ? `${(lang === "en" ? MONTHS_EN : MONTHS)[viewDate.getMonth()]} ${viewDate.getFullYear()}` : "";
   const stepMonth = (d) => { setViewDate((v) => new Date(v.getFullYear(), v.getMonth() + d, 1)); setSelectedDay(null); };
+  const gotoToday = () => { setViewDate(new Date()); setSelectedDay(null); };
   const openRef = (ref) => setSelected(items.find((i) => i.ref === ref) || null);
-  const dayItems = selectedDay ? filtered.filter((i) => dayKeyOfIso(i.start_datetime) === selectedDay) : [];
+
+  const viewYm = viewDate ? ymOf(viewDate) : "";
+  const tableItems = useMemo(() => {
+    if (selectedDay) return filtered.filter((i) => dayKeyOfIso(i.start_datetime) === selectedDay);
+    if (tableScope === "month") return filtered.filter((i) => (dayKeyOfIso(i.start_datetime) || "").startsWith(viewYm));
+    return filtered;
+  }, [filtered, selectedDay, tableScope, viewYm]);
+  const tableLabel = selectedDay ? dayTitle(selectedDay, lang)
+    : tableScope === "month" ? monthLabel : bi("Semua periode tautan", "Whole link period", lang);
 
   const errorText = error ? (lang === "en" ? ERROR_EN[error.code] || "The schedule link is unavailable." : error.detail) : "";
 
@@ -130,7 +140,7 @@ export default function PublicSchedule() {
         <LanguageSwitch />
       </header>
 
-      <main className="mx-auto max-w-4xl space-y-4 p-4">
+      <main className="mx-auto max-w-5xl space-y-4 p-4">
         {loading ? (
           <div className="rounded-[14px] border border-[#EFF0F2] bg-white p-10 text-center text-[13px] text-[#8E8E93]" data-testid="public-schedule-loading">
             {bi("Memuat jadwal…", "Loading schedule…", lang)}
@@ -170,58 +180,74 @@ export default function PublicSchedule() {
               </div>
             </section>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="relative">
-                  <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8E8E93]" />
-                  <input value={query} onChange={(e) => setQuery(e.target.value)} data-testid="public-schedule-search"
-                    placeholder={bi("Cari kode / rute / armada…", "Search code / route / vehicle…", lang)}
-                    aria-label={bi("Cari jadwal", "Search schedule", lang)}
-                    className="h-9 w-[230px] rounded-lg border border-[#E5E5EA] bg-white pl-8 pr-3 text-[13px] outline-none focus:border-[#007AFF]" />
-                </label>
-                {vehicleNames.length > 1 ? (
-                  <SelectField value={vehicle} onChange={setVehicle} testId="public-schedule-vehicle" className="w-[180px]"
-                    ariaLabel={bi("Saring armada", "Filter vehicle", lang)}
-                    options={[{ value: "all", label: bi("Semua armada", "All vehicles", lang) }, ...vehicleNames.map((n) => ({ value: n, label: n }))]} />
-                ) : null}
-              </div>
-              <div className="inline-flex self-start rounded-lg border border-[#E5E5EA] bg-white p-0.5" data-testid="public-schedule-view">
-                {[{ v: "list", l: bi("Daftar", "List", lang), I: List }, { v: "calendar", l: bi("Kalender", "Calendar", lang), I: LayoutGrid }].map((o) => (
-                  <button key={o.v} onClick={() => setView(o.v)} data-testid={`public-schedule-view-${o.v}`}
-                    className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-semibold ${view === o.v ? "bg-[#EAF2FF] text-[#0058CC]" : "text-[#6B6B73]"}`}>
-                    <o.I size={13} /> {o.l}
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-2" data-testid="public-schedule-filters">
+              <label className="relative">
+                <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8E8E93]" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} data-testid="public-schedule-search"
+                  placeholder={bi("Cari kode / rute / armada…", "Search code / route / vehicle…", lang)}
+                  aria-label={bi("Cari jadwal", "Search schedule", lang)}
+                  className="h-9 w-[230px] rounded-lg border border-[#E5E5EA] bg-white pl-8 pr-3 text-[13px] outline-none focus:border-[#007AFF]" />
+              </label>
+              {vehicleNames.length > 1 ? (
+                <SelectField value={vehicle} onChange={setVehicle} testId="public-schedule-vehicle" className="w-[180px]"
+                  ariaLabel={bi("Saring armada", "Filter vehicle", lang)}
+                  options={[{ value: "all", label: bi("Semua armada", "All vehicles", lang) }, ...vehicleNames.map((n) => ({ value: n, label: n }))]} />
+              ) : null}
             </div>
 
-            {view === "list" ? (
-              <ScheduleAgenda items={filtered} lang={lang} todayKey={todayKey} onOpen={setSelected}
-                emptyText={items.length ? bi("Tidak ada jadwal yang cocok dengan pencarian.", "No departures match your search.", lang)
-                  : bi("Belum ada keberangkatan pada periode ini.", "There are no departures in this period yet.", lang)} />
-            ) : viewDate ? (
+            {/* ATAS: kalender bulan (grid ERP dipakai ulang, tanpa lapisan risiko). Klik tanggal = saring tabel. */}
+            {viewDate ? (
               <section className="space-y-3 rounded-[14px] border border-[#EFF0F2] bg-white p-3 shadow-sm sm:p-4" data-testid="public-schedule-calendar">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <button className="icon-button !h-8 !w-8" onClick={() => stepMonth(-1)} aria-label={bi("Bulan sebelumnya", "Previous month", lang)} data-testid="public-schedule-prev"><ChevronLeft size={15} /></button>
-                  <span className="text-[14px] font-bold text-[#1C1C1E]" data-testid="public-schedule-month">{monthLabel}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[14px] font-bold text-[#1C1C1E]" data-testid="public-schedule-month">{monthLabel}</span>
+                    <button className="secondary-button !h-7 !px-2 !text-[11.5px]" onClick={gotoToday} data-testid="public-schedule-today">{bi("Hari ini", "Today", lang)}</button>
+                  </div>
                   <button className="icon-button !h-8 !w-8" onClick={() => stepMonth(1)} aria-label={bi("Bulan berikutnya", "Next month", lang)} data-testid="public-schedule-next"><ChevronRight size={15} /></button>
                 </div>
-                <div className="overflow-x-auto">
-                  <div className="min-w-[560px]">
+                <div className="-mx-1 sm:mx-0">
+                  <div>
                     <CalendarMonthGrid cells={cells} viewDate={viewDate} byDay={byDay} selectedDay={selectedDay} todayKey={todayKey}
                       colorMode="status" colorOf={(e) => TONE_DOT[STATUS_TONE[e.status] || "neutral"]} riskOf={() => null}
-                      onSelectDay={setSelectedDay} onOpenEvent={(dk, ref) => openRef(ref)} loading={false}
-                      total={cells.reduce((n, c) => n + (byDay[dayKey(c)]?.length || 0), 0)} riskHint={false} />
+                      onSelectDay={(dk) => setSelectedDay((cur) => (cur === dk ? null : dk))} onOpenEvent={(dk, ref) => openRef(ref)}
+                      loading={false} total={cells.reduce((n, c) => n + (byDay[dayKey(c)]?.length || 0), 0)} riskHint={false} />
                   </div>
                 </div>
-                {selectedDay ? (
-                  <div className="border-t border-[#F0F1F3] pt-3" data-testid="public-schedule-dayview">
-                    <ScheduleAgenda items={dayItems} lang={lang} todayKey={todayKey} onOpen={setSelected}
-                      emptyText={`${dayTitle(selectedDay, lang)} — ${bi("tidak ada keberangkatan.", "no departures.", lang)}`} />
-                  </div>
-                ) : null}
               </section>
             ) : null}
+
+            {/* BAWAH: tabel keberangkatan — mengikuti bulan kalender / tanggal terpilih / semua periode. */}
+            <section className="overflow-hidden rounded-[14px] border border-[#EFF0F2] bg-white shadow-sm" data-testid="public-schedule-table-section">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EFF0F2] px-4 py-3">
+                <div className="min-w-0">
+                  <h2 className="text-[14px] font-bold text-[#1C1C1E]">{bi("Daftar Keberangkatan", "Departure List", lang)}</h2>
+                  <p className="text-[12px] text-[#6B6B73]" data-testid="public-schedule-table-label">
+                    {tableLabel} · {formatQty(tableItems.length)} {bi("keberangkatan", "departures", lang)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedDay ? (
+                    <button className="secondary-button !h-8 !text-[12px]" onClick={() => setSelectedDay(null)} data-testid="public-schedule-clear-day">
+                      <X size={13} /> {bi("Hapus pilihan tanggal", "Clear date", lang)}
+                    </button>
+                  ) : (
+                    <div className="inline-flex rounded-lg border border-[#E5E5EA] bg-white p-0.5" data-testid="public-schedule-scope">
+                      {[{ v: "month", l: monthLabel }, { v: "all", l: bi("Semua periode", "Whole period", lang) }].map((o) => (
+                        <button key={o.v} onClick={() => setTableScope(o.v)} data-testid={`public-schedule-scope-${o.v}`}
+                          className={`rounded-md px-2.5 py-1 text-[12px] font-semibold ${tableScope === o.v ? "bg-[#EAF2FF] text-[#0058CC]" : "text-[#6B6B73]"}`}>
+                          {o.l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <ScheduleTable items={tableItems} lang={lang} visibility={data.visibility || {}} todayKey={todayKey} onOpen={setSelected}
+                emptyText={!items.length ? bi("Belum ada keberangkatan pada periode ini.", "There are no departures in this period yet.", lang)
+                  : selectedDay ? `${dayTitle(selectedDay, lang)} — ${bi("tidak ada keberangkatan.", "no departures.", lang)}`
+                    : bi("Tidak ada jadwal yang cocok.", "No matching departures.", lang)} />
+            </section>
 
             <p className="text-center text-[11px] text-[#A0A0A8]" data-testid="public-schedule-footer">
               {bi("Diperbarui", "Updated", lang)} {formatDateTime(data.generated_at)} · {data.expires_at

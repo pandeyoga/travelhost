@@ -26,7 +26,7 @@ from services import booking_search as bs
 from services.audit import record
 from services.availability import (find_conflicts, find_maintenance_conflicts, vehicle_lock)
 from services.events import emit
-from services.pricing import get_dp_percent
+from services.pricing import get_dp_percent, get_pricing_rules
 
 router = APIRouter(prefix="/api", tags=["booking-admin"])
 FIN = require_section("finance")            # verifikasi uang = permukaan keuangan
@@ -157,18 +157,18 @@ async def approve_hold(booking_id: str, body: ApproveHoldRequest, user=Depends(M
         raise HTTPException(status_code=400, detail="Armada tidak ditemukan")
     start_iso, end_iso = booking.get("start_datetime"), booking.get("end_datetime")
     total = money(booking.get("total_amount"))
+    price_set, drop_promo = {}, ""
     if body.recompute_price is not False or total <= 0:
-        route = None
-        if booking.get("route_id"):
-            route = await db.transfer_routes.find_one({"id": booking["route_id"]}, {"_id": 0})
-        quote = await bs.quote_for_vehicle(
-            db, vehicle, start_iso=start_iso, end_iso=end_iso,
-            service=booking.get("service") or "daily_rental", route=route)
-        if quote:
-            total = money(quote["total"])
-    dp_percent = int(money(booking.get("dp_percent")) or await get_dp_percent(db))
+        price_set, drop_promo = await bs.repriced_fields(db, booking, vehicle)
+        total = price_set.get("total_amount", total)
+    if not price_set:  # harga dipertahankan — tetap jaga INV-1 (base = total − Σ add-on)
+        price_set = {"total_amount": total, "base_price": total - sum(
+            money(a.get("amount")) for a in booking.get("add_ons") or [])}
+    dp_percent = booking.get("dp_percent")
+    dp_percent = await get_dp_percent(db) if dp_percent is None else dp_percent
     hold = bf.hold_fields(total=total, dp_percent=dp_percent,
-                         hold_hours=body.hold_hours or flow["approval_hold_hours"])
+                         hold_hours=body.hold_hours or flow["approval_hold_hours"],
+                         rounding=(await get_pricing_rules(db)).get("rounding"))
     async with vehicle_lock(db, vehicle_id):
         conflicts = await find_conflicts(db, vehicle_id, start_iso, end_iso, exclude_id=booking_id)
         if conflicts:
@@ -184,11 +184,13 @@ async def approve_hold(booking_id: str, body: ApproveHoldRequest, user=Depends(M
             {"$set": {"status": "hold", "vehicle_id": vehicle_id,
                       "vehicle_name": vehicle.get("name"),
                       "requested_vehicle_type": vehicle.get("type"),
-                      "base_price": total, "total_amount": total,
                       "approved_at": now_iso(), "approved_by": user.get("email") or user.get("id"),
-                      **hold}})
+                      **price_set, **hold}})
     if not updated:
         raise HTTPException(status_code=400, detail="Status permintaan sudah berubah — muat ulang")
+    if drop_promo:  # promo tak berlaku utk unit pengganti → kuotanya dikembalikan
+        from services import promos as promo_svc
+        await promo_svc.release(db, drop_promo)
     fresh = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     await record(db, actor=user, action="approve", entity_type="booking", entity_id=booking_id,
                  summary=f"Setujui permintaan web {booking.get('code')} → hold DP "

@@ -538,3 +538,32 @@ GET    /api/public/schedule/{token}  → {label, scope, period_label, period{sta
 ```
 Field bertanda `?` hanya muncul bila diizinkan `visibility`. Nominal uang, kontak pelanggan, dan ID
 internal TIDAK PERNAH dikirim. Halaman FE: `/schedule/:token` (`features/public/PublicSchedule.jsx`).
+
+## 9. PERBAIKAN AUDIT FLOW PEMBELIAN · HARGA · ARMADA · KEUANGAN (2026-10-28)
+```
+# Input angka: SEMUA model request (schemas.APIModel) menolak Infinity/NaN & |angka| > 10 triliun
+#   → 422 (dulu 500 OverflowError). PATCH /settings pricing_* menolak non-finite → 400.
+POST /api/bookings/{id}/reschedule   + body `reprice` (bool, default true): harga dihitung ULANG utk
+                                     tanggal/armada baru (add-on & promo dipertahankan; promo gugur →
+                                     kuota dikembalikan); false = harga lama. Total baru < terbayar → 400.
+POST /api/bookings/{id}/confirm      hanya dari pending|hold (confirmed → 200 idempotent; lainnya 400)
+POST /api/bookings/{id}/cancel       CAS: cancel paralel → refund/denda diposting SEKALI; invoice
+                                     terbuka (draft|sent|partial) booking → void; invoice denda berstatus
+                                     jujur (paid hanya bila terbayar − refund ≥ denda)
+GET  /api/invoices                   + `next_status[]` per invoice = transisi manual sah
+PATCH /api/invoices/{id}             status manual: draft→sent|void · sent→draft|void · partial→void ·
+                                     void→draft (booking tidak batal). paid/partial TIDAK manual (ikut
+                                     pembayaran); invoice lunas terkunci. amount ≤ subtotal − paid_before.
+POST /api/invoices                   amount (override) ≤ sisa tagihan; DP pakai booking.dp_percent (0 sah)
+GET  /api/reports/summary?period=YYYY-MM  KPI pemasukan/pengeluaran/laba, kategori biaya, status booking
+                                     & utilisasi DIFILTER periode; tren 6 bulan berakhir di periode itu.
+GET  /api/finance/reconciliation     pembayaran dialokasikan per invoice ([paid_before, +amount]); void
+                                     dilewati. POST …/sync tidak lagi menghidupkan invoice void.
+POST /api/dispatch/{id}/assign       tolak armada inactive/sold & jadwal perawatan; simpan origin_lat/lng
+POST /api/dispatch/trips/{id}/enroute · /driver/checkin · …/pod · /trips/{id}/status
+                                     trip/booking selesai/batal → 400 (trip completed tak bisa mundur)
+PATCH /api/vehicles/{id}             odometer turun → 400 (koreksi hanya owner)
+POST /api/maintenance/{id}/complete  odometer servis < odometer armada → 400
+POST /api/payroll/payouts/{id}/approve|pay · /payroll/withdrawals/{id}/reject   CAS → 409/400 bila
+                                     sudah diproses; POST /driver/fees/withdraw serial per sopir
+```

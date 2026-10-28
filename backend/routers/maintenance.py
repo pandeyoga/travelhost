@@ -248,6 +248,12 @@ async def complete_maintenance(maintenance_id: str, body: MaintenanceComplete, u
     if not rec:
         raise HTTPException(status_code=404, detail="Catatan perawatan tidak ditemukan")
     completed_at = body.completed_at or now_iso()
+    if body.odometer is not None and rec.get("type") == "servis":
+        veh = await db.vehicles.find_one({"id": rec["vehicle_id"]}, {"_id": 0, "odometer": 1}) or {}
+        if float(body.odometer) < float(veh.get("odometer") or 0):
+            raise HTTPException(status_code=400, detail=(
+                f"Odometer servis {float(body.odometer):,.0f} km lebih kecil dari odometer armada "
+                f"{float(veh.get('odometer') or 0):,.0f} km").replace(",", "."))
     updates = {"status": "done", "completed_at": completed_at}
     if body.cost is not None:
         updates["cost"] = money(body.cost)

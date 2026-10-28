@@ -26,7 +26,8 @@ from dependencies import require_section
 from schemas import CheckinRequest
 from services.audit import record
 from services.events import emit
-from services.trips import compute_distance, mark_trip_arrived
+from services.trips import (TERMINAL_TRIP_STATUSES, apply_trip_status, assert_trip_open,
+                            compute_distance, mark_trip_arrived)
 
 router = APIRouter(prefix="/api", tags=["driver"])
 # RBAC-SECT-01: seluruh permukaan Ruang Kerja Driver lewat pintu section `driver-workspace`
@@ -104,17 +105,22 @@ async def checkin(body: CheckinRequest, user=Depends(WORKSPACE)):
         if not is_manager and trip.get("driver_id") != my_id:
             raise HTTPException(status_code=403, detail="Trip ini bukan tugas Anda")
     elif body.booking_id:
-        trip = await db.trips.find_one({"booking_id": body.booking_id}, {"_id": 0})
+        # Trip AKTIF milik booking (trip lama yg dibatalkan tidak dipakai ulang).
+        trip = await db.trips.find_one({"booking_id": body.booking_id,
+                                        "status": {"$nin": list(TERMINAL_TRIP_STATUSES)}}, {"_id": 0}) \
+            or await db.trips.find_one({"booking_id": body.booking_id}, {"_id": 0})
         if not trip:
             booking = await db.bookings.find_one({"id": body.booking_id}, {"_id": 0})
             if not booking:
                 raise HTTPException(status_code=404, detail="Booking tidak ditemukan")
             if not is_manager and booking.get("driver_id") != my_id:
                 raise HTTPException(status_code=403, detail="Booking ini bukan tugas Anda")
+            if booking.get("status") not in ("confirmed", "ongoing"):
+                raise HTTPException(status_code=400, detail=f"Booking berstatus '{booking.get('status')}' — belum/tidak bisa dimulai")
             trip = {
                 "id": new_id("trp"), "booking_id": booking["id"],
                 "vehicle_id": booking.get("vehicle_id"), "driver_id": booking.get("driver_id"),
-                "status": "to_pickup", "start_at": now_iso(), "end_at": None,
+                "status": "standby", "start_at": now_iso(), "end_at": None,  # → to_pickup di bawah
                 "revenue": float(booking.get("total_amount", 0) or 0), "profit": None,
                 "distance_km": 0.0, "dest_name": booking.get("destination"),
                 "dest_lat": None, "dest_lng": None, "created_at": now_iso(),
@@ -124,13 +130,11 @@ async def checkin(body: CheckinRequest, user=Depends(WORKSPACE)):
             raise HTTPException(status_code=403, detail="Trip ini bukan tugas Anda")
     else:
         raise HTTPException(status_code=400, detail="Sertakan trip_id atau booking_id")
-    await db.trips.update_one({"id": trip["id"]}, {"$set": {"status": "to_pickup"}})
-    if body.odometer_start is not None:
-        await db.trips.update_one({"id": trip["id"]}, {"$set": {"odometer_start": float(body.odometer_start)}})
-    if trip.get("vehicle_id"):
-        await db.vehicles.update_one({"id": trip["vehicle_id"]}, {"$set": {"status": "on_trip"}})
-    if trip.get("driver_id"):
-        await db.drivers.update_one({"id": trip["driver_id"]}, {"$set": {"status": "online"}})
+    # SSOT transisi: tolak trip/booking yg sudah selesai/batal; armada dipakai (kecuali
+    # perawatan/nonaktif/terjual); driver online. Trip yg sudah berjalan tidak dimundurkan.
+    target = trip.get("status") if trip.get("status") == "on_trip" else "to_pickup"
+    extra = {"odometer_start": float(body.odometer_start)} if body.odometer_start is not None else None
+    await apply_trip_status(db, trip, target, user, extra=extra)
     # G2: booking yang trip-nya dimulai => 'ongoing' (hanya bila masih 'confirmed').
     if trip.get("booking_id"):
         res = await db.bookings.update_one(
@@ -273,7 +277,8 @@ async def upload_pod(trip_id: str, photo: UploadFile = File(default=None),
     drv = await _resolve_driver(db, user)
     if not is_manager and not drv:
         raise HTTPException(status_code=403, detail="Akun Anda belum tertaut ke data driver")
-    await _owned_trip(db, trip_id, drv, manager=is_manager)
+    trip = await _owned_trip(db, trip_id, drv, manager=is_manager)
+    await assert_trip_open(db, trip, "menerima POD", allow_completed=True)
     photo_url = None
     if photo is not None:
         ext = ALLOWED_IMG.get((photo.content_type or "").lower())

@@ -19,9 +19,9 @@ from fastapi import HTTPException
 
 from core_utils import now_iso
 from services.calendar_export import period_label
+from services.geo import BUSINESS_TZ
 from services.pricing import VEHICLE_TYPE_LABELS
 
-BUSINESS_TZ = timezone(timedelta(hours=7))  # WIB — Bandung (operasional Jawa–Bali)
 SCOPES = ("upcoming", "month", "range", "all")
 SHAREABLE_STATUSES = ("pending", "hold", "confirmed", "ongoing", "completed", "cancelled")
 DEFAULT_STATUSES = ["hold", "confirmed", "ongoing", "completed"]

@@ -24,7 +24,9 @@ from db import get_db
 from dependencies import require_section
 from schemas import AssignTripRequest
 from services import availability
-from services.trips import mark_trip_arrived
+from services.booking_search import BLOCKED_VEHICLE_STATUS
+from services.trips import (apply_trip_status, assert_trip_open, mark_trip_arrived,
+                            mark_vehicle_in_use, release_vehicle)
 from services.audit import record
 from services.events import emit
 from services.geocode import geocode
@@ -162,11 +164,13 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
     veh = await db.vehicles.find_one({"id": body.vehicle_id}, {"_id": 0})
     if not veh:
         raise HTTPException(status_code=404, detail="Armada tidak ditemukan")
+    if veh.get("status") in BLOCKED_VEHICLE_STATUS:
+        raise HTTPException(status_code=400, detail=f"Armada {veh.get('name')} berstatus '{veh.get('status')}' — tidak bisa di-assign")
     prev_vehicle_id = bk.get("vehicle_id")  # utk bebaskan unit lama bila re-assign ganti armada
     # Geocode tujuan (perbaiki G1) — best effort, di LUAR lock (I/O jaringan; jangan tahan mutex)
     geo = await geocode(db, bk.get("destination"))
     # E9: estimasi jarak rute (OSRM) origin->dest sebagai fallback distance_km — best effort
-    est_km = None
+    est_km, origin_geo = None, None
     try:
         origin_geo = await geocode(db, bk.get("origin"))
         if origin_geo and geo:
@@ -184,6 +188,12 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
             db, body.vehicle_id, bk.get("start_datetime"), bk.get("end_datetime"), exclude_id=booking_id)
         if conflicts:
             raise HTTPException(status_code=400, detail=f"Armada bentrok dengan booking {conflicts[0].get('code')}")
+        # INV-21: konsisten dgn create/confirm/reschedule — unit dalam jadwal perawatan ditolak.
+        maint = await availability.find_maintenance_conflicts(
+            db, body.vehicle_id, bk.get("start_datetime"), bk.get("end_datetime"))
+        if maint:
+            titles = ", ".join((m.get("title") or m.get("type") or "perawatan") for m in maint)
+            raise HTTPException(status_code=400, detail=f"Armada dalam masa perawatan: {titles}")
         # RC-07: cek bentrok DRIVER (1 sopir tak boleh di 2 trip tumpang-tindih waktu).
         dconf = await availability.find_driver_conflicts(
             db, body.driver_id, bk.get("start_datetime"), bk.get("end_datetime"), exclude_booking_id=booking_id)
@@ -202,6 +212,8 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
             "dest_name": bk.get("destination"),
             "dest_lat": (geo or {}).get("lat"), "dest_lng": (geo or {}).get("lng"),
             "dest_display": (geo or {}).get("display_name"),
+            # Titik jemput utk geofence pickup (dulu dihitung tapi tak disimpan → tak pernah aktif).
+            "origin_lat": (origin_geo or {}).get("lat"), "origin_lng": (origin_geo or {}).get("lng"),
             "est_distance_km": est_km,
             "assigned_at": now_iso(),
         }
@@ -231,20 +243,15 @@ async def assign_trip(booking_id: str, body: AssignTripRequest, user=Depends(DIS
             }
             await db.trips.insert_one(trip_doc)
             trip_id = trip_doc["id"]
-        # Status armada/driver ringan
-        await db.vehicles.update_one({"id": veh["id"]}, {"$set": {"status": "on_trip"}})
+        # Status armada ringan (unit perawatan/nonaktif/terjual tidak ditimpa — SSOT services.trips)
+        await mark_vehicle_in_use(db, veh["id"])
         # Re-assign ganti armada: bebaskan unit LAMA bila tak dipakai TRIP aktif lain
         # (celah lama: unit lama tetap 'on_trip' selamanya → tampak sibuk padahal bebas).
         # Selaras dgn _release_booking_resources: status 'on_trip' hanya ditimbulkan oleh dispatch/trip
         # aktif — booking 'confirmed' yg BELUM di-dispatch tidak membuat armada on_trip, jadi TIDAK
         # dijadikan alasan menahan (dulu cek other_bk terlalu ketat → unit lama tak pernah dibebaskan).
         if prev_vehicle_id and prev_vehicle_id != veh["id"]:
-            other_trip = await db.trips.find_one(
-                {"vehicle_id": prev_vehicle_id, "id": {"$ne": trip_id},
-                 "status": {"$in": ["standby", "to_pickup", "on_trip"]}}, {"_id": 0, "id": 1})
-            prev_veh = await db.vehicles.find_one({"id": prev_vehicle_id}, {"_id": 0, "status": 1})
-            if not other_trip and prev_veh and prev_veh.get("status") == "on_trip":
-                await db.vehicles.update_one({"id": prev_vehicle_id}, {"$set": {"status": "available"}})
+            await release_vehicle(db, prev_vehicle_id, exclude_trip_id=trip_id)
     bk = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     payload = await _wa_payload(db, bk)
     await emit(db, "trip.assigned", payload, source="dispatch", ref_type="booking",
@@ -293,7 +300,11 @@ async def _emit_trip_event(db, trip, event_type, extra=None):
 async def trip_enroute(trip_id: str, user=Depends(DISPATCH)):
     db = get_db()
     trip = await _trip_or_404(db, trip_id)
-    await db.trips.update_one({"id": trip_id}, {"$set": {"status": "to_pickup", "enroute_at": now_iso()}})
+    if trip.get("status") not in ("standby", "to_pickup"):
+        raise HTTPException(status_code=400, detail=f"Trip berstatus '{trip.get('status')}' — tidak bisa berangkat menjemput")
+    # SSOT transisi (guard trip/booking tertutup + armada dipakai + driver online).
+    await apply_trip_status(db, trip, "to_pickup", user,
+                            extra=None if trip.get("enroute_at") else {"enroute_at": now_iso()})
     await _emit_trip_event(db, trip, "trip.enroute")
     await record(db, actor=user, action="trip_enroute", entity_type="trip", entity_id=trip_id,
                  summary="Driver dalam perjalanan menjemput (WA ke pelanggan)")
@@ -316,6 +327,7 @@ async def upload_pod(trip_id: str, photo: UploadFile = File(default=None),
                      user=Depends(DISPATCH)):
     db = get_db()
     trip = await _trip_or_404(db, trip_id)
+    await assert_trip_open(db, trip, "menerima POD", allow_completed=True)
     photo_url = None
     if photo is not None:
         ext = ALLOWED_IMG.get((photo.content_type or "").lower())

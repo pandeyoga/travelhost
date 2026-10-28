@@ -149,13 +149,17 @@ async def approve_payout(payout_id: str, user=Depends(FIN)):
         raise HTTPException(status_code=404, detail="Payout tidak ditemukan")
     if doc.get("status") != "draft":
         raise HTTPException(status_code=400, detail="Hanya payout draft yang bisa disetujui")
-    # Integrasi Finance: buat expense akrual (masuk P&L) — sekali saja.
-    expense_id = doc.get("expense_id") or await pr.create_payout_expense(db, doc)
     patch = {
         "status": "approved", "approver_id": user.get("id"), "approver_name": user.get("name"),
-        "approved_at": now_iso(), "expense_id": expense_id, "updated_at": now_iso(),
+        "approved_at": now_iso(), "updated_at": now_iso(),
     }
-    await db.driver_payouts.update_one({"id": payout_id}, {"$set": patch})
+    # CAS draft → approved DULU: hanya pemenang yang membuat expense. Dulu dua klik/approve
+    # paralel sama-sama lolos cek 'draft' → expense payroll tercatat ganda di P&L.
+    if not await db.driver_payouts.find_one_and_update({"id": payout_id, "status": "draft"}, {"$set": patch}):
+        raise HTTPException(status_code=409, detail="Payout sudah diproses — muat ulang")
+    # Integrasi Finance: buat expense akrual (masuk P&L) — sekali saja.
+    patch["expense_id"] = doc.get("expense_id") or await pr.create_payout_expense(db, doc)
+    await db.driver_payouts.update_one({"id": payout_id}, {"$set": {"expense_id": patch["expense_id"]}})
     await record(db, actor=user, action="approve", entity_type="driver_payout", entity_id=payout_id,
                  before=doc, after={**doc, **patch}, summary=f"Setujui payout {doc.get('driver_name')} ({doc.get('total')})")
     doc.update(patch)
@@ -171,11 +175,12 @@ async def pay_payout(payout_id: str, user=Depends(FIN)):
     if doc.get("status") != "approved":
         raise HTTPException(status_code=400, detail="Payout harus disetujui sebelum dibayar")
     paid_at = now_iso()
+    patch = {"status": "paid", "paid_at": paid_at, "updated_at": paid_at}
+    if not await db.driver_payouts.find_one_and_update({"id": payout_id, "status": "approved"}, {"$set": patch}):
+        raise HTTPException(status_code=409, detail="Payout sudah diproses — muat ulang")
     # Realisasi kas: tandai expense terkait sebagai lunas.
     if doc.get("expense_id"):
         await db.expenses.update_one({"id": doc["expense_id"]}, {"$set": {"paid": True, "paid_at": paid_at}})
-    patch = {"status": "paid", "paid_at": paid_at, "updated_at": paid_at}
-    await db.driver_payouts.update_one({"id": payout_id}, {"$set": patch})
     await record(db, actor=user, action="pay", entity_type="driver_payout", entity_id=payout_id,
                  before=doc, after={**doc, **patch}, summary=f"Bayar payout {doc.get('driver_name')} ({doc.get('total')})")
     doc.update(patch)

@@ -8,6 +8,8 @@
 - finalize_trip_completion: SSOT penyelesaian trip (RC-03) — dipakai driver/checkout
   DAN trips/{id}/status=completed agar efek samping identik (anti split-brain).
 """
+from pymongo.errors import DuplicateKeyError
+
 from core_utils import money, new_id, now_iso, safe_doc
 
 
@@ -85,6 +87,63 @@ async def vehicle_stats(db, vehicle_id):
 
 # === RC-03: SSOT penyelesaian trip (dipakai driver/checkout & trips/status=completed) ===
 _ACTIVE_TRIP_STATUSES = ["standby", "to_pickup", "on_trip"]
+TERMINAL_TRIP_STATUSES = ("completed", "cancelled")
+CLOSED_BOOKING_STATUSES = ("completed", "cancelled")
+# Status armada yang TIDAK boleh ditimpa otomatis oleh trip (dulu assign/selesai trip menimpa
+# 'maintenance'/'inactive'/'sold' jadi on_trip/available → unit rusak/terjual tampak siap jalan).
+_TERMINAL_LABEL = {"completed": "selesai", "cancelled": "dibatalkan"}
+
+
+def _held_vehicle_statuses() -> list:
+    from services.booking_search import BLOCKED_VEHICLE_STATUS
+    return ["maintenance", *BLOCKED_VEHICLE_STATUS]
+
+
+class TripStateError(ValueError):
+    """Transisi trip/booking tidak sah (trip/booking sudah selesai/batal) → HTTP 400 (server.py)."""
+
+
+async def assert_trip_open(db, trip: dict, action: str, *, allow_completed=False):
+    """Tolak aksi pada trip/booking yang sudah ditutup (anti status "zombie").
+
+    Dulu check-in/checkout/POD/tiba tetap jalan pada trip yang bookingnya dibatalkan →
+    armada kembali 'on_trip', fee sopir terkredit, WA terkirim ke pesanan batal.
+    """
+    st = trip.get("status")
+    if st == "cancelled" or (st == "completed" and not allow_completed):
+        raise TripStateError(f"Trip sudah {_TERMINAL_LABEL[st]} — tidak bisa {action}")
+    if trip.get("booking_id"):
+        bk = await db.bookings.find_one({"id": trip["booking_id"]}, {"_id": 0, "status": 1}) or {}
+        if bk.get("status") == "cancelled" or (bk.get("status") == "completed" and not allow_completed):
+            raise TripStateError(f"Booking sudah {_TERMINAL_LABEL[bk['status']]} — tidak bisa {action}")
+
+
+async def mark_vehicle_in_use(db, vehicle_id) -> None:
+    """Armada → on_trip, KECUALI sedang perawatan/nonaktif/terjual (status itu dipertahankan)."""
+    if vehicle_id:
+        await db.vehicles.update_one({"id": vehicle_id, "status": {"$nin": _held_vehicle_statuses()}},
+                                     {"$set": {"status": "on_trip"}})
+
+
+async def release_vehicle(db, vehicle_id, *, odometer=None, exclude_trip_id=None,
+                          exclude_booking_id=None) -> None:
+    """SSOT pembebasan armada: on_trip → available bila tak ada trip aktif lain.
+
+    Hanya 'on_trip' yang dikembalikan; perawatan/nonaktif/terjual tidak disentuh. Odometer
+    naik-saja (`$max`) — tak pernah turun karena angka checkout yang salah ketik.
+    """
+    if not vehicle_id:
+        return
+    if odometer is not None:
+        await db.vehicles.update_one({"id": vehicle_id}, {"$max": {"odometer": float(odometer)}})
+    q = {"vehicle_id": vehicle_id, "status": {"$in": _ACTIVE_TRIP_STATUSES}}
+    if exclude_trip_id:
+        q["id"] = {"$ne": exclude_trip_id}
+    if exclude_booking_id:
+        q["booking_id"] = {"$ne": exclude_booking_id}
+    if not await db.trips.find_one(q, {"_id": 0, "id": 1}):
+        await db.vehicles.update_one({"id": vehicle_id, "status": "on_trip"},
+                                     {"$set": {"status": "available"}})
 
 
 async def finalize_trip_completion(db, trip: dict, user=None, odometer_end=None) -> dict:
@@ -100,6 +159,7 @@ async def finalize_trip_completion(db, trip: dict, user=None, odometer_end=None)
     """
     from services.finance import recompute_booking_payment
 
+    await assert_trip_open(db, trip, "diselesaikan", allow_completed=True)
     trip_id = trip["id"]
     odo_end = odometer_end if odometer_end is not None else trip.get("odometer_end")
     dist, basis = compute_distance(trip.get("odometer_start"), odo_end, trip.get("est_distance_km"))
@@ -111,21 +171,13 @@ async def finalize_trip_completion(db, trip: dict, user=None, odometer_end=None)
     if dist is not None:
         set_fields["distance_km"] = dist
         set_fields["distance_basis"] = basis
-    await db.trips.update_one({"id": trip_id}, {"$set": set_fields})
+    # CAS: trip yang dibatalkan di antara baca & tulis tidak "dihidupkan" jadi completed.
+    done = await db.trips.update_one({"id": trip_id, "status": {"$ne": "cancelled"}}, {"$set": set_fields})
+    if not done.matched_count:
+        raise TripStateError("Trip sudah dibatalkan — tidak bisa diselesaikan")
 
-    # (2) Bebaskan armada — kecuali masih ada trip aktif lain pd armada yg sama.
-    vid = trip.get("vehicle_id")
-    if vid:
-        other_active = await db.trips.find_one(
-            {"vehicle_id": vid, "id": {"$ne": trip_id}, "status": {"$in": _ACTIVE_TRIP_STATUSES}},
-            {"_id": 0, "id": 1})
-        if not other_active:
-            veh_set = {"status": "available"}
-            if odo_end is not None:
-                veh = await db.vehicles.find_one({"id": vid}, {"_id": 0, "odometer": 1})
-                if float((veh or {}).get("odometer") or 0) < float(odo_end):
-                    veh_set["odometer"] = float(odo_end)
-            await db.vehicles.update_one({"id": vid}, {"$set": veh_set})
+    # (2) Bebaskan armada (on_trip → available; perawatan/nonaktif/terjual dipertahankan).
+    await release_vehicle(db, trip.get("vehicle_id"), odometer=odo_end, exclude_trip_id=trip_id)
 
     # (3) Selesaikan booking + derivasi payment_status jujur (RC-02).
     bkid = trip.get("booking_id")
@@ -173,13 +225,16 @@ async def finalize_trip_completion(db, trip: dict, user=None, odometer_end=None)
             days = max(1, int(fresh.get("driver_fee_days") or 1))
             rate = money(fresh.get("driver_fee_rate"))
             amount = money(fresh.get("driver_fee_total") or rate * days)
-            await db.driver_fee_entries.insert_one({
-                "id": new_id("dfe"), "driver_id": fresh["driver_id"],
-                "driver_name": drv_fee.get("name"), "trip_id": trip_id,
-                "booking_id": fresh.get("booking_id"), "booking_code": bk_fee.get("code"),
-                "rate": rate, "days": days, "amount": amount,
-                "status": "earned", "created_at": now_iso(),
-            })
+            try:  # unik per trip_id (index server.py) → finalize paralel tak mengkredit dua kali
+                await db.driver_fee_entries.insert_one({
+                    "id": new_id("dfe"), "driver_id": fresh["driver_id"],
+                    "driver_name": drv_fee.get("name"), "trip_id": trip_id,
+                    "booking_id": fresh.get("booking_id"), "booking_code": bk_fee.get("code"),
+                    "rate": rate, "days": days, "amount": amount,
+                    "status": "earned", "created_at": now_iso(),
+                })
+            except DuplicateKeyError:
+                pass
 
     # (4) Driver offline bila tak ada tugas aktif lain.
     did = trip.get("driver_id")
@@ -193,23 +248,30 @@ async def finalize_trip_completion(db, trip: dict, user=None, odometer_end=None)
     return safe_doc(await db.trips.find_one({"id": trip_id}, {"_id": 0}))
 
 
-async def apply_trip_status(db, trip: dict, new_status: str, user=None) -> dict:
+async def apply_trip_status(db, trip: dict, new_status: str, user=None, extra=None) -> dict:
     """SSOT transisi status trip — dipakai POST /trips/{id}/status dan geofence pickup
     (services/trips.apply_geofence). Dulu geofence menulis status sendiri: trip 'completed'
     tetapi booking tetap 'confirmed', tanpa event trip.completed (WA + permintaan ulasan).
     """
     if new_status == "completed":
         return await finalize_trip_completion(db, trip, user)
+    if new_status == trip.get("status") and not extra:
+        return safe_doc(trip)
+    # Trip selesai/batal tidak boleh mundur (dulu completed → on_trip menahan armada selamanya).
+    await assert_trip_open(db, trip, f"diubah ke '{new_status}'")
     updates = {"status": new_status}
-    if new_status in ("to_pickup", "on_trip"):
-        if new_status == "on_trip" and not trip.get("start_at"):
-            updates["start_at"] = now_iso()
-        # Sinkron sumber daya: armada dipakai, driver online.
-        if trip.get("vehicle_id"):
-            await db.vehicles.update_one({"id": trip["vehicle_id"]}, {"$set": {"status": "on_trip"}})
+    if new_status == "on_trip" and not trip.get("start_at"):
+        updates["start_at"] = now_iso()
+    if extra:
+        updates.update(extra)
+    res = await db.trips.update_one(
+        {"id": trip["id"], "status": {"$nin": list(TERMINAL_TRIP_STATUSES)}}, {"$set": updates})
+    if not res.matched_count:
+        raise TripStateError("Status trip baru saja berubah — muat ulang")
+    if new_status in ("to_pickup", "on_trip"):  # sinkron sumber daya: armada dipakai, driver online
+        await mark_vehicle_in_use(db, trip.get("vehicle_id"))
         if trip.get("driver_id"):
             await db.drivers.update_one({"id": trip["driver_id"]}, {"$set": {"status": "online"}})
-    await db.trips.update_one({"id": trip["id"]}, {"$set": updates})
     return safe_doc(await db.trips.find_one({"id": trip["id"]}, {"_id": 0}))
 
 
@@ -220,9 +282,11 @@ async def mark_trip_arrived(db, trip: dict, user=None, source: str = "driver") -
     sendiri dengan kunci dedupe BERBEDA (per trip vs per booking) → WA "tiba" bisa terkirim dua
     kali bila ops & sopir sama-sama menekan. Kini satu kunci per booking.
     """
-    if not trip.get("arrived_at"):
-        await db.trips.update_one({"id": trip["id"], "arrived_at": {"$in": [None, ""]}},
-                                  {"$set": {"arrived_at": now_iso()}})
+    if trip.get("arrived_at"):  # idempotent: tombol kedua / ping geofence berikutnya
+        return safe_doc(await db.trips.find_one({"id": trip["id"]}, {"_id": 0}))
+    await assert_trip_open(db, trip, "ditandai tiba")
+    await db.trips.update_one({"id": trip["id"], "arrived_at": {"$in": [None, ""]}},
+                              {"$set": {"arrived_at": now_iso()}})
     bkid = trip.get("booking_id")
     if bkid:
         from services.events import emit
@@ -243,7 +307,10 @@ async def apply_geofence(db, trip: dict, lat: float, lng: float, user=None):
         await mark_trip_arrived(db, trip, user, source="geofence")
         return {"event": event, "new_status": trip.get("status"), "arrived": True}
     if new_status and new_status != trip.get("status"):
-        await apply_trip_status(db, trip, new_status, user)
+        try:
+            await apply_trip_status(db, trip, new_status, user)
+        except TripStateError:  # ping lokasi untuk trip yang sudah ditutup → abaikan
+            return None
         return {"event": event, "new_status": new_status}
     return None
 
@@ -277,14 +344,7 @@ async def release_booking_resources(db, booking):
     await db.trips.update_many(
         {"booking_id": bkid, "status": {"$nin": ["completed", "cancelled"]}},
         {"$set": {"status": "cancelled"}})
-    vid = booking.get("vehicle_id")
-    if vid:
-        other_active = await db.trips.find_one(
-            {"vehicle_id": vid, "booking_id": {"$ne": bkid}, "status": {"$in": active}},
-            {"_id": 0, "id": 1})
-        veh = await db.vehicles.find_one({"id": vid}, {"_id": 0, "status": 1})
-        if not other_active and veh and veh.get("status") == "on_trip":
-            await db.vehicles.update_one({"id": vid}, {"$set": {"status": "available"}})
+    await release_vehicle(db, booking.get("vehicle_id"), exclude_booking_id=bkid)
     did = booking.get("driver_id")
     if did:
         other_drv = await db.trips.find_one(

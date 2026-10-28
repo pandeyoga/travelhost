@@ -156,16 +156,21 @@ def new_public_token() -> str:
     return secrets.token_urlsafe(24)
 
 
-def hold_fields(*, total, dp_percent, hold_hours, now=None) -> dict:
-    """Field reservasi DP (dipakai jalur publik & persetujuan ops) — SSOT bentuknya."""
+def hold_fields(*, total, dp_percent, hold_hours, now=None, rounding=None) -> dict:
+    """Field reservasi DP (jalur publik, persetujuan ops, booking ERP & grup) — SSOT bentuknya.
+
+    `rounding` = `pricing_rules.rounding`; nominal DP lewat services.pricing.dp_amount_for
+    sehingga sama persis dengan DP yang tampil di kutipan harga.
+    """
+    from services.pricing import dp_amount_for
     base = now or datetime.now(timezone.utc)
     hours = int(max(1, min(168, money(hold_hours) or 2)))
-    pct = float(max(0, min(100, money(dp_percent))))
+    pct = float(max(0, min(100, float(dp_percent or 0))))
     return {
         "hold_expires_at": (base + timedelta(hours=hours)).isoformat(),
         "hold_hours": hours,
         "dp_percent": pct,
-        "dp_amount": money(money(total) * pct / 100.0),
+        "dp_amount": dp_amount_for(total, pct, rounding),
     }
 
 

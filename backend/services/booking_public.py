@@ -40,7 +40,7 @@ from services.counters import next_booking_code
 from services.events import emit
 from services.geo import parse_iso
 from services.identity import ensure_customer, normalize_phone
-from services.pricing import get_dp_percent, span_days
+from services.pricing import dp_amount_for, get_dp_percent, get_pricing_rules, span_days
 from services.refs import (
     destination_normalize,
     origin_normalize,
@@ -103,21 +103,11 @@ def transfer_window(route, flow, start_dt):
 async def build_quote(db, *, service, vehicle, route, start_iso, end_iso, add_ons,
                      promo_code="", flow=None):
     """Hitung harga + validasi promo. Return (quote, promo_doc|None)."""
-    add_ons = clean_add_ons(add_ons)
-    base = await bs.quote_for_vehicle(db, vehicle, start_iso=start_iso, end_iso=end_iso,
-                                     service=service, route=route, add_ons=add_ons)
+    base, promo_doc = await bs.quote_with_promo(
+        db, vehicle, promo_code=promo_code, start_iso=start_iso, end_iso=end_iso,
+        service=service, route=route, add_ons=clean_add_ons(add_ons))
     if not base:
         raise BookingPublicError("Unit ini tidak melayani rute yang dipilih")
-    promo_doc, discount, label = None, 0, ""
-    if str(promo_code or "").strip():
-        result = await promo_svc.validate(
-            db, promo_code, subtotal=base["subtotal"],
-            days=base["days"] if service != "airport_transfer" else span_days(start_iso, end_iso),
-            vehicle_type=vehicle.get("type"), service=service, start_dt=parse_iso(start_iso))
-        promo_doc, discount, label = result["promo"], result["discount"], result["label"]
-        base = await bs.quote_for_vehicle(
-            db, vehicle, start_iso=start_iso, end_iso=end_iso, service=service, route=route,
-            add_ons=add_ons, discount=discount, discount_label=label)
     return base, promo_doc
 
 
@@ -163,7 +153,7 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
             raise BookingPublicError(str(exc)) from None
     start_iso, end_iso = start_dt.isoformat(), end_dt.isoformat()
 
-    vehicle, quote, promo_doc = None, None, None
+    vehicle, quote, promo_doc, add_ons = None, None, None, []
     if service != bf.SERVICE_REQUEST_ONLY:
         vid = str(payload.get("vehicle_id") or "").strip()
         if not vid:
@@ -176,9 +166,10 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
         if pax > int(vehicle.get("capacity") or 0) > 0:
             raise BookingPublicError(
                 f"Kapasitas {vehicle.get('name')} hanya {vehicle.get('capacity')} orang")
+        add_ons = clean_add_ons(payload.get("add_ons"))
         quote, promo_doc = await build_quote(
             db, service=service, vehicle=vehicle, route=route, start_iso=start_iso,
-            end_iso=end_iso, add_ons=payload.get("add_ons"), promo_code=payload.get("promo_code"),
+            end_iso=end_iso, add_ons=add_ons, promo_code=payload.get("promo_code"),
             flow=flow)
 
     customer, _created = await ensure_customer(
@@ -188,13 +179,14 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
     total = money((quote or {}).get("total"))
     dp_percent = int((quote or {}).get("dp_percent") or await get_dp_percent(db))
     status, hold_extra = "pending", {}
+    rounding = (await get_pricing_rules(db)).get("rounding")
     if service != bf.SERVICE_REQUEST_ONLY and flow["mode"] == "hold_dp":
         status = "hold"
         hold_extra = bf.hold_fields(total=total, dp_percent=dp_percent,
-                                   hold_hours=flow["hold_hours"])
+                                   hold_hours=flow["hold_hours"], rounding=rounding)
     elif service != bf.SERVICE_REQUEST_ONLY:
         hold_extra = {"dp_percent": float(dp_percent),
-                      "dp_amount": money(total * dp_percent / 100.0)}
+                      "dp_amount": dp_amount_for(total, dp_percent, rounding)}
 
     token = bf.new_public_token()
     doc = {
@@ -204,7 +196,10 @@ async def create_booking(db, payload: dict, *, ip: str = "") -> dict:
         "origin": await origin_normalize(db, str(payload.get("origin") or (route or {}).get("from_label") or "")[:160]),
         "destination": await destination_normalize(db, str(payload.get("destination") or (route or {}).get("to_label") or "")[:160]),
         "start_datetime": start_iso, "end_datetime": end_iso,
-        "base_price": total, "add_ons": [], "total_amount": total, "paid_amount": 0,
+        # Add-on DISIMPAN (dulu selalu []): dipakai persetujuan ops untuk harga ulang. INV-1:
+        # total = base + Σ add-on → base = total kutipan (sudah termasuk promo) − Σ add-on.
+        "base_price": total - sum(a["amount"] for a in add_ons), "add_ons": add_ons,
+        "total_amount": total, "paid_amount": 0,
         "payment_status": "belum_bayar", "status": status,
         "customer_name": customer.get("name"),
         "vehicle_name": (vehicle or {}).get("name"), "driver_name": None,

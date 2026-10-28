@@ -233,11 +233,28 @@ async def scan(db):
         paid = float(bk.get("paid_amount", 0) or 0)
         if dp_amount > 0 and paid >= dp_amount:
             continue  # DP sudah cukup (akan/telah dipromosikan ke confirmed) — jangan batalkan
+        if bk.get("proof_status") == "pending":
+            # Pelanggan SUDAH mengunggah bukti transfer: yang terlambat adalah verifikasi ops
+            # (dijanjikan maks. 1×24 jam), bukan pembayarannya. Dulu booking tetap dibatalkan
+            # → unit dilepas & bukti tak bisa diverifikasi (pembayaran ke booking batal ditolak).
+            # Kini hold dipertahankan dan ops diingatkan sekali.
+            created += await _upsert(db, f"hold-proof-overdue:{bk['id']}", {
+                "type": "booking_proof_overdue",
+                "title": f"Verifikasi bukti DP terlambat: {bk.get('code')}",
+                "body": f"{bk.get('customer_name')} sudah mengunggah bukti transfer, batas hold lewat. "
+                        "Verifikasi di Booking → Bukti Bayar agar pesanan tidak menggantung.",
+                "ref_type": "booking", "ref_id": bk["id"], "booking_id": bk["id"],
+                "scheduled_at": now_iso(), "target_role": "manager",
+            })
+            continue
         cancelled = await db.bookings.find_one_and_update(
-            {"id": bk["id"], "status": "hold"},
+            {"id": bk["id"], "status": "hold", "proof_status": {"$ne": "pending"}},
             {"$set": {"status": "cancelled", "hold_expired_at": now_iso()}})
         if not cancelled:
             continue
+        if bk.get("promo_id"):  # kuota promo kembali (sama dgn pembatalan oleh pelanggan)
+            from services import promos as promo_svc
+            await promo_svc.release(db, bk["promo_id"])
         await db.trips.update_many(
             {"booking_id": bk["id"], "status": {"$in": ["standby", "to_pickup"]}},
             {"$set": {"status": "cancelled"}})

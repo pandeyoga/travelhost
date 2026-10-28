@@ -218,6 +218,17 @@ async def preview_pdf(db, code: str, layout: dict, script: str, issuer: dict = N
         signatures_override=dl.signatures_for(layout, issuer_name=(issuer or {}).get("name"), issuer_position=(issuer or {}).get("role")))
 
 
+def invoice_paid_portion(inv: dict, booking_paid) -> int:
+    """SSOT alokasi: bagian pembayaran booking yang menutup invoice INI.
+
+    Invoice menagih rentang [paid_before, paid_before + amount] dari total booking (DP lalu
+    pelunasan). Dipakai sinkron status & rekonsiliasi — dulu rekonsiliasi membandingkan TIAP
+    invoice dgn Σ pembayaran booking, sehingga invoice DP tampil "lebih bayar" setelah lunas.
+    """
+    before, amount = money(inv.get("paid_before") or 0), money(inv.get("amount") or 0)
+    return max(0, min(money(booking_paid) - before, amount))
+
+
 async def sync_invoice_status(db, booking_id: str):
     """Setelah pembayaran: invoice booking → partial/paid berdasarkan paid_amount booking."""
     booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0, "paid_amount": 1})
@@ -225,8 +236,8 @@ async def sync_invoice_status(db, booking_id: str):
         return
     paid = money(booking.get("paid_amount") or 0)
     async for inv in db.invoices.find({"booking_id": booking_id, "status": {"$nin": ["void"]}}, {"_id": 0}):
-        target = money(inv.get("paid_before") or 0) + money(inv.get("amount") or 0)
-        covered = paid - money(inv.get("paid_before") or 0)
-        new = "paid" if paid >= target and target > 0 else ("partial" if covered > 0 else None)
+        covered = invoice_paid_portion(inv, paid)
+        amount = money(inv.get("amount") or 0)
+        new = "paid" if amount > 0 and covered >= amount else ("partial" if covered > 0 else None)
         if new and new != inv.get("status"):
             await db.invoices.update_one({"id": inv["id"]}, {"$set": {"status": new, "paid_at": now_iso() if new == "paid" else None}})

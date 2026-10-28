@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
+
+from schemas import APIModel
 
 from core_utils import new_id, now_iso, safe_doc
 from db import get_db
@@ -25,7 +27,7 @@ SET = require_section("settings")
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
-class BrandIn(BaseModel):
+class BrandIn(APIModel):
     company_name: Optional[str] = None
     tagline: Optional[str] = None
     address: Optional[str] = None
@@ -73,14 +75,14 @@ class BrandIn(BaseModel):
         return v
 
 
-class SectionIn(BaseModel):
+class SectionIn(APIModel):
     key: str
     label: Optional[str] = None
     visible: bool = True
     order: int = 0
 
 
-class MoneyRowIn(BaseModel):
+class MoneyRowIn(APIModel):
     code: str
     label: str = Field(min_length=1)
     visible: bool = True
@@ -90,7 +92,7 @@ class MoneyRowIn(BaseModel):
     amount: Optional[int] = None
 
 
-class SignatureIn(BaseModel):
+class SignatureIn(APIModel):
     title: str = Field(min_length=1)
     name: Optional[str] = None
     position: Optional[str] = None
@@ -100,7 +102,7 @@ class SignatureIn(BaseModel):
     auto_from_issuer: bool = False
 
 
-class TableIn(BaseModel):
+class TableIn(APIModel):
     grid: Optional[str] = None
     show_header: Optional[bool] = None
     header_fill: Optional[bool] = None
@@ -112,7 +114,7 @@ class TableIn(BaseModel):
     alignment: Optional[str] = None
 
 
-class OptionsIn(BaseModel):
+class OptionsIn(APIModel):
     show_materai: Optional[bool] = None
     materai_note: Optional[str] = None
     show_place_date: Optional[bool] = None
@@ -125,7 +127,7 @@ class OptionsIn(BaseModel):
     show_terbilang: Optional[bool] = None
 
 
-class LayoutSave(BaseModel):
+class LayoutSave(APIModel):
     brand: Optional[BrandIn] = None
     table: Optional[TableIn] = None
     sections: Optional[list[SectionIn]] = None
@@ -138,11 +140,11 @@ class PreviewIn(LayoutSave):
     script: Optional[str] = None
 
 
-class ScriptSave(BaseModel):
+class ScriptSave(APIModel):
     content: str = Field(max_length=20000)
 
 
-class RuleSave(BaseModel):
+class RuleSave(APIModel):
     pattern: Optional[str] = None
     prefix: Optional[str] = None
     width: Optional[int] = Field(None, ge=1, le=8)
@@ -154,14 +156,14 @@ class PreviewRuleIn(RuleSave):
     sample: dict = {}
 
 
-class BankAccount(BaseModel):
+class BankAccount(APIModel):
     id: Optional[str] = None
     bank: str = Field(min_length=1, max_length=60)
     account_no: str = Field(min_length=3, max_length=40)
     account_name: str = Field(min_length=1, max_length=120)
 
 
-class InvoiceConfigIn(BaseModel):
+class InvoiceConfigIn(APIModel):
     dp_percent_default: Optional[float] = Field(None, ge=0, le=100)
     dp_due_days: Optional[int] = Field(None, ge=0, le=90)
     settlement_due_days: Optional[int] = Field(None, ge=0, le=180)

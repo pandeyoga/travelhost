@@ -286,3 +286,35 @@ frontend/public/index.html                     snippet GTM/PostHog dihapus; lang
 components/public/ConsentBanner.jsx            banner juga muncul bila hanya GTM/PostHog yang aktif.
 components/public/PublicLayout.jsx             tidak inisialisasi pelacakan di rute privat/bertoken.
 ```
+
+**Ronde 3 (2026-10-28) — perbaikan audit flow pembelian · harga · armada · keuangan**
+```
+services/geo.py              + BUSINESS_TZ / business_date() — SSOT tanggal WIB (surcharge, promo,
+                             jadwal share); schedule_share.py kini mengimpornya.
+services/pricing.py          + dp_amount_for() — SSOT nominal DP (pembulatan = harga); surcharge WIB.
+services/promos.py           tanggal berlaku & weekend_only dinilai di kalender WIB.
+services/booking_search.py   + quote_with_promo() (promo divalidasi PER UNIT di pencarian),
+                             + requote_booking() / repriced_fields() — harga ulang (approve hold &
+                             reschedule) mempertahankan add-on & promo; INV-1 tetap.
+services/booking_cancel.py   BARU — pembukuan pembatalan (void tagihan terbuka, refund, invoice denda
+                             jujur), dipanggil sekali oleh pemenang CAS di routers/bookings.cancel.
+services/trips.py            + TripStateError, assert_trip_open(), mark_vehicle_in_use(),
+                             release_vehicle() — SSOT status armada/trip: unit perawatan/nonaktif/
+                             terjual tak ditimpa; trip selesai/batal tak bisa dihidupkan; fee unik.
+services/availability.py     + named_lock() generik (vehicle_lock/driver_lock memakainya).
+services/documents.py        + invoice_paid_portion() — alokasi pembayaran per invoice.
+services/finance_automation  rekonsiliasi & sync per alokasi, lewati void; maintenance hanya `done`.
+services/reports.py          summary() memfilter periode.
+services/notifications.py    hold dgn bukti DP pending tidak dihanguskan (notif "verifikasi terlambat");
+                             hold hangus melepas kuota promo.
+schemas.py                   + APIModel (allow_inf_nan=False, |angka| ≤ MAX_NUMBER) — basis semua model.
+server.py                    + handler TripStateError→400, OverflowError→400, 422 aman-JSON; index
+                             unik driver_fee_entries.trip_id.
+routers/*                    invoices (transisi + batas nominal), settings (PATCH merge pricing_*,
+                             tolak Infinity), bookings (confirm guard, reschedule reprice, cancel CAS),
+                             dispatch/driver (guard status, origin geo), vehicles/maintenance (odometer),
+                             payroll/driver_fees (CAS & lock).
+frontend BookingRescheduleDialog  + opsi "Hitung ulang harga"; Finance.jsx status invoice dari next_status.
+tests/test_flow_fixes.py     BARU — 22 test regresi (fungsi murni + API/race paralel).
+scripts/guardrails/verify_price_master.py  mengenali basis model APIModel.
+```

@@ -3,10 +3,25 @@
 - parse_iso(): ISO-8601 (mendukung 'Z' & '+00:00') -> datetime aware UTC.
 - haversine_km(): jarak great-circle (fallback bila OSRM tak tersedia).
 - valid_coord(): validasi rentang lat/lng (INV-6).
+- BUSINESS_TZ / business_date(): zona & tanggal operasional (WIB) — SSOT "hari apa ini" untuk
+  surcharge akhir pekan/libur, syarat promo, batas periode jadwal. Data tetap disimpan UTC.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from math import asin, cos, radians, sin, sqrt
 from typing import Optional
+
+
+BUSINESS_TZ = timezone(timedelta(hours=7))  # WIB — operasional Jawa–Bali
+
+
+def business_date(value=None):
+    """Tanggal kalender WIB untuk `value` (ISO/datetime; None → sekarang). None bila tak terbaca.
+
+    Keberangkatan Sabtu 06:00 WIB = Jumat 23:00 UTC; memakai `.date()` UTC membuatnya
+    dianggap hari kerja (surcharge & promo akhir pekan hilang).
+    """
+    dt = datetime.now(timezone.utc) if value is None else parse_iso(value)
+    return dt.astimezone(BUSINESS_TZ).date() if dt else None
 
 
 def parse_iso(value) -> Optional[datetime]:

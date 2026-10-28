@@ -5,6 +5,7 @@ PDF dari services.documents (kop, naskah, baris biaya terkonfigurasi). Akses sec
 Kwitansi = nomor resmi yang ditempel pada dokumen `payments` (receipt_no) saat diterbitkan.
 """
 import base64
+import math
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,6 +23,16 @@ from services.exporter import invoice_xlsx
 router = APIRouter(prefix="/api", tags=["invoices"])
 FIN = require_section("finance")
 VALID_STATUS = {"draft", "sent", "partial", "paid", "void"}
+# Transisi status MANUAL yang sah (SSOT; dikirim ke UI sbg `next_status`). 'partial'/'paid' tidak
+# bisa dipilih tangan — diturunkan dari pembayaran tercatat (documents.sync_invoice_status), jadi
+# rekonsiliasi tetap jujur. Invoice lunas terkunci: dulu paid → draft membuka kunci nominal.
+# void → draft = buka ulang tagihan yang keliru dibatalkan (ditolak bila booking batal).
+MANUAL_TRANSITIONS = {"draft": ("sent", "void"), "sent": ("draft", "void"), "partial": ("void",),
+                      "paid": (), "void": ("draft",)}
+
+
+def _with_next(inv: dict) -> dict:
+    return {**inv, "next_status": list(MANUAL_TRANSITIONS.get(inv.get("status"), ()))}
 
 
 @router.get("/invoices")
@@ -35,7 +46,7 @@ async def list_invoices(status: str = Query(default=None), kind: str = Query(def
     if booking_id:
         query["booking_id"] = booking_id
     docs_ = await get_db().invoices.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).to_list(limit)
-    return safe_doc(docs_)
+    return safe_doc([_with_next(d) for d in docs_])
 
 
 @router.get("/invoices/quote")
@@ -49,11 +60,30 @@ async def quote_invoice(booking_id: str, kind: str = "dp", dp_percent: float = N
     return _compute(booking, cfg, kind, dp_percent, None)
 
 
+def _dp_percent(booking: dict, cfg: dict, dp_percent) -> float:
+    """% DP: input form → % milik booking (0 = sah, bukan "kosong") → default invoice → 30."""
+    for cand in (dp_percent, booking.get("dp_percent"), cfg.get("dp_percent_default"), 30):
+        if cand is not None and cand != "":
+            try:
+                pct = float(cand)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(pct):
+                return max(0.0, min(pct, 100.0))
+    return 30.0
+
+
 def _compute(booking: dict, cfg: dict, kind: str, dp_percent, dp_amount) -> dict:
     total = money(booking.get("total_amount") or 0)
     paid = money(booking.get("paid_amount") or 0)
-    pct = float(dp_percent if dp_percent is not None else (booking.get("dp_percent") or cfg.get("dp_percent_default") or 30))
-    dp_amt = money(dp_amount) if dp_amount else money(total * pct / 100.0)
+    pct = _dp_percent(booking, cfg, dp_percent)
+    if dp_amount:
+        dp_amt = money(dp_amount)
+    elif dp_percent is None and booking.get("dp_amount") is not None:
+        dp_amt = money(booking.get("dp_amount"))  # DP yang dijanjikan ke pelanggan (SSOT booking)
+    else:
+        dp_amt = money(total * pct / 100.0)
+    dp_amt = min(max(dp_amt, 0), total)  # DP tak boleh melebihi total booking
     if kind == "dp":
         amount = max(dp_amt - paid, 0)
     elif kind == "settlement":
@@ -79,6 +109,10 @@ async def create_invoice(body: InvoiceCreate, user=Depends(FIN)):
     cfg = await docs.invoice_config(db)
     calc = _compute(booking, cfg, kind, body.dp_percent, body.dp_amount)
     if body.amount is not None and kind != "dp":
+        remaining = max(calc["subtotal"] - calc["paid_before"], 0)
+        if money(body.amount) > remaining:
+            raise HTTPException(status_code=400, detail=(
+                f"Nominal Rp {money(body.amount):,} melebihi sisa tagihan Rp {remaining:,}").replace(",", "."))
         calc["amount"] = money(body.amount)
         calc["outstanding_after"] = max(calc["subtotal"] - calc["paid_before"] - calc["amount"], 0)
     if calc["amount"] <= 0:
@@ -102,7 +136,7 @@ async def create_invoice(body: InvoiceCreate, user=Depends(FIN)):
     await db.invoices.insert_one(dict(doc))
     await record(db, actor=user, action="create", entity_type="invoice", entity_id=doc["id"], after=doc,
                  summary=f"Terbitkan invoice {kind} {number} (Rp {doc['amount']:,})".replace(",", "."))
-    return safe_doc(doc)
+    return safe_doc(_with_next(doc))
 
 
 async def _get(db, invoice_id):
@@ -195,15 +229,28 @@ async def update_invoice(invoice_id: str, body: InvoiceStatusUpdate, user=Depend
     db = get_db()
     inv = await _get(db, invoice_id)
     updates = {}
-    if body.status is not None:
+    current = inv.get("status")
+    if body.status is not None and body.status != current:
         if body.status not in VALID_STATUS:
             raise HTTPException(status_code=400, detail="Status invoice tidak sah")
+        if body.status not in MANUAL_TRANSITIONS.get(current, ()):
+            why = ("lunas/sebagian mengikuti pembayaran yang dicatat" if body.status in ("paid", "partial")
+                   else f"tidak bisa diubah dari '{current}' ke '{body.status}'")
+            raise HTTPException(status_code=400, detail=f"Status invoice {why}")
+        if current == "void":
+            bk = await db.bookings.find_one({"id": inv.get("booking_id")}, {"_id": 0, "status": 1}) or {}
+            if bk.get("status") == "cancelled":
+                raise HTTPException(status_code=400, detail="Booking sudah dibatalkan — invoice tidak bisa dibuka ulang")
         updates["status"] = body.status
-    if body.amount is not None:
-        if inv.get("status") in ("paid", "void"):
+    if body.amount is not None and money(body.amount) != money(inv.get("amount")):
+        if current in ("paid", "void") or updates.get("status") == "void":
             raise HTTPException(status_code=400, detail="Nominal invoice lunas/batal tidak bisa diubah")
         if money(body.amount) <= 0:
             raise HTTPException(status_code=400, detail="Nominal invoice harus lebih dari 0")
+        remaining = max(money(inv.get("subtotal") or 0) - money(inv.get("paid_before") or 0), 0)
+        if money(body.amount) > remaining:
+            raise HTTPException(status_code=400, detail=(
+                f"Nominal Rp {money(body.amount):,} melebihi sisa tagihan Rp {remaining:,}").replace(",", "."))
         updates["amount"] = money(body.amount)
         updates["outstanding_after"] = max(money(inv.get("subtotal") or 0) - money(inv.get("paid_before") or 0) - updates["amount"], 0)
     for f in ("due_at", "notes", "terms"):
@@ -212,13 +259,16 @@ async def update_invoice(invoice_id: str, body: InvoiceStatusUpdate, user=Depend
             updates[f] = v
     if not updates:
         return safe_doc(inv)
-    await db.invoices.update_one({"id": invoice_id}, {"$set": updates})
+    # CAS pada status: pembayaran yang masuk bersamaan (→ paid) tidak tertimpa edit manual.
+    res = await db.invoices.update_one({"id": invoice_id, "status": current}, {"$set": updates})
+    if not res.matched_count:
+        raise HTTPException(status_code=409, detail="Status invoice baru saja berubah — muat ulang")
     after = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
-    summary = (f"Ubah status invoice {inv.get('number')} → {body.status}" if body.status
+    summary = (f"Ubah status invoice {inv.get('number')} → {body.status}" if updates.get("status")
                else f"Ubah invoice {inv.get('number')}")
     await record(db, actor=user, action="update", entity_type="invoice", entity_id=invoice_id,
                  before=inv, after=after, summary=summary)
-    return safe_doc(after)
+    return safe_doc(_with_next(after))
 
 
 @router.delete("/invoices/{invoice_id}")

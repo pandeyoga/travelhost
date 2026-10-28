@@ -196,13 +196,14 @@ def span_days(start, end) -> int:
 
 def _surcharge_for_date(rules, when, holidays):
     """(persen, label) surcharge untuk tanggal `when`. Hari libur diutamakan > akhir pekan."""
-    if not when:
+    from services.geo import business_date
+    day = business_date(when) if when else None
+    if not day:
         return 0, None
-    day_key = when.date().isoformat()
     hol = {str(h)[:10] for h in (holidays or []) if h}
-    if day_key in hol:
+    if day.isoformat() in hol:
         return _num(rules.get("holiday_surcharge_percent")), "Surcharge hari libur"
-    if when.weekday() >= 5:  # 5=Sabtu, 6=Minggu
+    if day.weekday() >= 5:  # 5=Sabtu, 6=Minggu (kalender WIB)
         return _num(rules.get("weekend_surcharge_percent")), "Surcharge akhir pekan"
     return 0, None
 
@@ -212,6 +213,17 @@ def _round(amount, rounding):
     if step > 0:
         return int(round(amount / step) * step)
     return int(round(amount))
+
+
+def dp_amount_for(total, dp_percent, rounding) -> int:
+    """SSOT nominal DP = total × % dengan pembulatan `rounding` yang SAMA dgn harga.
+
+    Dulu kutipan membulatkan DP ke Rp 1.000 sementara booking menyimpan nilai mentah
+    (mis. kutipan Rp 526.000 vs tagihan Rp 526.500) — angka yang dijanjikan ≠ ditagih.
+    """
+    pct = max(0.0, min(100.0, _num(dp_percent)))
+    tot = int(round(_num(total)))
+    return min(_round(tot * pct / 100.0, rounding), tot) if pct else 0
 
 
 def compute_quote(rules, *, vehicle_type=None, days=1, distance_km=0,
@@ -272,8 +284,7 @@ def compute_quote(rules, *, vehicle_type=None, days=1, distance_km=0,
     total = max(_round(subtotal, rules.get("rounding")), 0)
     dp_pct = _num(dp_percent) if dp_percent is not None else _num(rules.get("dp_percent"))
     dp_pct = max(0.0, min(100.0, dp_pct))
-    dp_amount = _round(total * dp_pct / 100.0, rules.get("rounding")) if dp_pct else 0
-    dp_amount = min(dp_amount, total)
+    dp_amount = dp_amount_for(total, dp_pct, rules.get("rounding"))
     return {
         "breakdown": breakdown,
         "subtotal": subtotal,

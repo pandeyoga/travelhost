@@ -4,11 +4,13 @@ Koleksi `settings` (keyed docs {key,value}). Kunci: company_info, pricing_defaul
 operational (holidays/work_hours), map_provider. Akses owner (section 'settings').
 Kompatibel dgn public `/api/public/company` yang membaca `company_info`.
 """
+import math
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from db import get_db
 from dependencies import require_section
-from schemas import SettingsUpdate
+from schemas import MAX_NUMBER, SettingsUpdate
 from services.audit import record
 from services import booking_flow as bf
 from services.pricing import DEFAULT_PRICING_RULES
@@ -24,13 +26,17 @@ _RULE_NON_NEG = ["default_day_rate", "driver_fee_per_day", "fuel_per_km",
 
 
 def _num_or_400(field, value):
-    """Koersi ke angka; tolak non-numerik (mis. 'gratis') & boolean dgn 400 (mirip R6-5)."""
+    """Koersi ke angka; tolak non-numerik (mis. 'gratis'), boolean, Infinity/NaN & angka raksasa
+    dgn 400 (mirip R6-5). Dulu 'Infinity' lolos → semua kutipan harga 500 (OverflowError)."""
     if isinstance(value, bool):
         raise HTTPException(status_code=400, detail=f"Field '{field}' harus berupa angka")
     try:
-        return float(value)
+        num = float(value)
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail=f"Field '{field}' harus berupa angka")
+    if not math.isfinite(num) or abs(num) > MAX_NUMBER:
+        raise HTTPException(status_code=400, detail=f"Field '{field}' di luar batas wajar")
+    return num
 
 
 def _validate_pricing(updates: dict):
@@ -47,6 +53,9 @@ def _validate_pricing(updates: dict):
         for f in _RULE_NON_NEG:
             if rules.get(f) is not None and _num_or_400(f, rules[f]) < 0:
                 raise HTTPException(status_code=400, detail=f"Nilai '{f}' tidak boleh negatif")
+        for f in ("weekend_surcharge_percent", "holiday_surcharge_percent"):
+            if rules.get(f) is not None and _num_or_400(f, rules[f]) > 1000:
+                raise HTTPException(status_code=400, detail=f"'{f}' maksimal 1000%")
         if rules.get("dp_percent") is not None and not (0 <= _num_or_400("dp_percent", rules["dp_percent"]) <= 100):
             raise HTTPException(status_code=400, detail="'dp_percent' harus antara 0–100")
     pd = updates.get("pricing_defaults")
@@ -65,6 +74,26 @@ DEFAULTS = {
     "theme_config": {"preset": "azure", "mode": "light"},  # P10: tema situs publik
     "booking_flow": bf.DEFAULT_FLOW,  # alur pemesanan online (mode/hold/instruksi DP)
 }
+
+
+async def _patch_merge(db, key, incoming: dict) -> dict:
+    """PATCH = TAMBAL di atas nilai TERSIMPAN (pola booking_flow / BUG-0114).
+
+    Dulu `pricing_rules`/`pricing_defaults` diganti utuh: mengirim satu field (mis. hanya
+    `rounding`) menghapus tarif per tipe, surcharge, dll → harga jatuh ke default diam-diam.
+    `day_rates` ikut digabung per tipe; nilai None = hapus (kembali ke tarif default).
+    """
+    cur = await db.settings.find_one({"key": key}, {"_id": 0})
+    stored = (cur or {}).get("value")
+    merged = dict(stored if isinstance(stored, dict) else DEFAULTS.get(key) or {})
+    for k, v in incoming.items():
+        if k == "day_rates" and isinstance(v, dict):
+            rates = dict(merged.get("day_rates") or {})
+            rates.update(v)
+            merged["day_rates"] = {t: r for t, r in rates.items() if r is not None}
+        elif v is not None:
+            merged[k] = v
+    return merged
 
 
 async def _all(db):
@@ -87,6 +116,9 @@ async def update_settings(body: SettingsUpdate, user=Depends(SETTINGS)):
     before = await _all(db)
     updates = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
     _validate_pricing(updates)  # SET-1: tolak tarif/persen tak valid sebelum simpan (400, bukan harga absurd)
+    for key in ("pricing_rules", "pricing_defaults"):
+        if isinstance(updates.get(key), dict):
+            updates[key] = await _patch_merge(db, key, updates[key])
     if updates.get("booking_flow") is not None:
         try:
             bf.validate_patch(updates["booking_flow"])

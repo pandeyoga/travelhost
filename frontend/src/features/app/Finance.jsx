@@ -352,7 +352,7 @@ function Invoices({ onChanged }) {
 
   const setStatus = async (id, status) => {
     try { await apiClient.patch(`/invoices/${id}`, { status }); toast.success("Status invoice diperbarui"); load(); onChanged && onChanged(); }
-    catch (e) { toast.error("Gagal memperbarui status"); }
+    catch (e) { toast.error(e?.response?.data?.detail || "Gagal memperbarui status"); }
   };
 
   const sendWa = async (id) => {
@@ -393,10 +393,11 @@ function Invoices({ onChanged }) {
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-2">
                       <span className="text-[14px] font-bold tabular-nums text-[#1C1C1E]">{formatCurrency(inv.amount)}</span>
-                      <Select value={inv.status} onValueChange={(v) => setStatus(inv.id, v)}>
+                      {/* Pilihan = transisi sah dari server (`next_status`); lunas/sebagian ikut pembayaran. */}
+                      <Select value={inv.status} onValueChange={(v) => setStatus(inv.id, v)} disabled={!(inv.next_status || []).length}>
                         <SelectTrigger className="h-8 w-[120px]" data-testid={`invoice-status-${inv.id}`}><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {Object.entries(INV_STATUS).map(([v, o]) => <SelectItem key={v} value={v}>{o.l}</SelectItem>)}
+                          {[inv.status, ...(inv.next_status || [])].filter((v) => INV_STATUS[v]).map((v) => <SelectItem key={v} value={v}>{INV_STATUS[v].l}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       <button className="icon-button !h-8 !w-8" title="Lihat PDF" onClick={() => openPdf(`/invoices/${inv.id}/pdf`)} data-testid={`invoice-view-${inv.id}`}><Eye size={14} /></button>

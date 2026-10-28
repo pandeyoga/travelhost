@@ -175,6 +175,11 @@ async def update_vehicle(vehicle_id: str, body: VehicleUpdate, user=Depends(MANA
         updates["capacity"] = int(updates["capacity"])
     if "odometer" in updates:
         updates["odometer"] = float(updates["odometer"])
+        # Odometer hanya naik; koreksi salah-ketik (turun) khusus owner & tercatat di audit.
+        if updates["odometer"] < float(before.get("odometer") or 0) and user.get("role") != "owner":
+            raise HTTPException(status_code=400, detail=(
+                f"Odometer tidak boleh turun (sekarang {float(before.get('odometer') or 0):,.0f} km) — "
+                "koreksi angka hanya oleh owner").replace(",", "."))
     # `publish_to_web` = False adalah nilai SAH (sembunyikan dari web); filter `is not None`
     # di atas sudah membuangnya, jadi ambil ulang dari body agar toggle "matikan" berfungsi.
     if body.publish_to_web is not None:

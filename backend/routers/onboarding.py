@@ -7,7 +7,7 @@ POST /api/onboarding/reset        → tampilkan & reset penyelesaian manual
 Semua untuk pengguna yang sedang login (semua peran).
 """
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from schemas import APIModel
 
 from core_utils import now_iso
 from db import get_db
@@ -17,7 +17,7 @@ from services.onboarding import build_state
 router = APIRouter(prefix="/api", tags=["onboarding"])
 
 
-class CompleteBody(BaseModel):
+class CompleteBody(APIModel):
     task: str
 
 

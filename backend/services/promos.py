@@ -22,11 +22,11 @@ Semua penolakan memakai alasan berbahasa Indonesia yang bisa ditampilkan apa ada
 pelanggan — pesan "kode tidak valid" tanpa sebab membuat orang batal memesan.
 """
 import re
-from datetime import datetime, timezone
 
 from pymongo import ReturnDocument
 
 from core_utils import money
+from services.geo import business_date
 
 DISCOUNT_TYPES = ("percent", "amount")
 
@@ -68,7 +68,7 @@ def evaluate(promo, *, subtotal, days, vehicle_type, service, start_dt=None, now
         raise PromoError("Kode promo tidak ditemukan.")
     if promo.get("active") is False:
         raise PromoError("Kode promo sudah tidak aktif.")
-    today = (now or datetime.now(timezone.utc)).date().isoformat()
+    today = business_date(now).isoformat()  # kalender WIB (valid_from/until = tanggal lokal)
     vf, vu = _date_only(promo.get("valid_from")), _date_only(promo.get("valid_until"))
     if vf and today < vf:
         raise PromoError(f"Kode promo baru berlaku mulai {vf}.")
@@ -90,7 +90,8 @@ def evaluate(promo, *, subtotal, days, vehicle_type, service, start_dt=None, now
     if services and str(service or "") not in services:
         raise PromoError("Kode promo tidak berlaku untuk layanan yang dipilih.")
     if promo.get("weekend_only"):
-        if not start_dt or start_dt.weekday() < 5:
+        start_day = business_date(start_dt) if start_dt else None
+        if not start_day or start_day.weekday() < 5:
             raise PromoError("Kode promo hanya untuk keberangkatan akhir pekan (Sabtu/Minggu).")
     dtype = str(promo.get("discount_type") or "amount").strip().lower()
     if dtype not in DISCOUNT_TYPES:
@@ -188,7 +189,7 @@ async def list_for_context(db, *, subtotal, days, vehicle_type, service, start_d
     ikut dikirim supaya tamu tahu apa yang perlu diubah (mis. menambah 1 hari sewa).
     Promo yang sudah kedaluwarsa tidak diikutkan (itu sisa materi pemasaran, bukan tawaran).
     """
-    today = (datetime.now(timezone.utc)).date().isoformat()
+    today = business_date().isoformat()
     query = {"active": {"$ne": False}, "$or": [
         {"valid_until": {"$gte": today}}, {"valid_until": {"$in": [None, ""]}},
         {"valid_until": {"$exists": False}},

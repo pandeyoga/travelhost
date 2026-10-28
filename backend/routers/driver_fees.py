@@ -22,6 +22,7 @@ from schemas_ops import WithdrawCreate, WithdrawReject
 from services import media_lib as ml
 from services import media_store as ms
 from services.audit import record
+from services.availability import named_lock
 
 router = APIRouter(prefix="/api", tags=["driver-fees"])
 WORKSPACE = require_section("driver-workspace")
@@ -69,6 +70,13 @@ async def request_withdraw(body: WithdrawCreate, user=Depends(WORKSPACE)):
     amount = money(body.amount)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Nominal pencairan harus lebih dari 0")
+    # Cek saldo + reservasi HARUS serial per sopir: dulu dua pengajuan paralel sama-sama melihat
+    # saldo penuh lalu sama-sama tersimpan → total pengajuan melebihi saldo.
+    async with named_lock(db, f"driver-fee:{drv['id']}", "Saldo fee sedang diproses, coba lagi sebentar"):
+        return await _reserve_withdrawal(db, drv, body, amount, user)
+
+
+async def _reserve_withdrawal(db, drv, body, amount, user):
     nums = await _fee_numbers(db, drv["id"])
     if amount > nums["available"]:
         raise HTTPException(status_code=400,
@@ -168,7 +176,11 @@ async def reject_withdrawal(withdrawal_id: str, body: WithdrawReject, user=Depen
         raise HTTPException(status_code=400, detail="Hanya pengajuan berstatus 'requested' yang bisa ditolak")
     patch = {"status": "rejected", "reject_reason": body.reason.strip(),
              "rejected_by": user.get("id"), "updated_at": now_iso()}
-    await db.driver_withdrawals.update_one({"id": withdrawal_id}, {"$set": patch})
+    # CAS requested → rejected (pasangan dgn klaim di pay): tolak & bayar paralel tak bisa
+    # dua-duanya menang (dulu: dibayar + expense tercatat, lalu status ditimpa 'rejected').
+    claim = await db.driver_withdrawals.update_one({"id": withdrawal_id, "status": "requested"}, {"$set": patch})
+    if not claim.modified_count:
+        raise HTTPException(status_code=400, detail="Pengajuan sudah diproses (dibayar/ditolak) oleh pengguna lain")
     await record(db, actor=user, action="reject", entity_type="driver_withdrawal", entity_id=withdrawal_id,
                  before=doc, after={**doc, **patch},
                  summary=f"Tolak pencairan fee {doc.get('driver_name')}: {body.reason.strip()[:80]}")

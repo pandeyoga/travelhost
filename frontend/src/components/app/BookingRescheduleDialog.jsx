@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { formatDateTime } from "@/utils/formatters";
+import { formatCurrency, formatDateTime } from "@/utils/formatters";
 
 function toIso(localValue) {
   if (!localValue) return "";
@@ -28,7 +28,7 @@ function toLocalInput(iso) {
 
 export default function BookingRescheduleDialog({ open, onOpenChange, booking, onSaved }) {
   const [vehicles, setVehicles] = useState([]);
-  const [form, setForm] = useState({ start: "", end: "", vehicle_id: "", reason: "" });
+  const [form, setForm] = useState({ start: "", end: "", vehicle_id: "", reason: "", reprice: true });
   const [avail, setAvail] = useState(null);
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,7 +37,7 @@ export default function BookingRescheduleDialog({ open, onOpenChange, booking, o
     if (!open || !booking) return;
     setForm({
       start: toLocalInput(booking.start_datetime), end: toLocalInput(booking.end_datetime),
-      vehicle_id: booking.vehicle_id || "", reason: "",
+      vehicle_id: booking.vehicle_id || "", reason: "", reprice: true,
     });
     setAvail(null);
     apiClient.get("/vehicles").then((r) => setVehicles(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -67,9 +67,11 @@ export default function BookingRescheduleDialog({ open, onOpenChange, booking, o
     try {
       const res = await apiClient.post(`/bookings/${booking.id}/reschedule`, {
         start_datetime: toIso(form.start), end_datetime: toIso(form.end),
-        vehicle_id: form.vehicle_id || null, reason: form.reason,
+        vehicle_id: form.vehicle_id || null, reason: form.reason, reprice: form.reprice,
       });
-      toast.success(`Booking ${res.data.code} dijadwalkan ulang`);
+      const oldTotal = Number(booking.total_amount || 0), newTotal = Number(res.data.total_amount || 0);
+      toast.success(`Booking ${res.data.code} dijadwalkan ulang`, oldTotal !== newTotal
+        ? { description: `Harga ${formatCurrency(oldTotal)} → ${formatCurrency(newTotal)}` } : undefined);
       onOpenChange(false);
       onSaved && onSaved();
     } catch (e) {
@@ -115,6 +117,13 @@ export default function BookingRescheduleDialog({ open, onOpenChange, booking, o
             <label className="mb-1 block text-[12px] font-semibold text-[#6B6B73]">Alasan (opsional)</label>
             <Input value={form.reason} onChange={(e) => set("reason", e.target.value)} placeholder="Permintaan pelanggan / armada bermasalah" data-testid="rs-reason" />
           </div>
+          <label className="flex items-start gap-2 text-[12.5px] text-[#1C1C1E]">
+            <input type="checkbox" className="mt-0.5" checked={form.reprice}
+              onChange={(e) => set("reprice", e.target.checked)} data-testid="rs-reprice" />
+            <span>Hitung ulang harga sesuai tarif untuk jadwal/armada baru
+              <span className="block text-[11.5px] text-[#8E8E93]">Matikan untuk mempertahankan harga lama ({formatCurrency(booking.total_amount || 0)}), mis. harga nego.</span>
+            </span>
+          </label>
           <div className="min-h-[28px]" data-testid="rs-availability">
             {checking ? (
               <span className="inline-flex items-center gap-1 text-[12px] text-[#6B6B73]"><Loader2 size={13} className="animate-spin" /> Memeriksa ketersediaan…</span>
